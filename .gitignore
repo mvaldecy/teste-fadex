@@ -1,0 +1,50 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDEs e editores
+.idea/
+.vscode/
+*.iml
+
+# Variaveis de ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Java / Spring Boot
+target/
+build/
+out/
+.gradle/
+*.class
+*.jar
+*.war
+
+# Maven wrapper deve ser versionado quando existir
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Banco local e arquivos temporarios
+*.db
+*.sqlite
+*.sqlite3
+tmp/
+temp/
+
+# Docker local
+docker-data/
