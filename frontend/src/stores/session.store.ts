@@ -1,38 +1,79 @@
 import { create } from "zustand";
 import type { LoginFormData } from "@/src/schemas/auth.schema";
+import { toApiErrorMessage } from "@/src/services/api-error";
+import { setApiAccessToken } from "@/src/services/api-token";
+import { authService } from "@/src/services/auth.service";
+import type {
+  AuthLoginResponse,
+  AuthenticatedUser,
+  RoleValue
+} from "@/src/types/api";
 
-export type SessionUser = {
-  email: string;
-  name: string;
-  role: "ADMIN" | "SOLICITANTE";
-};
+export type SessionUser = AuthenticatedUser;
 
 type SessionState = {
   user: SessionUser | null;
+  role: RoleValue | null;
+  accessToken: string | null;
+  tokenType: AuthLoginResponse["tokenType"] | null;
+  expiresIn: number | null;
   isAuthenticated: boolean;
-  simulateLogin: (credentials: LoginFormData) => void;
+  isLoading: boolean;
+  error: string | null;
+  login: (credentials: LoginFormData) => Promise<boolean>;
   logout: () => void;
+  clearError: () => void;
 };
 
-function getNameFromEmail(email: string) {
-  return email.split("@")[0] || "usuario";
-}
-
-function getRoleFromEmail(email: string): SessionUser["role"] {
-  return email.toLowerCase().startsWith("admin") ? "ADMIN" : "SOLICITANTE";
-}
+const clearedSession = {
+  user: null,
+  role: null,
+  accessToken: null,
+  tokenType: null,
+  expiresIn: null,
+  isAuthenticated: false
+};
 
 export const useSessionStore = create<SessionState>()((set) => ({
-  user: null,
-  isAuthenticated: false,
-  simulateLogin: (credentials) =>
+  ...clearedSession,
+  isLoading: false,
+  error: null,
+  login: async (credentials) => {
+    set({ error: null, isLoading: true });
+
+    try {
+      const session = await authService.login(credentials);
+
+      setApiAccessToken(session.accessToken);
+      set({
+        accessToken: session.accessToken,
+        tokenType: session.tokenType,
+        expiresIn: session.expiresIn,
+        role: session.role,
+        user: session.user,
+        isAuthenticated: true,
+        isLoading: false
+      });
+
+      return true;
+    } catch (error) {
+      setApiAccessToken(null);
+      set({
+        ...clearedSession,
+        error: toApiErrorMessage(error),
+        isLoading: false
+      });
+
+      return false;
+    }
+  },
+  logout: () => {
+    setApiAccessToken(null);
     set({
-      user: {
-        email: credentials.email,
-        name: getNameFromEmail(credentials.email),
-        role: getRoleFromEmail(credentials.email)
-      },
-      isAuthenticated: true
-    }),
-  logout: () => set({ user: null, isAuthenticated: false })
+      ...clearedSession,
+      error: null,
+      isLoading: false
+    });
+  },
+  clearError: () => set({ error: null })
 }));
