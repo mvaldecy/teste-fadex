@@ -6,8 +6,7 @@ SDKMAN_INIT := $(HOME)/.sdkman/bin/sdkman-init.sh
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
-.PHONY: help sdk env db-up db-down db-logs db-ps db-reset backend-test backend-build backend-run backend-clean
-  frontend-install frontend-dev frontend-lint frontend-build test build run clean
+.PHONY: help sdk env db-up db-down db-logs db-ps db-reset backend-test backend-build backend-run backend-clean frontend-install frontend-dev frontend-lint frontend-build test build run clean
 
 
 help: ## Lista os comandos disponiveis
