@@ -259,6 +259,47 @@ Response `409` quando o e-mail ja existir.
 
 ## Chamados
 
+### `POST /api/v1/tickets`
+
+Protegido.
+
+O solicitante do chamado e definido pelo usuario autenticado no token. O front nao envia dados do solicitante.
+
+Request:
+
+```json
+{
+  "title": "Erro ao acessar sistema",
+  "description": "Nao consigo acessar o sistema interno."
+}
+```
+
+Regras de validacao:
+
+- `title`: obrigatorio, maximo 160 caracteres
+- `description`: obrigatorio
+
+Response `201`:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "title": "Erro ao acessar sistema",
+  "description": "Nao consigo acessar o sistema interno.",
+  "category": "OUTROS",
+  "priority": "MEDIA",
+  "status": "ABERTO",
+  "classificationOrigin": "PENDENTE",
+  "requester": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "Solicitante"
+  },
+  "assignee": null,
+  "createdAt": "2026-08-13T20:00:00",
+  "updatedAt": "2026-08-13T20:00:00"
+}
+```
+
 ### `GET /api/v1/tickets`
 
 Protegido.
@@ -326,6 +367,5 @@ Response `404` quando nao encontrar.
 
 ## Pendencias Conhecidas
 
-- Criacao de chamados ainda nao possui endpoint publicado.
 - Atualizacao de status, atribuicao, comentarios e historico ainda serao definidos.
 - O service de IA ainda esta pendente; por enquanto a classificacao fica preparada com origem `PENDENTE`.
