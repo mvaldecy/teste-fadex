@@ -13,7 +13,8 @@ public class SecurityConfig {
 	private static final String[] PUBLIC_ENDPOINTS = {
 			"/v3/api-docs/**",
 			"/swagger-ui/**",
-			"/swagger-ui.html"
+			"/swagger-ui.html",
+			"/api/v1/choices"
 	};
 
 	@Bean
