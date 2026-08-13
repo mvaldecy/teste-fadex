@@ -75,9 +75,25 @@ Variaveis com `NEXT_PUBLIC_` ficam disponiveis no navegador. Segredos nunca deve
 
 ## Infraestrutura
 
-Quando o Docker Compose for criado, ele devera ler variaveis da raiz:
+O Docker Compose le variaveis da raiz:
 
 ```bash
 cp .env.example .env
 docker compose up -d postgres
+```
+
+Com o `Makefile`, use:
+
+```bash
+make env
+make db-up
+make db-ps
+make db-logs
+make db-down
+```
+
+Para remover tambem o volume local do PostgreSQL:
+
+```bash
+make db-reset
 ```
