@@ -15,6 +15,8 @@ Esta spec define a base arquitetural inicial. O objetivo do primeiro ciclo nao e
 - PR stacks poderao ser usados quando uma entrega depender de outra, evitando PRs grandes.
 - Mensagens de commit, titulos de PR e descricoes de PR devem ser escritos em portugues.
 - Branches de trabalho devem usar escopo explicito para monorepo, como `feature(backend)/auth-jwt`.
+- PRs devem ser integrados por `squash merge`.
+- Cada PR mergeado em `dev`, `hmg` ou `prod` deve alimentar uma timeline global e changelogs por pasta principal, exceto `docs/`.
 - A aplicacao nao rodara em Docker durante o desenvolvimento diario.
 - O PostgreSQL rodara em Docker desde o inicio.
 - O frontend ficara previsto no monorepo, mas inicialmente vazio com `.gitkeep`.
@@ -35,6 +37,8 @@ teste-fadex/
     ia/
     infraestrutura/
   infra/
+    CHANGELOG.md
+  TIMELINE.md
   docker-compose.yml
   .env.example
   README.md
@@ -171,6 +175,30 @@ Cada mudanca relevante deve entrar por branch curta a partir de `dev`, por exemp
 Commits devem ser granulares e legiveis. O repositorio nao deve ser entregue com commit unico de projeto final.
 
 As convencoes detalhadas de branches, commits e PRs ficam em `docs/configuracao/convencoes-git.md`.
+
+## Timeline e Changelogs
+
+O repositorio deve ter uma automacao para registrar historico de merges feitos por PR em `dev`, `hmg` e `prod`.
+
+Arquivos planejados:
+
+- `TIMELINE.md`: historico global do projeto.
+- `backend/CHANGELOG.md`: mudancas que tocarem `backend/`.
+- `frontend/CHANGELOG.md`: mudancas que tocarem `frontend/`.
+- `infra/CHANGELOG.md`: mudancas que tocarem `infra/`.
+
+A pasta `docs/` nao tera changelog proprio. Mudancas em `docs/` aparecem apenas na timeline global.
+
+A abordagem aprovada e usar um workflow do GitHub Actions com script versionado no repositorio. O workflow deve rodar quando um PR for fechado e mergeado nas branches `dev`, `hmg` ou `prod`, usando os metadados do PR para registrar:
+
+- data do merge;
+- branch de destino;
+- numero e titulo do PR;
+- descricao do PR;
+- commits associados;
+- arquivos modificados.
+
+Essa automacao depende de merges via PR. Push direto nas branches principais deve ser evitado.
 
 ## Primeiro Ciclo de Implementacao
 

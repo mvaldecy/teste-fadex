@@ -79,6 +79,10 @@ Explique o que este PR entrega.
 - Registre decisoes, limitacoes ou proximos passos.
 ```
 
+O merge padrao de PRs deve ser `squash merge`. A mensagem final do squash deve continuar em portugues e representar a entrega do PR.
+
+Push direto para `dev`, `hmg` e `prod` deve ser evitado. Essas branches devem receber mudancas por PR para preservar descricao, commits e arquivos modificados na timeline automatizada.
+
 ## PR Stacks
 
 PR stacks podem ser usados quando uma entrega depende de outra. Nesse caso, cada PR deve informar claramente sua base e dependencia, por exemplo:
@@ -88,3 +92,16 @@ Este PR depende de `feature(backend)/auth-jwt`.
 ```
 
 O objetivo e manter revisoes pequenas sem bloquear a evolucao natural do projeto.
+
+## Timeline e Changelogs
+
+Cada PR mergeado em `dev`, `hmg` ou `prod` deve atualizar automaticamente:
+
+- `TIMELINE.md`
+- `backend/CHANGELOG.md`, quando houver mudancas em `backend/`
+- `frontend/CHANGELOG.md`, quando houver mudancas em `frontend/`
+- `infra/CHANGELOG.md`, quando houver mudancas em `infra/`
+
+A pasta `docs/` nao tera changelog proprio. Mudancas de documentacao entram apenas na timeline global.
+
+A automacao deve usar um workflow do GitHub Actions acionado por PR fechado e mergeado, com script versionado no repositorio. A entrada deve registrar data, branch de destino, numero do PR, descricao do PR, commits e arquivos modificados.
