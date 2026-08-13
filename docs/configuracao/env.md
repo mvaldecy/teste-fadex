@@ -45,6 +45,24 @@ cd backend
 
 Na IDE, configure as mesmas variaveis no run configuration.
 
+Com o `Makefile`, os comandos principais ficam:
+
+```bash
+make sdk
+make env
+make backend-test
+make backend-run
+```
+
+Aliases disponiveis:
+
+```bash
+make test
+make build
+make run
+make clean
+```
+
 ## Frontend
 
 Copie o exemplo:
