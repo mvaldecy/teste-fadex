@@ -2,16 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { loginDefaultValues } from "@/src/features/auth/login-default-values";
 import { loginFormSchema } from "@/src/schemas/auth.schema";
 import { useSessionStore } from "@/src/stores/session.store";
 import { routes } from "@/src/routes/routes";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
-
-const mockCredentials = {
-  email: "admin@fadex.org.br",
-  password: "123456"
-};
 
 export function LoginForm() {
   const router = useRouter();
@@ -52,7 +48,7 @@ export function LoginForm() {
         </label>
         <input
           className="h-11 rounded-md border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          defaultValue={mockCredentials.email}
+          defaultValue={loginDefaultValues.email}
           id="email"
           name="email"
           type="email"
@@ -68,7 +64,7 @@ export function LoginForm() {
         </label>
         <input
           className="h-11 rounded-md border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          defaultValue={mockCredentials.password}
+          defaultValue={loginDefaultValues.password}
           id="password"
           name="password"
           type="password"
