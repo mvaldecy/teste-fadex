@@ -9,8 +9,7 @@ O projeto Fadex Helpdesk e um monorepo com backend Spring Boot e frontend planej
 Inicializar o frontend com Next.js, TypeScript e uma casca de aplicacao suficiente para evoluir em PRs pequenos:
 
 - tela de login;
-- layout autenticado;
-- navegacao para chamados e indicadores;
+- home inicial vazia para receber as proximas telas;
 - base Axios centralizada em `src/services/api.ts`;
 - leitura de variaveis de ambiente;
 - estrutura de pastas com `.gitkeep` nas pastas ainda sem codigo;
@@ -41,8 +40,7 @@ frontend/
     (auth)/
       login/
     (dashboard)/
-      chamados/
-      indicadores/
+      home/
     globals.css
     layout.tsx
     page.tsx
@@ -69,13 +67,9 @@ Pastas criadas para evolucao futura devem receber `.gitkeep` quando ainda nao ti
 
 ## Fluxo Inicial
 
-A rota raiz redireciona ou aponta para uma entrada clara da aplicacao. A tela de login exibe formulario de e-mail e senha e prepara o ponto de integracao com o backend. O dashboard autenticado entrega navegacao lateral ou superior para:
+A rota raiz redireciona para `/login`. A tela de login exibe formulario de e-mail e senha com dados mockados para preparar o ponto de integracao com o backend. Ao enviar dados validos, o frontend cria uma sessao simulada no Zustand e navega para `/home`.
 
-- chamados;
-- indicadores;
-- sair.
-
-As paginas de chamados e indicadores podem iniciar com estados vazios e estrutura visual realista, sem dados mockados complexos. O objetivo e validar navegacao, layout e contratos iniciais.
+A pagina `/home` deve ficar propositalmente vazia neste ciclo, apenas com um titulo inicial. Chamados, indicadores e navegacao autenticada ficam para os proximos ciclos.
 
 ## Integracao Com API
 
@@ -122,6 +116,7 @@ Neste ciclo nao havera testes automatizados no frontend por decisao do projeto. 
 - Login real com JWT.
 - Persistencia de sessao.
 - Estado global completo de chamados, comentarios ou indicadores.
+- Layout autenticado completo.
 - CRUD de chamados.
 - Consumo real de indicadores.
 - SSE, WebSocket ou polling.
@@ -137,5 +132,6 @@ Neste ciclo nao havera testes automatizados no frontend por decisao do projeto. 
 - Axios foi incluido como base HTTP em `src/services/api.ts`.
 - Testes automatizados do frontend ficaram fora deste ciclo.
 - Next.js foi pinado em 15.5.23 para estabilidade de build local.
+- O fluxo inicial foi limitado a `/login` mockado e `/home` vazia.
 - A arquitetura preserva o contrato de choices vindo do backend.
 - As paginas iniciais nao dependem de endpoints ainda nao implementados.
