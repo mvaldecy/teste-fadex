@@ -14,6 +14,7 @@ Esta spec define a base arquitetural inicial. O objetivo do primeiro ciclo nao e
 - O desenvolvimento sera feito com PRs, mesmo sendo um projeto individual.
 - PR stacks poderao ser usados quando uma entrega depender de outra, evitando PRs grandes.
 - Mensagens de commit, titulos de PR e descricoes de PR devem ser escritos em portugues.
+- Branches de trabalho devem usar escopo explicito para monorepo, como `feature(backend)/auth-jwt`.
 - A aplicacao nao rodara em Docker durante o desenvolvimento diario.
 - O PostgreSQL rodara em Docker desde o inicio.
 - O frontend ficara previsto no monorepo, mas inicialmente vazio com `.gitkeep`.
@@ -161,9 +162,11 @@ Fluxo base:
 Cada mudanca relevante deve entrar por branch curta a partir de `dev`, por exemplo:
 
 - `feature/configuracao-base`
-- `feature/backend-auth`
-- `feature/backend-tickets-crud`
-- `feature/frontend-shell`
+- `feature(backend)/auth-jwt`
+- `feature(backend)/chamados-crud`
+- `feature(frontend)/shell-admin`
+- `feature(infra)/postgres-compose`
+- `feature(fullstack)/indicadores-tempo-real`
 
 Commits devem ser granulares e legiveis. O repositorio nao deve ser entregue com commit unico de projeto final.
 

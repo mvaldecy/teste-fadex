@@ -10,16 +10,30 @@ Mensagens de commit, titulos de PR e descricoes de PR devem ser escritos em port
 - `hmg`: homologacao e estabilizacao.
 - `prod`: entrega final.
 
-Branches de trabalho devem partir de `dev` e usar nomes curtos e descritivos:
+Branches de trabalho devem partir de `dev` e usar nomes curtos e descritivos.
+
+Como o repositorio e um monorepo, o nome da branch deve explicitar o escopo entre parenteses:
 
 ```text
-feature/configuracao-base
-feature/backend-auth
-feature/backend-chamados
-feature/frontend-shell
-fix/validacao-email-unico
-docs/readme-execucao-local
+feature(backend)/auth-jwt
+feature(backend)/chamados-crud
+feature(frontend)/shell-admin
+feature(infra)/postgres-compose
+feature(docs)/readme-execucao-local
+feature(fullstack)/indicadores-tempo-real
+fix(backend)/validacao-email-unico
+docs(configuracao)/convencoes-git
 ```
+
+Escopos sugeridos:
+
+- `backend`: mudancas restritas ao Spring Boot.
+- `frontend`: mudancas restritas ao Next.js.
+- `infra`: Docker, Compose, scripts e configuracoes de ambiente.
+- `docs`: documentacao geral.
+- `configuracao`: convencoes e estrutura do projeto.
+- `ia`: servico local de IA, embeddings e classificacao.
+- `fullstack`: mudancas coordenadas entre backend e frontend.
 
 ## Commits
 
@@ -70,7 +84,7 @@ Explique o que este PR entrega.
 PR stacks podem ser usados quando uma entrega depende de outra. Nesse caso, cada PR deve informar claramente sua base e dependencia, por exemplo:
 
 ```text
-Este PR depende de `feature/configuracao-base`.
+Este PR depende de `feature(backend)/auth-jwt`.
 ```
 
 O objetivo e manter revisoes pequenas sem bloquear a evolucao natural do projeto.
