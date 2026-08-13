@@ -51,7 +51,7 @@ As specs e planos devem ficar em `docs/` separados por subdominio. Para este cic
 Backend:
 
 - Java 21
-- Spring Boot 3
+- Spring Boot 4.1
 - Spring Web
 - Spring Security com JWT stateless
 - Spring Data JPA
