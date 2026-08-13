@@ -1,12 +1,20 @@
 import { z } from "zod";
 
+const defaultApiBaseUrl = "http://localhost:8080/api/v1";
+
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_APP_NAME: z.string().min(1).default("Fadex Helpdesk"),
   NEXT_PUBLIC_API_BASE_URL: z
-    .url()
+    .string()
+    .min(1)
+    .default(defaultApiBaseUrl)
     .refine((value) => {
-      const protocol = new URL(value).protocol;
-      return protocol === "http:" || protocol === "https:";
+      try {
+        const protocol = new URL(value).protocol;
+        return protocol === "http:" || protocol === "https:";
+      } catch {
+        return false;
+      }
     })
     .transform((value) => value.replace(/\/+$/, ""))
 });
