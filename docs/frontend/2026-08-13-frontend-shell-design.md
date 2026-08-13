@@ -20,7 +20,8 @@ Inicializar o frontend com Next.js, TypeScript e uma casca de aplicacao suficien
 
 - Usar Next.js com App Router, React e TypeScript.
 - Manter o frontend dentro de `frontend/`, separado do backend.
-- Usar CSS global simples neste ciclo, evitando biblioteca visual ate haver necessidade real.
+- Usar Tailwind CSS para estilos utilitarios e responsivos desde o scaffold inicial.
+- Manter `globals.css` apenas como entrada global das diretivas do Tailwind e estilos base realmente compartilhados.
 - Usar fetch nativo encapsulado em um cliente HTTP proprio.
 - Centralizar rotas, tipos e servicos por dominio quando houver codigo suficiente.
 - Usar `NEXT_PUBLIC_API_BASE_URL` para apontar para a API.
@@ -39,6 +40,8 @@ frontend/
     globals.css
     layout.tsx
     page.tsx
+  postcss.config.mjs
+  tailwind.config.ts
   src/
     components/
       layout/
@@ -96,6 +99,7 @@ O ciclo deve permitir verificar:
 - instalacao de dependencias do frontend;
 - lint do frontend;
 - build do frontend;
+- configuracao do Tailwind CSS aplicada nas paginas iniciais;
 - testes existentes do backend sem regressao.
 
 Se forem criados testes automatizados no frontend, eles devem cobrir pelo menos renderizacao das paginas principais ou utilitarios centrais de configuracao.
@@ -114,5 +118,6 @@ Se forem criados testes automatizados no frontend, eles devem cobrir pelo menos 
 
 - Nao ha placeholders pendentes.
 - O escopo esta limitado a scaffold e shell navegavel.
+- Tailwind CSS foi incluido como decisao de estilo do frontend.
 - A arquitetura preserva o contrato de choices vindo do backend.
 - As paginas iniciais nao dependem de endpoints ainda nao implementados.
