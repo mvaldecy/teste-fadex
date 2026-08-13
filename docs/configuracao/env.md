@@ -14,6 +14,19 @@ Arquivos reais de ambiente nao devem ser commitados:
 
 ## Backend
 
+O projeto usa Java 21. Com SDKMAN, entre na raiz do repositorio e rode:
+
+```bash
+sdk env
+```
+
+Se o JDK ainda nao estiver instalado:
+
+```bash
+sdk install java 21.0.8-tem
+sdk env
+```
+
 Copie o exemplo:
 
 ```bash
