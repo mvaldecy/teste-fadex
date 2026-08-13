@@ -1,4 +1,4 @@
-export type ApiErrorBody = {
+export type ApiErrorResponse = {
   message?: string;
   error?: string;
 };

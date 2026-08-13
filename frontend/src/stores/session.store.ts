@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { LoginFormData } from "./auth.schemas";
+import type { LoginFormData } from "@/src/schemas/auth.schema";
 
 export type SessionUser = {
   email: string;

@@ -11,21 +11,25 @@ Inicializar o frontend com Next.js, TypeScript e uma casca de aplicacao suficien
 - tela de login;
 - layout autenticado;
 - navegacao para chamados e indicadores;
-- cliente HTTP centralizado;
+- base Axios centralizada em `src/services/api.ts`;
 - leitura de variaveis de ambiente;
 - estrutura de pastas com `.gitkeep` nas pastas ainda sem codigo;
 - preparacao para consumir choices do backend sem hardcode de labels de enums.
 
 ## Decisoes
 
-- Usar Next.js com App Router, React e TypeScript.
+- Usar Next.js 15.5.23 com App Router, React e TypeScript.
 - Manter o frontend dentro de `frontend/`, separado do backend.
-- Usar Tailwind CSS para estilos utilitarios e responsivos desde o scaffold inicial.
+- Usar Tailwind CSS 3 para estilos utilitarios e responsivos desde o scaffold inicial.
 - Manter `globals.css` apenas como entrada global das diretivas do Tailwind e estilos base realmente compartilhados.
 - Usar Zod para validacao de formularios, variaveis de ambiente publicas e contratos de resposta consumidos da API.
 - Usar Zustand para estado cliente leve, iniciando por sessao simulada e estado de UI que precise ser compartilhado entre componentes.
-- Usar fetch nativo encapsulado em um cliente HTTP proprio.
-- Centralizar rotas, tipos e servicos por dominio quando houver codigo suficiente.
+- Usar Axios para chamadas HTTP.
+- Criar `src/services/api.ts` com a instancia base do Axios.
+- Services de dominio devem ficar em `src/services/` e chamar a base Axios para acessar endpoints.
+- Centralizar rotas, schemas, stores, tipos e services por responsabilidade.
+- Pin de dependencias no frontend deve evitar `latest` para preservar build reproduzivel.
+- Overrides de `postcss` e `sharp` devem manter `npm audit --omit=dev` sem vulnerabilidades conhecidas de producao.
 - Usar `NEXT_PUBLIC_API_BASE_URL` para apontar para a API.
 - Manter autenticacao inicialmente como estrutura de tela e contrato esperado, sem integrar JWT real ate o backend de auth existir.
 
@@ -54,11 +58,10 @@ frontend/
       choices/
       tickets/
       indicators/
-    lib/
-      http/
-      routes/
-      schemas/
-      store/
+    routes/
+    schemas/
+    services/
+    stores/
     types/
 ```
 
@@ -76,7 +79,7 @@ As paginas de chamados e indicadores podem iniciar com estados vazios e estrutur
 
 ## Integracao Com API
 
-O cliente HTTP deve montar URLs a partir de `NEXT_PUBLIC_API_BASE_URL`. Erros devem ser normalizados em um formato simples para que telas futuras exibam mensagens consistentes.
+A instancia Axios em `src/services/api.ts` deve montar URLs a partir de `NEXT_PUBLIC_API_BASE_URL`. Services de dominio devem importar essa instancia e expor funcoes sem acoplar componentes a detalhes HTTP.
 
 Schemas Zod devem validar os limites da aplicacao: entrada de formulario, configuracao publica e respostas externas. Tipos TypeScript derivados de schemas devem ser preferidos quando o dado vem de fora da aplicacao.
 
@@ -112,7 +115,7 @@ O ciclo deve permitir verificar:
 - store Zustand criada sem acoplar regra de negocio ainda inexistente;
 - testes existentes do backend sem regressao.
 
-Se forem criados testes automatizados no frontend, eles devem cobrir pelo menos renderizacao das paginas principais ou utilitarios centrais de configuracao.
+Neste ciclo nao havera testes automatizados no frontend por decisao do projeto. A verificacao do frontend sera feita com lint e build.
 
 ## Fora De Escopo
 
@@ -129,7 +132,10 @@ Se forem criados testes automatizados no frontend, eles devem cobrir pelo menos 
 
 - Nao ha placeholders pendentes.
 - O escopo esta limitado a scaffold e shell navegavel.
-- Tailwind CSS foi incluido como decisao de estilo do frontend.
+- Tailwind CSS 3 foi incluido como decisao de estilo do frontend.
 - Zod e Zustand foram incluidos com uso limitado aos pontos de extensao iniciais.
+- Axios foi incluido como base HTTP em `src/services/api.ts`.
+- Testes automatizados do frontend ficaram fora deste ciclo.
+- Next.js foi pinado em 15.5.23 para estabilidade de build local.
 - A arquitetura preserva o contrato de choices vindo do backend.
 - As paginas iniciais nao dependem de endpoints ainda nao implementados.

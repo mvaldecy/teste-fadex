@@ -4,8 +4,9 @@ SHELL := /bin/bash
 
 SDKMAN_INIT := $(HOME)/.sdkman/bin/sdkman-init.sh
 BACKEND_DIR := backend
+FRONTEND_DIR := frontend
 
-.PHONY: help sdk env backend-test backend-build backend-run backend-clean test build run clean
+.PHONY: help sdk env backend-test backend-build backend-run backend-clean frontend-install frontend-dev frontend-lint frontend-build test build run clean
 
 help: ## Lista os comandos disponiveis
 	@awk 'BEGIN {FS = ":.*##"; printf "\nComandos disponiveis:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  make %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -34,9 +35,21 @@ backend-run: ## Executa o backend localmente
 backend-clean: ## Remove artefatos de build do backend
 	@source "$(SDKMAN_INIT)" && sdk env >/dev/null && cd "$(BACKEND_DIR)" && ./gradlew clean
 
+frontend-install: ## Instala dependencias do frontend
+	@cd "$(FRONTEND_DIR)" && npm install
+
+frontend-dev: ## Executa o frontend localmente
+	@cd "$(FRONTEND_DIR)" && npm run dev
+
+frontend-lint: ## Executa o lint do frontend
+	@cd "$(FRONTEND_DIR)" && npm run lint
+
+frontend-build: ## Gera o build do frontend
+	@cd "$(FRONTEND_DIR)" && npm run build
+
 test: backend-test ## Alias para backend-test
 
-build: backend-build ## Alias para backend-build
+build: backend-build frontend-build ## Gera builds do backend e frontend
 
 run: backend-run ## Alias para backend-run
 
