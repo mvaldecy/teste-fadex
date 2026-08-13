@@ -6,6 +6,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+.worktrees/
 
 # Variaveis de ambiente e segredos
 .env
