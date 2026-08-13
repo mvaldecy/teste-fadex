@@ -32,6 +32,7 @@ out/
 dist/
 coverage/
 .turbo/
+*.tsbuildinfo
 
 # Logs
 *.log
