@@ -16,7 +16,9 @@
 - Commits em portugues, com escopo: `feat(backend):`, `test(backend):`, `docs(ia):`. **Sem trailer de co-autoria** — nada de `Co-Authored-By:` ou `Claude-Session:`.
 - **Regime de revisao vigente: durante a implementacao, NAO commitar codigo.** Os passos "Commit" das Tasks 1 a 14 ficam suspensos: o codigo permanece no working tree, sem `git add` e sem `git commit`, para o Marcos revisar o diff inteiro de uma vez. Proibido `git stash`, `git checkout .` e `git reset` sobre o codigo de implementacao — trabalho nao commitado e o material de revisao. Design e plano (Task 0) commitam normalmente. Quando o regime for suspenso, os passos de commit voltam a valer como escritos.
 - `make backend-test` precisa passar antes de declarar qualquer etapa concluida. Rodar de verdade e conferir a saida — nao afirmar que passou sem evidencia.
-- **A implementacao so comeca apos aprovacao explicita do design pelo Marcos.**
+- **Design aprovado pelo Marcos.** Implementacao liberada.
+- **D7 decidido: saida A.** A `V5` cria `tickets.classification_reviewed_at`; o denominador da concordancia sao os chamados revisados com sugestao registrada. O campo do payload chama-se `agreementRate` e mede aceite real.
+- A frente API adiciona `TicketEventType.RESPONSAVEL_REMOVIDO` e altera `ck_ticket_events_type` na `V4`. Esta frente nao cria tipo de evento novo — usa `CLASSIFICACAO_ATUALIZADA`, que ja existe.
 - **Proibido escrever em `Ticket.category`, `Ticket.priority` ou `Ticket.classificationOrigin`** fora de `TicketService.applyClassification(...)`. Isso inclui mutar a entidade dentro de metodo `@Transactional` — o dirty checking persiste igual.
 - **Proibido editar** `controller/TicketController.java`, `service/TicketService.java`, `security/**`, `db/migration/V4__*.sql`, `frontend/**` e o arquivo de nomes de eventos SSE da frente API.
 - `TicketRepository` e leitura apenas; nenhum metodo novo e adicionado nele.
@@ -45,8 +47,9 @@ Pacote base novo: `backend/src/main/java/br/org/fadex/helpdesk/ai`.
 - Create `ai/job/AiJobController.java`: `GET /api/v1/ai/jobs`, `POST /api/v1/ai/jobs/{id}/retry`.
 - Modify `ai/job/AiJobService.java`: metodo `findAll(AiJobFilter, Pageable)`.
 
-**Auditoria e revisao (Tasks 4-7)**
-- Create `ai/classification/TicketAiAuditRepository.java`: update nativo das tres colunas de auditoria.
+**Auditoria e revisao (Tasks 4-bis a 7)**
+- Create `backend/src/main/resources/db/migration/V5__add_classification_reviewed_at.sql`: coluna do carimbo de revisao.
+- Modify `model/ticket/Ticket.java`: campo `classificationReviewedAt` e `markClassificationReviewed(...)`.
 - Create `ai/classification/TicketClassificationUpdateDto.java`: request da revisao.
 - Create `ai/classification/TicketClassificationReviewService.java`: regra de aceite/correcao.
 - Create `ai/classification/TicketClassificationController.java`: `PATCH /api/v1/tickets/{id}/classification`.
@@ -452,67 +455,71 @@ git commit -m "feat(backend): expoe endpoints admin de operacao da fila de ia"
 
 ---
 
-## Task 4: Repository de auditoria da sugestao da IA
+## Task 4: (removida) Repository de auditoria da sugestao
 
-**Depende da `V4`.** Se a `V4` ainda nao estiver em `dev`, pular para a Task 8 e voltar depois.
+**Esta task foi removida.** A frente API entrega `Ticket.applyAiSuggestion(...)` junto com a `V4`, e o
+worker passa a usar esse metodo em vez de um `UPDATE` nativo proprio. Ver D1 revisado no design: a
+troca elimina o risco de o flush do `applyClassification(...)` sobrescrever a auditoria com `null`.
+
+Nao criar `TicketAiAuditRepository`. A escrita das tres colunas acontece na Task 5.
+
+---
+
+## Task 4-bis: Migration V5 e carimbo de revisao
+
+**Depende da `V4`** (a `V5` roda depois dela). Implementa a saida A de D7.
 
 **Files:**
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/ai/classification/TicketAiAuditRepository.java`
+- Create: `backend/src/main/resources/db/migration/V5__add_classification_reviewed_at.sql`
+- Modify: `backend/src/main/java/br/org/fadex/helpdesk/model/ticket/Ticket.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/repository/TicketPersistenceTest.java`
 
 **Interfaces:**
-- Produces: `TicketAiAuditRepository.updateSuggestion(UUID ticketId, String category, String priority, Double confidence) -> int`.
+- Produces: coluna `tickets.classification_reviewed_at`; `Ticket.markClassificationReviewed(LocalDateTime)`; `Ticket.getClassificationReviewedAt()`.
 
-Justificativa em D1 do design: colunas de auditoria pura, sem `TicketEvent`, mesmo precedente do `TicketEmbeddingRepository`. Enum vai como `String` porque a query e nativa e as colunas sao `varchar`.
+`V5` e a unica migration desta frente. Nao adicionar nada alem desta coluna — as colunas de `V4` sao da frente API.
 
-**`flushAutomatically = true, clearAutomatically = true` nao e opcional.** Ver a ressalva de D1: ao contrario da coluna `embedding` (desmapeada no commit `96521c0`), estas tres ficam mapeadas em `Ticket`. Sem os dois flags, o flush de `applyClassification(...)` na mesma transacao sobrescreve com `null` o que este update acabou de gravar.
+- [ ] **Step 1: Criar a migration**
 
-- [ ] **Step 1: Criar o repository**
+```sql
+alter table tickets add column classification_reviewed_at timestamp;
+```
+
+Sem default e sem `not null`: chamado nunca revisado precisa ficar nulo, e e justamente esse nulo que
+mantem o chamado fora do denominador da concordancia.
+
+- [ ] **Step 2: Mapear na entidade**
+
+Em `Ticket`, junto dos demais campos de classificacao:
 
 ```java
-package br.org.fadex.helpdesk.ai.classification;
-
-import br.org.fadex.helpdesk.model.ticket.Ticket;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
-import java.util.UUID;
-
-/**
- * Escrita estreita das colunas de auditoria da IA em {@code tickets}.
- *
- * Estas tres colunas nao sao regra de negocio e nao entram no historico do chamado, por isso nao
- * passam por {@code TicketService.applyClassification(...)}. Mesma forma ja usada por
- * {@code TicketEmbeddingRepository} para as colunas de embedding. Qualquer escrita em
- * {@code category}, {@code priority} ou {@code classification_origin} continua proibida aqui.
- */
-public interface TicketAiAuditRepository extends JpaRepository<Ticket, UUID> {
-
-	@Modifying(flushAutomatically = true, clearAutomatically = true)
-	@Query(value = """
-			update tickets
-			set ai_suggested_category = :category,
-			    ai_suggested_priority = :priority,
-			    ai_confidence = :confidence
-			where id = :ticketId
-			""", nativeQuery = true)
-	int updateSuggestion(
-			@Param("ticketId") UUID ticketId,
-			@Param("category") String category,
-			@Param("priority") String priority,
-			@Param("confidence") Double confidence
-	);
-}
+	@Column(name = "classification_reviewed_at")
+	private LocalDateTime classificationReviewedAt;
 ```
 
-- [ ] **Step 2: Compilar e commitar**
+E o metodo de dominio, junto de `applyManualClassification`:
 
-```bash
-make backend-test
-git add backend/src/main/java/br/org/fadex/helpdesk/ai/classification/TicketAiAuditRepository.java
-git commit -m "feat(backend): adiciona repositorio de auditoria da sugestao da ia"
+```java
+	public void markClassificationReviewed(LocalDateTime reviewedAt) {
+		this.classificationReviewedAt = reviewedAt;
+	}
+
+	public LocalDateTime getClassificationReviewedAt() {
+		return classificationReviewedAt;
+	}
 ```
+
+`Ticket` pertence a frente API; esta e a unica alteracao desta frente no arquivo, e e aditiva.
+
+- [ ] **Step 3: Rodar a suite**
+
+Run: `make backend-test`
+Expected: PASS. `spring.jpa.hibernate.ddl-auto=validate` so passa se a migration e o mapeamento
+casarem — e o que prova que a coluna existe com o tipo certo.
+
+- [ ] **Step 4: Commit**
+
+Suspenso pelo regime de revisao vigente. Deixar no working tree.
 
 ---
 
@@ -525,7 +532,7 @@ git commit -m "feat(backend): adiciona repositorio de auditoria da sugestao da i
 - Test: `backend/src/test/java/br/org/fadex/helpdesk/ai/job/AiJobWorkerTest.java`
 
 **Interfaces:**
-- Consumes: `TicketService.applyClassification(UUID, TicketCategory, TicketPriority, ClassificationOrigin, String)`, `TicketAiAuditRepository.updateSuggestion(...)`, `AiNotificationEventName`.
+- Consumes: `TicketService.applyClassification(UUID, TicketCategory, TicketPriority, ClassificationOrigin, String)`, `Ticket.applyAiSuggestion(TicketCategory, TicketPriority, Double)` (entregue pela frente API com a `V4`), `AiNotificationEventName`.
 - Produces: nenhuma assinatura publica nova.
 
 Contexto obrigatorio (D2 do design): hoje `processClassification` chama `ticket.applyAutomaticClassification(...)` na entidade gerenciada, dentro de metodo `@Transactional`. O dirty checking persiste isso. Esta tarefa **remove** essa linha; nao adiciona uma chamada ao lado dela.
@@ -571,7 +578,7 @@ void deveGravarSugestaoEConfiancaDaIa() {
 
 	worker.processDueJobs();
 
-	verify(ticketAiAuditRepository).updateSuggestion(ticketId, "INFRAESTRUTURA", "ALTA", 0.87);
+	verify(ticket).applyAiSuggestion(TicketCategory.INFRAESTRUTURA, TicketPriority.ALTA, 0.87);
 }
 
 @Test
@@ -632,7 +639,7 @@ Expected: FAIL — construtor sem as dependencias novas
 
 - [ ] **Step 3: Adicionar as dependencias novas ao construtor do worker**
 
-Acrescentar `TicketService ticketService`, `TicketAiAuditRepository ticketAiAuditRepository` e `ApplicationEventPublisher applicationEventPublisher` aos parametros e aos campos, mantendo os existentes na mesma ordem.
+Acrescentar `TicketService ticketService` e `ApplicationEventPublisher applicationEventPublisher` aos parametros e aos campos, mantendo os existentes na mesma ordem.
 
 - [ ] **Step 4: Reescrever `processClassification`**
 
@@ -643,21 +650,20 @@ private void processClassification(AiJob job) {
 			? classifyWithFallback(ticket)
 			: fallbackTicketClassifier.classify(ticket.getTitle(), ticket.getDescription());
 
-	// ORDEM OBRIGATORIA (ressalva de D1): applyClassification primeiro, auditoria depois.
-	// Invertida, o flush do applyClassification zera as colunas de auditoria recem-gravadas.
+	// Auditoria na propria entidade gerenciada: um UPDATE unico e coerente, sem ordem obrigatoria
+	// entre as duas escritas e sem risco de sobrescrita por flush (D1 revisado).
+	ticket.applyAiSuggestion(
+			classification.category(),
+			classification.priority(),
+			classification.confidence()
+	);
+
 	ticketService.applyClassification(
 			ticket.getId(),
 			classification.category(),
 			classification.priority(),
 			ClassificationOrigin.IA,
 			classification.justification()
-	);
-
-	ticketAiAuditRepository.updateSuggestion(
-			ticket.getId(),
-			classification.category().name(),
-			classification.priority().name(),
-			classification.confidence()
 	);
 
 	publishClassificationDone(ticket.getId(), classification);
@@ -829,7 +835,7 @@ git commit -m "feat(backend): expoe sugestao e confianca da ia no dto do chamado
 
 ## Task 7: PATCH de revisao da classificacao
 
-**Depende das Tasks 4 e 6** e da seam `applyClassification`. **Requisito obrigatorio do desafio.**
+**Depende das Tasks 5 e 6** e da seam `applyClassification`. **Requisito obrigatorio do desafio.**
 
 **Files:**
 - Create: `backend/src/main/java/br/org/fadex/helpdesk/ai/classification/TicketClassificationUpdateDto.java`
@@ -842,6 +848,8 @@ git commit -m "feat(backend): expoe sugestao e confianca da ia no dto do chamado
 - Produces: `TicketClassificationReviewService.review(UUID id, TicketClassificationUpdateDto dto) -> TicketDto`.
 
 Regra (D7 e contrato do design): origem vira `MANUAL` quando os valores enviados **diferem da sugestao da IA**. Aceite dos valores sugeridos mantem `IA`. Chamado ainda `PENDENTE`, sem sugestao registrada, sempre vira `MANUAL`.
+
+**Aceite e correcao carimbam `classificationReviewedAt`.** E esse carimbo que sustenta o denominador de `agreementRate` — sem ele, aceite e "ninguem olhou" voltam a ser indistinguiveis. Adicionar teste: `deveCarimbarInstanteDaRevisaoNosDoisCaminhos`.
 
 - [ ] **Step 1: Escrever os testes que falham**
 
@@ -1007,6 +1015,7 @@ public class TicketClassificationReviewService {
 		String justification = resolveJustification(dto, origin);
 
 		ticketService.applyClassification(id, dto.category(), dto.priority(), origin, justification);
+		ticket.markClassificationReviewed(LocalDateTime.now(clock));
 		publishIndicatorsUpdated(id);
 
 		TicketDto response = ticketService.findById(id);
@@ -1455,7 +1464,7 @@ git commit -m "feat(backend): adiciona alvos de sla por prioridade"
 
 **Interfaces:**
 - Produces: `IndicatorRepository.findAllProjections() -> List<TicketIndicatorProjection>`.
-- Produces: `TicketIndicatorProjection(UUID ticketId, TicketStatus status, TicketPriority priority, TicketCategory category, ClassificationOrigin classificationOrigin, TicketCategory aiSuggestedCategory, TicketPriority aiSuggestedPriority, Double aiConfidence, UUID requesterId, String requesterName, UUID assigneeId, String assigneeName, LocalDateTime createdAt, LocalDateTime assignedAt, LocalDateTime firstResponseAt, LocalDateTime closedAt)`.
+- Produces: `TicketIndicatorProjection(UUID ticketId, TicketStatus status, TicketPriority priority, TicketCategory category, ClassificationOrigin classificationOrigin, TicketCategory aiSuggestedCategory, TicketPriority aiSuggestedPriority, Double aiConfidence, UUID requesterId, String requesterName, UUID assigneeId, String assigneeName, LocalDateTime createdAt, LocalDateTime assignedAt, LocalDateTime firstResponseAt, LocalDateTime closedAt, LocalDateTime classificationReviewedAt)`.
 
 Decisao D4 e D5 do design: repository proprio, somente leitura, e uma unica projecao com JPQL construtora. Nao carrega `title`, `description` nem `embedding` — campos pesados que nenhum indicador usa. `TicketRepository` da frente API nao e tocado.
 
@@ -1488,7 +1497,8 @@ public record TicketIndicatorProjection(
 		LocalDateTime createdAt,
 		LocalDateTime assignedAt,
 		LocalDateTime firstResponseAt,
-		LocalDateTime closedAt
+		LocalDateTime closedAt,
+		LocalDateTime classificationReviewedAt
 ) {
 
 	public boolean isOpen() {
@@ -1501,6 +1511,10 @@ public record TicketIndicatorProjection(
 
 	public boolean hasSuggestion() {
 		return aiSuggestedCategory != null && aiSuggestedPriority != null;
+	}
+
+	public boolean isReviewed() {
+		return classificationReviewedAt != null;
 	}
 }
 ```
@@ -1541,7 +1555,8 @@ public interface IndicatorRepository extends JpaRepository<Ticket, UUID> {
 				ticket.createdAt,
 				ticket.assignedAt,
 				ticket.firstResponseAt,
-				ticket.closedAt
+				ticket.closedAt,
+				ticket.classificationReviewedAt
 			)
 			from Ticket ticket
 			join ticket.requester requester
@@ -1617,15 +1632,25 @@ void deveClassificarAgingDoBacklogEmTresBuckets() {
 
 @Test
 void deveCalcularConcordanciaComoSugestaoQueContinuaValendo() {
-	// 1: sugeriu ACESSO/MEDIA, vale ACESSO/MEDIA, origem IA        -> concorda
-	// 2: sugeriu ACESSO/MEDIA, vale RH/ALTA, origem MANUAL         -> discorda
-	// 3: sugeriu RH/BAIXA, vale RH/BAIXA, origem MANUAL            -> concorda (aceite confirmado)
-	// 4: sem sugestao, origem PENDENTE                             -> fora do denominador
+	// 1: sugeriu ACESSO/MEDIA, vale ACESSO/MEDIA, revisado    -> concorda (aceite)
+	// 2: sugeriu ACESSO/MEDIA, vale RH/ALTA, revisado         -> discorda (corrigido)
+	// 3: sugeriu RH/BAIXA, vale RH/BAIXA, revisado            -> concorda
+	// 4: sugeriu SISTEMAS/ALTA, vale SISTEMAS/ALTA, NAO revisado -> fora do denominador
+	// 5: sem sugestao, origem PENDENTE                        -> fora do denominador
 	AgreementRateDto agreement = indicatorService.getIndicators().ai().agreementRate();
 
 	assertThat(agreement.evaluated()).isEqualTo(3);
 	assertThat(agreement.agreed()).isEqualTo(2);
 	assertThat(agreement.percentage()).isEqualTo(66.7);
+}
+
+@Test
+void naoDeveContarChamadoNaoRevisadoComoAceite() {
+	// unico chamado: sugestao registrada, valores batem, classificationReviewedAt nulo
+	AgreementRateDto agreement = indicatorService.getIndicators().ai().agreementRate();
+
+	assertThat(agreement.evaluated()).isZero();
+	assertThat(agreement.percentage()).isNull();
 }
 
 @Test
@@ -1812,7 +1837,7 @@ Regras que os metodos privados precisam respeitar:
 - `backlogAging`: so `isOpen()`; idade `Duration.between(createdAt, now)`; buckets `<= 24h`, `> 24h && <= 72h`, `> 72h`.
 - `oldestOpenTicketHours`: maior idade entre os abertos; `null` se nao ha abertos.
 - `sla`: para cada projecao, `SlaTarget.forPriority(priority).evaluate(elapsed, isClosed())`, onde `elapsed` e `createdAt -> closedAt` se fechado e `createdAt -> now` se aberto. `NOT_EVALUABLE` nao entra em `evaluated`. `percentage` e `null` quando `evaluated == 0`.
-- `agreementRate`: denominador `hasSuggestion() && classificationOrigin != PENDENTE`; concorda quando `category == aiSuggestedCategory && priority == aiSuggestedPriority`. `percentage` arredondado a uma casa, `null` quando `evaluated == 0`.
+- `agreementRate`: denominador `hasSuggestion() && classificationReviewedAt != null`; concorda quando `category == aiSuggestedCategory && priority == aiSuggestedPriority`. `percentage` arredondado a uma casa, `null` quando `evaluated == 0`. Chamado nao revisado fica fora — e o ponto da saida A de D7.
 - `averageConfidence`: media de `aiConfidence` nao nulos, arredondada a duas casas; `null` se nao ha nenhum.
 - `jobQueue`: `aiJobRepository.countByStatus(...)` para os quatro status. O tempo sai como `averageQueueToDoneSeconds` — media de `updatedAt - createdAt` nos jobs `DONE`. O nome diz o que o numero e: tempo de fila somado ao de execucao, nao tempo puro de processamento. `AiJob` nao guarda instante de inicio, entao "tempo de processamento" seria mentira; um numero honesto com nome preciso vale mais que um `null`, que o avaliador le como funcionalidade faltando. `null` apenas quando nao ha nenhum job `DONE`. Exige `AiJobRepository.findByStatus(AiJobStatus)` ou uma projecao equivalente.
 - `duplicatesDetected`: `ticketLinkRepository.count()`.
@@ -2266,16 +2291,16 @@ O prazo e 15/08/2026 as 12h. Se o tempo apertar, corta de baixo para cima:
 | 3o a cair | p90 dentro da Task 8 | Media e mediana bastam |
 | 4o a cair | Camada 4 dentro da Task 11 | Estatistica por responsavel |
 | 5o a cair | SLA (Task 9 + fatia da 11) | Ultimo item cortavel |
-| **Nunca corta** | Tasks 4-7, 10-12 | Revisao de classificacao e indicadores sao obrigatorios do desafio |
+| **Nunca corta** | Tasks 4-bis, 5-7, 10-12 | Revisao de classificacao e indicadores sao obrigatorios do desafio |
 
-Tasks 1, 8, 9, 10 nao dependem da `V4` e podem ser executadas antes dela chegar em `dev`; Tasks 2 e 3 tambem. Tasks 4, 5, 6, 7, 11 e 12 esperam a `V4`.
+Tasks 1, 8, 9, 10 nao dependem da `V4` e podem ser executadas antes dela chegar em `dev`; Tasks 2 e 3 tambem. Tasks 4-bis, 5, 6, 7, 11 e 12 esperam a `V4`.
 
 ## Self-Review
 
-**Cobertura do design.** D1 -> Task 4. D2 -> Task 5. D3 -> Task 1. D4 -> Task 10. D5 -> Tasks 10-11. D6 -> Task 9. D7 -> Tasks 7 e 11. D8 -> Tasks 13-14. Contratos: `PATCH classification` -> Task 7; `TicketDto` -> Task 6; `GET /ai/jobs` e retry -> Tasks 2-3; `GET /indicators` -> Tasks 11-12; eventos SSE -> Tasks 5 e 7; documentacao -> Task 15.
+**Cobertura do design.** D1 -> Task 5 (via `Ticket.applyAiSuggestion`). D2 -> Task 5. D3 -> Task 1. D4 -> Task 10. D5 -> Tasks 10-11. D6 -> Task 9. D7 -> Tasks 4-bis, 7 e 11. D8 -> Tasks 13-14. Contratos: `PATCH classification` -> Task 7; `TicketDto` -> Task 6; `GET /ai/jobs` e retry -> Tasks 2-3; `GET /indicators` -> Tasks 11-12; eventos SSE -> Tasks 5 e 7; documentacao -> Task 15.
 
 **Consistencia de tipos.** `DurationStatsDto` (Task 8) e consumido por `DurationGroupDto` e `AssigneeClosureDto` (Task 11). `SlaOutcome` (Task 9) e consumido pelo calculo de `SlaSliceDto` (Task 11). `TicketIndicatorProjection` (Task 10) alimenta os quatro construtores da Task 11. `AiNotificationEventName` (Task 1) e usado nas Tasks 5 e 7. `AiJobFilter`/`AiJobFields` (Task 2) sao usados na Task 3.
 
 **Lacuna assumida.** `AiJob` nao registra o instante em que o processamento comecou, entao tempo puro de execucao nao e calculavel sem coluna nova. Em vez de devolver `null`, a Task 11 expoe `averageQueueToDoneSeconds` (`updatedAt - createdAt` dos jobs `DONE`), cujo nome declara que fila e execucao estao somadas. Documentado no `api.md` na Task 15.
 
-**Decisao em aberto que bloqueia a Task 11.** A taxa de concordancia depende da saida escolhida em D7 do design (coluna `classification_reviewed_at` na `V5`, versus `MANUAL` em toda revisao, versus renomear a metrica). Ate a decisao do Marcos, a Task 11 implementa a leitura C e nomeia o campo `suggestionsStillInEffect`. Trocar para a saida A mexe em tres pontos: a migration `V5`, o carimbo no `TicketClassificationReviewService` (Task 7) e o filtro do denominador na Task 11.
+**D7 resolvido (saida A).** A `V5` entra como Task 4-bis, o carimbo fica na Task 7 e o denominador da Task 11 filtra por `classificationReviewedAt != null`. O campo do payload e `agreementRate`.

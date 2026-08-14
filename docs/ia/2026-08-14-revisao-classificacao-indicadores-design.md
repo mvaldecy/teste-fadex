@@ -86,9 +86,10 @@ recebem sugestao **diferente** em pelo menos parte dos casos, para a taxa nao sa
 significar alguma coisa; os `PENDENTE` ficam nulos. Confianca entre 0.55 e 0.95, variada — confianca
 constante nao exercita nada.
 
-Se a saida A de D7 for escolhida, o seed precisa tambem carimbar `classification_reviewed_at` em
-parte dos chamados; caso contrario o denominador da concordancia fica zerado mesmo com as sugestoes
-preenchidas. Esse carimbo e da `V5`, ou seja, desta frente — nao e pedido a frente API.
+Confirmada a saida A de D7, o seed precisa tambem carimbar `classification_reviewed_at` em parte dos
+chamados; sem isso o denominador da concordancia fica zerado mesmo com as sugestoes preenchidas. Esse
+carimbo e da `V5`, ou seja, **desta frente** — nao e pedido a frente API. Entra como passo proprio,
+em SQL nativo, aplicado sobre os chamados ja semeados que tenham sugestao registrada.
 
 Se a frente API nao fizer isso a tempo, a saida desta frente e um seed complementar proprio,
 condicionado a `app.seed.enabled`, gravando so essas tres colunas. Nao entra sem necessidade — e
@@ -107,44 +108,38 @@ concordancia, confianca media) e nenhuma tem por onde escrever.
 `ai_suggested_category`, `ai_suggested_priority` e `ai_confidence` sao colunas de **auditoria pura**:
 nao mudam o que o chamado e, nao tem transicao valida ou invalida, nao aparecem no historico.
 
-**Decisao.** Escrita direta por um repository proprio da frente IA, com um unico `@Modifying`
-nativo e estreito, chamado pelo `AiJobWorker`.
+**Decisao (revisada).** Usar `Ticket.applyAiSuggestion(...)`, metodo que a frente API vai entregar
+junto com a `V4`. O worker chama o metodo na entidade gerenciada e o Hibernate persiste no flush.
 
-**Precedente.** `TicketEmbeddingRepository extends JpaRepository<Ticket, UUID>` ja faz exatamente
-isso para `embedding`, `embedding_model` e `embedding_updated_at` — colunas de IA na tabela
-`tickets`, escritas pelo worker, sem passar por `TicketService`. Essa forma foi mergeada na `V3` e
-esta decisao apenas a repete para colunas da mesma natureza.
-
-**Alternativa descartada.** Tabela propria na `V5` para a sugestao. Custa uma migration, um join em
-toda leitura de indicador e cria uma segunda fonte de verdade sobre o mesmo chamado. A `V4` ja
-reserva as colunas em `tickets`; criar a tabela seria contrariar o contrato acordado.
-
-**Limite.** O repository so pode escrever essas tres colunas. Qualquer escrita em `category`,
-`priority` ou `classificationOrigin` continua obrigatoriamente em `applyClassification(...)`.
-
-**Ressalva importante — o precedente nao e identico.** O commit `96521c0` removeu o mapeamento JPA
-da coluna `embedding`: ela nao existe mais como campo em `Ticket`. E por isso que a escrita nativa
-do `TicketEmbeddingRepository` nao briga com o Hibernate.
-
-As tres colunas de auditoria **serao mapeadas** em `Ticket` — precisam ser, porque o `TicketMapper`
-le os getters para expor `confidence` no DTO. Isso cria um risco que o precedente nao tinha:
+**Esta decisao substitui a anterior**, que era um repository proprio com `UPDATE` nativo estreito,
+espelhando o `TicketEmbeddingRepository`. A troca nao e cosmetica — ela **elimina um bug** que a
+versao anterior tinha e que so apareceria em producao:
 
 ```text
-1. updateSuggestion(...) grava ai_suggested_* direto no banco, por SQL nativo.
-2. O Ticket gerenciado no persistence context continua com null nesses campos.
-3. applyClassification(...) muta category/priority e o flush emite UPDATE de todas as
-   colunas mapeadas — sobrescrevendo com null o que o passo 1 acabou de gravar.
+versao antiga (descartada):
+1. updateSuggestion(...) grava ai_suggested_* por SQL nativo.
+2. O Ticket gerenciado continua com null nesses campos.
+3. applyClassification(...) muta category/priority; o flush emite UPDATE de todas as colunas
+   mapeadas e sobrescreve com null o que o passo 1 gravou.
 ```
 
-**Mitigacao, obrigatoria na implementacao:**
+Aquele risco existia porque o precedente do `TicketEmbeddingRepository` **nao e equivalente**: o
+commit `96521c0` removeu o mapeamento JPA da coluna `embedding`, e e justamente por ela nao ser um
+campo da entidade que a escrita nativa nao briga com o Hibernate. As tres colunas de auditoria, ao
+contrario, precisam ficar mapeadas — o `TicketMapper` le os getters para expor `confidence` no DTO.
 
-1. `applyClassification(...)` **primeiro**, escrita nativa **depois**.
-2. `@Modifying(flushAutomatically = true, clearAutomatically = true)` no `updateSuggestion`, para o
-   flush pendente sair antes do update nativo e o contexto ser limpo depois dele.
+Com `applyAiSuggestion(...)` mutando a mesma entidade gerenciada, sai um `UPDATE` unico e coerente:
+nao ha duas escritas competindo, nao ha ordem obrigatoria entre elas, nao ha necessidade de
+`flushAutomatically`/`clearAutomatically`, e o `TicketAiAuditRepository` deixa de existir.
 
-Sem as duas, a auditoria e gravada e perdida no mesmo commit — e o teste de `updateSuggestion`
-isolado passaria, porque a sobrescrita so aparece com as duas escritas na mesma transacao. O teste
-que fecha esse buraco precisa ser de integracao, com leitura do banco depois do commit.
+**Fronteira preservada.** O metodo e entregue pela frente API, dona da entidade, exatamente para este
+uso — nao e a frente IA abrindo caminho proprio. Ele toca **so** as tres colunas de auditoria.
+`category`, `priority` e `classificationOrigin` continuam exclusivos de `applyClassification(...)`.
+
+**Premissa a confirmar no rebase:** assinatura esperada
+`applyAiSuggestion(TicketCategory category, TicketPriority priority, Double confidence)`, e o worker
+precisa estar numa transacao com a entidade gerenciada para o flush acontecer. Se o metodo chegar
+diferente, o ajuste e local ao worker.
 
 ### D2 — O worker hoje viola a fronteira e precisa parar
 
@@ -217,45 +212,50 @@ sozinho com o tempo.
 
 ### D7 — Concordancia admin x IA
 
-**DECISAO EM ABERTO — precisa da palavra do Marcos antes da implementacao comecar.**
+**DECIDIDO pelo Marcos: saida A — coluna `classification_reviewed_at` na `V5`.**
 
 A metrica pedida e "% de sugestoes **aceitas** sem correcao". Aceitar e um ato do ADMIN. O problema
-e que, com a regra do contrato ("origem vira `MANUAL` so quando corrigida"), **nada no schema
-distingue um chamado aceito de um chamado que ninguem olhou**: os dois ficam com origem `IA` e com
-`category`/`priority` iguais a sugestao.
+que motivou a decisao: com a regra do contrato ("origem vira `MANUAL` so quando corrigida"), **nada
+no schema distinguia um chamado aceito de um chamado que ninguem olhou** — os dois ficam com origem
+`IA` e com `category`/`priority` iguais a sugestao.
 
 A primeira versao deste design definia concordancia como "a sugestao continua valendo" e tratava
-isso como virtude da formulacao. Esta errado, e vale registrar o erro em vez de apaga-lo: essa
-definicao **conta chamado nunca revisado como aceite**. Com os 20 chamados do seed, quase nenhum
+isso como virtude da formulacao. Estava errado, e o erro fica registrado em vez de apagado: aquela
+definicao **contava chamado nunca revisado como aceite**. Com os 20 chamados do seed, quase nenhum
 revisado, o painel mostraria de 90% a 100% de concordancia — um numero que so mede que ninguem mexeu
-em nada. Pior que uma metrica ausente e uma metrica bonita que nao mede o que diz medir.
+em nada. Pior que metrica ausente e metrica bonita que nao mede o que diz medir.
 
-Tres saidas, em ordem de preferencia:
+**Definicao final:**
 
-**A — Coluna `classification_reviewed_at` na `V5` (recomendada).** `V5` esta reservada para esta
-frente e nao tem outro uso previsto. O endpoint de revisao carimba o instante; nenhuma outra escrita
-toca a coluna.
+- **Denominador** (`evaluated`): chamados com `classification_reviewed_at` nao nulo **e** sugestao
+  registrada (`ai_suggested_category` nao nula).
+- **Numerador** (`agreed`): destes, os que tem `category == ai_suggested_category` **e**
+  `priority == ai_suggested_priority`.
+- `percentage` e `null` quando `evaluated` e `0`. O payload sempre expoe `evaluated` junto do
+  percentual — percentual sem tamanho de amostra nao permite julgar se o numero significa algo.
 
-- Denominador: chamados com `classification_reviewed_at` nao nulo e sugestao registrada.
-- Numerador: destes, os que tem `category == ai_suggested_category` e `priority == ai_suggested_priority`.
+Chamado que a IA classificou e ninguem revisou fica fora da conta, que e exatamente o ponto.
+Chamados `PENDENTE` tambem ficam fora: a IA nao respondeu, nao ha o que concordar.
 
-Satisfaz o contrato literal (origem so vira `MANUAL` quando corrigida) **e** mede aceite de verdade.
-Custo: uma coluna, uma migration que ja e minha, um carimbo no service de revisao. Beneficio extra:
-"% da fila que ja passou por revisao humana" vira calculavel de graca.
+**Ganho colateral:** "% da fila que ja passou por revisao humana" passa a ser calculavel de graca,
+com a mesma coluna.
 
-**B — Qualquer revisao marca `MANUAL`.** Dispensa migration: origem `IA` passa a significar
-"nao revisado" e `MANUAL` "revisado", com a concordancia lida pelas colunas `ai_suggested_*`.
-Contradiz a letra do documento de frentes, que diz `MANUAL` "quando corrigida".
+### D7.1 — Migration `V5`
 
-**C — Manter como esta e renomear a metrica.** Sai como `suggestionsStillInEffect` — "% de sugestoes
-que continuam valendo". Nao mente, mas nao e a metrica que o desafio pede.
+Unica migration desta frente. `V4` e da frente API e nao e tocada.
 
-**Enquanto nao houver decisao**, o plano implementa a leitura de C, com o nome honesto, e a troca
-para A e localizada: uma coluna, um carimbo e o filtro do denominador.
+```sql
+alter table tickets add column classification_reviewed_at timestamp;
+```
 
-Em qualquer das tres, chamados `PENDENTE` ficam fora: a IA ainda nao respondeu, nao ha o que
-concordar. E em qualquer das tres o payload expoe `evaluated` junto do percentual — percentual sem o
-tamanho da amostra nao permite julgar se o numero significa algo.
+Escrita exclusivamente pelo endpoint de revisao, no mesmo `applyClassification(...)`? Nao — a seam
+pertence a frente API e nao tem esse parametro. O carimbo e feito pelo
+`TicketClassificationReviewService`, na mesma transacao, pelo metodo `markClassificationReviewed(...)`
+adicionado a entidade `Ticket`.
+
+Como `Ticket` pertence a frente API, essa adicao e aditiva e minima: um campo mapeado, um getter e um
+setter de dominio. Fica registrada nos Riscos como ponto de conflito esperado, junto com `TicketDto`
+e `TicketMapper`.
 
 ### D8 — Duplicados: cosseno em Java, nao `<=>` no Postgres
 
@@ -374,7 +374,6 @@ ADMIN. Nomes de campo em ingles, como todo DTO do projeto.
   },
   "ai": {
     "agreementRate": { "evaluated": 12, "agreed": 9, "percentage": 75.0 },
-    "_nota": "o nome do campo acima depende da decisao em aberto de D7: agreementRate na saida A ou B, suggestionsStillInEffect na saida C",
     "averageConfidence": 0.82,
     "originDistribution": { "IA": 9, "MANUAL": 6, "PENDENTE": 5 },
     "jobQueue": {
@@ -434,8 +433,7 @@ backend/src/main/java/br/org/fadex/helpdesk/ai/
 ├── classification/
 │   ├── TicketClassificationController.java   PATCH /tickets/{id}/classification
 │   ├── TicketClassificationReviewService.java  revisao pelo ADMIN
-│   ├── TicketClassificationUpdateDto.java
-│   └── TicketAiAuditRepository.java          escrita estreita das 3 colunas de auditoria (D1)
+│   └── TicketClassificationUpdateDto.java
 ├── duplicate/
 │   ├── DuplicateDetectionService.java        cosseno em Java, grava ticket_links (D8)
 │   └── EmbeddingSimilarity.java              cosseno e parse do literal pgvector
@@ -480,8 +478,13 @@ parametro para o teste nao ficar dependente do instante em que roda.
 
 ## Riscos
 
-- **`TicketDto` e `TicketMapper` pertencem a frente API** e esta frente os edita. E aditivo e o
-  documento de frentes exige o `confidence` no DTO. Conflito esperado: trivial.
+- **`TicketDto`, `TicketMapper` e `Ticket` pertencem a frente API** e esta frente os edita. Sao
+  edicoes aditivas: tres campos no fim do record, tres linhas no mapper, e em `Ticket` o campo
+  `classificationReviewedAt` com `markClassificationReviewed(...)`. O `confidence` no DTO e exigencia
+  do documento de frentes. Conflito esperado: trivial.
+- **`V5` e desta frente e cria uma unica coluna.** A frente API foi avisada e nao a invade. A frente
+  API tambem adiciona `TicketEventType.RESPONSAVEL_REMOVIDO` e altera o check constraint
+  `ck_ticket_events_type` na `V4` — esta frente nao cria evento novo, entao nao ha colisao ali.
 - **`V4` pode nao estar em `dev`** quando o codigo precisar dela. O trabalho segue contra a
   assinatura documentada; a ordem do plano coloca tudo que independe da `V4` primeiro.
 - **`AiJobWorker` fica com dependencia de `TicketService`**, que depende de `AiJobService`. Nao ha
