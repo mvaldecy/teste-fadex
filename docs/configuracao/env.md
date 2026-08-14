@@ -97,3 +97,61 @@ Para remover tambem o volume local do PostgreSQL:
 ```bash
 make db-reset
 ```
+
+## Stack Docker Completa
+
+A stack local completa sobe PostgreSQL, Mailpit, backend e frontend:
+
+```bash
+make env
+make stack-build
+make stack-up
+make stack-ps
+```
+
+Para acompanhar logs:
+
+```bash
+make stack-logs
+```
+
+Para parar a stack:
+
+```bash
+make stack-down
+```
+
+Servicos e portas padrao:
+
+```text
+Frontend: http://localhost:3000
+Backend: http://localhost:8080
+Swagger: http://localhost:8080/swagger-ui.html
+Mailpit UI: http://localhost:8025
+Mailpit SMTP: localhost:1025
+PostgreSQL: localhost:5432
+```
+
+No Docker Compose, o backend acessa o banco pela rede interna em `postgres:5432` e o SMTP local em `mailpit:1025`.
+
+## SMTP Local
+
+O backend possui configuracao SMTP base por variaveis de ambiente:
+
+```env
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_AUTH=false
+SMTP_STARTTLS_ENABLE=false
+MAIL_FROM=no-reply@fadex.local
+```
+
+Ao rodar o backend fora do Docker, use `SMTP_HOST=localhost`. Ao rodar dentro do Docker Compose, use `SMTP_HOST=mailpit`.
+
+As mensagens enviadas em desenvolvimento ficam visiveis na UI do Mailpit:
+
+```text
+http://localhost:8025
+```
