@@ -40,6 +40,9 @@ public class User {
 	@Column(nullable = false, length = 30)
 	private Role role;
 
+	@Column(name = "must_change_password", nullable = false)
+	private Boolean mustChangePassword;
+
 	@Column(name = "created_at", nullable = false)
 	@CreatedDate
 	private LocalDateTime createdAt;
@@ -52,10 +55,15 @@ public class User {
 	}
 
 	public User(String name, String email, String passwordHash, Role role) {
+		this(name, email, passwordHash, role, false);
+	}
+
+	public User(String name, String email, String passwordHash, Role role, Boolean mustChangePassword) {
 		this.name = name;
 		this.email = email;
 		this.passwordHash = passwordHash;
 		this.role = role;
+		this.mustChangePassword = mustChangePassword;
 	}
 
 	public UUID getId() {
@@ -76,6 +84,15 @@ public class User {
 
 	public Role getRole() {
 		return role;
+	}
+
+	public Boolean getMustChangePassword() {
+		return mustChangePassword;
+	}
+
+	public void changePassword(String passwordHash) {
+		this.passwordHash = passwordHash;
+		this.mustChangePassword = false;
 	}
 
 	public LocalDateTime getCreatedAt() {

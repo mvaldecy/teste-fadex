@@ -4,11 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record TicketCreationDto(
-		@NotBlank
-		@Size(max = 160)
+		@NotBlank(message = "Titulo e obrigatorio.")
+		@Size(max = 160, message = "Titulo deve ter no maximo 160 caracteres.")
 		String title,
 
-		@NotBlank
+		@NotBlank(message = "Descricao e obrigatoria.")
 		String description
 ) {
 }

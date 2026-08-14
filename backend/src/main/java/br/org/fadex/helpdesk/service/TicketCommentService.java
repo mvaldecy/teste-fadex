@@ -6,11 +6,12 @@ import br.org.fadex.helpdesk.model.comment.TicketCommentDto;
 import br.org.fadex.helpdesk.model.comment.TicketCommentFilter;
 import br.org.fadex.helpdesk.model.comment.TicketCommentMapper;
 import br.org.fadex.helpdesk.model.comment.TicketCommentMinDto;
+import br.org.fadex.helpdesk.model.enums.TicketEventType;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.repository.TicketCommentRepository;
 import br.org.fadex.helpdesk.repository.TicketCommentSpecification;
-import br.org.fadex.helpdesk.security.AuthenticatedUserService;
+import br.org.fadex.helpdesk.security.AccessControlService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -25,23 +26,27 @@ public class TicketCommentService {
 	private final TicketCommentRepository ticketCommentRepository;
 	private final TicketService ticketService;
 	private final UserService userService;
-	private final AuthenticatedUserService authenticatedUserService;
+	private final AccessControlService accessControlService;
+	private final TicketEventService ticketEventService;
 
 	public TicketCommentService(
 			TicketCommentRepository ticketCommentRepository,
 			TicketService ticketService,
 			UserService userService,
-			AuthenticatedUserService authenticatedUserService
+			AccessControlService accessControlService,
+			TicketEventService ticketEventService
 	) {
 		this.ticketCommentRepository = ticketCommentRepository;
 		this.ticketService = ticketService;
 		this.userService = userService;
-		this.authenticatedUserService = authenticatedUserService;
+		this.accessControlService = accessControlService;
+		this.ticketEventService = ticketEventService;
 	}
 
 	@Transactional(readOnly = true)
 	public Page<TicketCommentMinDto> findAll(UUID ticketId, TicketCommentFilter filter, Pageable pageable) {
-		ticketService.findEntityById(ticketId);
+		Ticket ticket = ticketService.findEntityById(ticketId);
+		accessControlService.assertCanAccessTicket(ticket);
 
 		TicketCommentFilter resolvedFilter = new TicketCommentFilter(ticketId, filter.authorId(), filter.search());
 		Specification<TicketComment> spec = TicketCommentSpecification.createSpecification(resolvedFilter);
@@ -54,10 +59,12 @@ public class TicketCommentService {
 	@Transactional
 	public TicketCommentDto create(UUID ticketId, TicketCommentCreationDto ticketCommentCreationDto) {
 		Ticket ticket = ticketService.findEntityById(ticketId);
-		UUID authenticatedUserId = authenticatedUserService.getUserId();
+		accessControlService.assertCanAccessTicket(ticket);
+		UUID authenticatedUserId = accessControlService.getAuthenticatedUserId();
 		User author = userService.findEntityById(authenticatedUserId);
 		TicketComment ticketComment = TicketCommentMapper.toEntity(ticketCommentCreationDto, ticket, author);
 		TicketComment savedComment = ticketCommentRepository.save(ticketComment);
+		ticketEventService.record(ticket, author, TicketEventType.COMENTARIO_ADICIONADO, "Comentario adicionado.");
 		TicketCommentDto response = TicketCommentMapper.toResponseDto(savedComment);
 
 		return response;

@@ -51,7 +51,8 @@ public class DevDataSeeder {
 					name,
 					email,
 					passwordEncoder.encode(password),
-					role
+					role,
+					false
 			);
 
 			userRepository.save(user);
