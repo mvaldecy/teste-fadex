@@ -67,9 +67,6 @@ public class Ticket {
 	@Column(name = "classification_justification", columnDefinition = "text")
 	private String classificationJustification;
 
-	@Column(columnDefinition = "text")
-	private String embedding;
-
 	@Column(name = "embedding_model", length = 120)
 	private String embeddingModel;
 
@@ -130,8 +127,7 @@ public class Ticket {
 		this.classificationJustification = classificationJustification;
 	}
 
-	public void updateEmbedding(String embedding, String embeddingModel, LocalDateTime embeddingUpdatedAt) {
-		this.embedding = embedding;
+	public void updateEmbeddingMetadata(String embeddingModel, LocalDateTime embeddingUpdatedAt) {
 		this.embeddingModel = embeddingModel;
 		this.embeddingUpdatedAt = embeddingUpdatedAt;
 	}
@@ -174,10 +170,6 @@ public class Ticket {
 
 	public String getClassificationJustification() {
 		return classificationJustification;
-	}
-
-	public String getEmbedding() {
-		return embedding;
 	}
 
 	public String getEmbeddingModel() {

@@ -76,7 +76,7 @@ class TicketPersistenceTest {
 				TicketPriority.ALTA,
 				"Classificacao automatica por fallback deterministico."
 		);
-		ticket.updateEmbedding("[0.1,0.2,0.3]", "all-minilm", LocalDateTime.of(2026, 8, 14, 10, 0));
+		ticket.updateEmbeddingMetadata("all-minilm", LocalDateTime.of(2026, 8, 14, 10, 0));
 		Ticket savedTicket = ticketRepository.save(ticket);
 
 		ticketCommentRepository.save(new TicketComment(savedTicket, requester, "Chamado criado."));
