@@ -23,5 +23,10 @@ class ApplicationPropertiesTest {
 		assertThat(environment.getProperty("spring.mail.host")).isEqualTo("localhost");
 		assertThat(environment.getProperty("spring.mail.port")).isEqualTo("1025");
 		assertThat(environment.getProperty("app.mail.from")).isEqualTo("no-reply@fadex.local");
+		assertThat(environment.getProperty("app.ai.triage.enabled")).isEqualTo("false");
+		assertThat(environment.getProperty("app.ai.base-url")).isEqualTo("http://localhost:11434");
+		assertThat(environment.getProperty("app.ai.embedding-dimensions")).isEqualTo("384");
+		assertThat(environment.getProperty("app.ai.worker.batch-size")).isEqualTo("1");
+		assertThat(environment.getProperty("spring.quartz.properties.org.quartz.threadPool.threadCount")).isEqualTo("1");
 	}
 }
