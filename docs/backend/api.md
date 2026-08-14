@@ -17,6 +17,7 @@ http://localhost:8080/swagger-ui.html
 Endpoints publicos:
 
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
 - `GET /api/v1/choices`
 - `/swagger-ui.html`
 - `/swagger-ui/**`
@@ -173,8 +174,10 @@ Response `200`:
 ```json
 {
   "accessToken": "<jwt>",
+  "refreshToken": "<refresh-token-ou-null>",
   "tokenType": "Bearer",
   "expiresIn": 3600,
+  "mustChangePassword": false,
   "role": "ADMIN",
   "user": {
     "id": "00000000-0000-0000-0000-000000000000",
@@ -183,7 +186,83 @@ Response `200`:
 }
 ```
 
+Quando `mustChangePassword` for `true`, `refreshToken` retorna `null` e o `accessToken` e limitado para uso em `POST /api/v1/auth/change-password`.
+
+### `POST /api/v1/auth/refresh`
+
+Publico.
+
+Request:
+
+```json
+{
+  "refreshToken": "<refresh-token>"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "accessToken": "<jwt>",
+  "refreshToken": "<refresh-token>",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "mustChangePassword": false,
+  "role": "ADMIN",
+  "user": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "Administrador"
+  }
+}
+```
+
+Response `401` quando o refresh token for invalido, expirado, revogado ou quando o usuario ainda tiver troca de senha obrigatoria.
+
+### `POST /api/v1/auth/change-password`
+
+Protegido. Exige `Authorization: Bearer <accessToken>` com token limitado de troca de senha obrigatoria.
+
+Request:
+
+```json
+{
+  "currentPassword": "senha-provisoria",
+  "newPassword": "nova-senha-segura",
+  "confirmPassword": "nova-senha-segura"
+}
+```
+
+Regras de validacao:
+
+- `currentPassword`: obrigatorio
+- `newPassword`: obrigatorio, minimo 8 e maximo 72 caracteres
+- `confirmPassword`: obrigatorio e deve ser igual a `newPassword`
+
+Response `200`:
+
+```json
+{
+  "accessToken": "<jwt>",
+  "refreshToken": "<refresh-token>",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "mustChangePassword": false,
+  "role": "SOLICITANTE",
+  "user": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "Solicitante"
+  }
+}
+```
+
+Response `403` quando o endpoint for chamado com token normal ou quando um token limitado tentar acessar qualquer outro endpoint protegido.
+
 ## Usuarios
+
+Usuarios com role `SOLICITANTE` enxergam apenas os proprios usuarios e chamados.
+Ao listar chamados, a API forca `requesterId` igual ao usuario autenticado.
+Ao listar usuarios, a API forca `id` igual ao usuario autenticado.
 
 ### `GET /api/v1/users`
 
@@ -224,6 +303,7 @@ Response `200`:
   "name": "Administrador",
   "email": "admin@fadex.org.br",
   "role": "ADMIN",
+  "mustChangePassword": false,
   "createdAt": "2026-08-13T20:00:00",
   "updatedAt": "2026-08-13T20:00:00"
 }
@@ -241,7 +321,6 @@ Request:
 {
   "name": "Solicitante",
   "email": "solicitante@fadex.org.br",
-  "password": "solicitante123",
   "role": "SOLICITANTE"
 }
 ```
@@ -250,10 +329,23 @@ Regras de validacao:
 
 - `name`: obrigatorio, maximo 120 caracteres
 - `email`: obrigatorio, formato de e-mail, maximo 180 caracteres
-- `password`: obrigatorio, minimo 6 e maximo 72 caracteres
 - `role`: obrigatorio
 
+O backend gera uma senha provisoria, marca `mustChangePassword` como `true` e envia a senha pelo mecanismo de e-mail configurado.
+
 Response `201`: `UserDto`.
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "name": "Solicitante",
+  "email": "solicitante@fadex.org.br",
+  "role": "SOLICITANTE",
+  "mustChangePassword": true,
+  "createdAt": "2026-08-13T20:00:00",
+  "updatedAt": "2026-08-13T20:00:00"
+}
+```
 
 Response `409` quando o e-mail ja existir.
 
@@ -365,6 +457,47 @@ Response `200`:
 
 Response `404` quando nao encontrar.
 
+### `GET /api/v1/tickets/{ticketId}/events`
+
+Protegido.
+
+Lista o historico de eventos do chamado. O usuario precisa ter acesso ao chamado; usuarios `SOLICITANTE` so acessam eventos dos proprios chamados.
+
+Filtros:
+
+- `actorId`: UUID
+- `type`: `CHAMADO_CRIADO`, `COMENTARIO_ADICIONADO`, `STATUS_ALTERADO`, `RESPONSAVEL_ATRIBUIDO`, `PRIORIDADE_ALTERADA`, `CATEGORIA_ALTERADA`, `CLASSIFICACAO_ATUALIZADA`
+- `search`: busca parcial pela descricao do evento
+
+Tambem aceita `page`, `size` e `sort`.
+
+Ordenacao padrao:
+
+```text
+createdAt,desc
+```
+
+Response `200`:
+
+```json
+{
+  "content": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "actor": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "name": "Administrador"
+      },
+      "type": "COMENTARIO_ADICIONADO",
+      "description": "Comentario adicionado.",
+      "createdAt": "2026-08-13T20:00:00"
+    }
+  ]
+}
+```
+
+Response `404` quando o chamado nao existir.
+
 ## Comentarios
 
 ### `GET /api/v1/tickets/{ticketId}/comments`
@@ -433,5 +566,5 @@ Response `404` quando o chamado nao existir.
 
 ## Pendencias Conhecidas
 
-- Atualizacao de status, atribuicao e historico de eventos ainda serao definidos.
+- Atualizacao de status e atribuicao ainda serao definidos.
 - O service de IA ainda esta pendente; por enquanto a classificacao fica preparada com origem `PENDENTE`.
