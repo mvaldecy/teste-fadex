@@ -145,4 +145,44 @@ class NotificationServiceTest {
 
 		verify(registry).remove(conexaoEncerrada);
 	}
+
+	@Test
+	void deveEnviarKeepAliveParaTodasAsConexoes() throws Exception {
+		NotificationService notificationService = new NotificationService(
+				registry,
+				authenticatedUserService,
+				TIMEOUT,
+				RECONNECT_TIME
+		);
+		SseEmitter primeiroEmitter = mock(SseEmitter.class);
+		SseEmitter segundoEmitter = mock(SseEmitter.class);
+		SseSubscription primeiraConexao = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, primeiroEmitter);
+		SseSubscription segundaConexao = new SseSubscription("conexao-2", USUARIO, Role.ADMIN, segundoEmitter);
+
+		when(registry.findAll()).thenReturn(List.of(primeiraConexao, segundaConexao));
+
+		notificationService.sendHeartbeat();
+
+		verify(primeiroEmitter).send(any(SseEmitter.SseEventBuilder.class));
+		verify(segundoEmitter).send(any(SseEmitter.SseEventBuilder.class));
+	}
+
+	@Test
+	void deveRemoverConexaoMortaDetectadaPeloKeepAlive() throws Exception {
+		NotificationService notificationService = new NotificationService(
+				registry,
+				authenticatedUserService,
+				TIMEOUT,
+				RECONNECT_TIME
+		);
+		SseEmitter emitterMorto = mock(SseEmitter.class);
+		SseSubscription conexaoMorta = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterMorto);
+
+		when(registry.findAll()).thenReturn(List.of(conexaoMorta));
+		doThrow(new IOException("broken pipe")).when(emitterMorto).send(any(SseEmitter.SseEventBuilder.class));
+
+		notificationService.sendHeartbeat();
+
+		verify(registry).remove(conexaoMorta);
+	}
 }

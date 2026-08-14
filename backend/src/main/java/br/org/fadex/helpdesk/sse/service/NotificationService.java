@@ -19,6 +19,7 @@ import java.util.UUID;
 public class NotificationService {
 
 	public static final String CONNECTION_EVENT_NAME = "CONEXAO_ESTABELECIDA";
+	private static final String HEARTBEAT_COMMENT = "ping";
 
 	private final NotificationEmitterRegistry registry;
 	private final AuthenticatedUserService authenticatedUserService;
@@ -62,6 +63,22 @@ public class NotificationService {
 			if (shouldReceive) {
 				send(subscription, message.eventId(), message.eventName(), message.data());
 			}
+		}
+	}
+
+	public void sendHeartbeat() {
+		List<SseSubscription> subscriptions = registry.findAll();
+
+		for (SseSubscription subscription : subscriptions) {
+			sendComment(subscription);
+		}
+	}
+
+	private void sendComment(SseSubscription subscription) {
+		try {
+			subscription.emitter().send(SseEmitter.event().comment(HEARTBEAT_COMMENT));
+		} catch (IOException | IllegalStateException exception) {
+			registry.remove(subscription);
 		}
 	}
 
