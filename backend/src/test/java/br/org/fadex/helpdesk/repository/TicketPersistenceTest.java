@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +62,12 @@ class TicketPersistenceTest {
 				requester
 		);
 		ticket.assignTo(assignee);
+		ticket.applyAutomaticClassification(
+				TicketCategory.SISTEMAS,
+				TicketPriority.ALTA,
+				"Classificacao automatica por fallback deterministico."
+		);
+		ticket.updateEmbedding("[0.1,0.2,0.3]", "all-minilm", LocalDateTime.of(2026, 8, 14, 10, 0));
 		Ticket savedTicket = ticketRepository.save(ticket);
 
 		ticketCommentRepository.save(new TicketComment(savedTicket, requester, "Chamado criado."));
@@ -73,9 +80,13 @@ class TicketPersistenceTest {
 		assertThat(requester.getCreatedAt()).isNotNull();
 		assertThat(requester.getUpdatedAt()).isNotNull();
 		assertThat(foundTicket.getStatus()).isEqualTo(TicketStatus.ABERTO);
-		assertThat(foundTicket.getCategory()).isEqualTo(TicketCategory.ACESSO);
-		assertThat(foundTicket.getPriority()).isEqualTo(TicketPriority.MEDIA);
-		assertThat(foundTicket.getClassificationOrigin()).isEqualTo(ClassificationOrigin.PENDENTE);
+		assertThat(foundTicket.getCategory()).isEqualTo(TicketCategory.SISTEMAS);
+		assertThat(foundTicket.getPriority()).isEqualTo(TicketPriority.ALTA);
+		assertThat(foundTicket.getClassificationOrigin()).isEqualTo(ClassificationOrigin.IA);
+		assertThat(foundTicket.getClassificationJustification())
+				.isEqualTo("Classificacao automatica por fallback deterministico.");
+		assertThat(foundTicket.getEmbeddingModel()).isEqualTo("all-minilm");
+		assertThat(foundTicket.getEmbeddingUpdatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 14, 10, 0));
 		assertThat(foundTicket.getRequester().getId()).isEqualTo(requester.getId());
 		assertThat(foundTicket.getAssignee().getId()).isEqualTo(assignee.getId());
 		assertThat(foundTicket.getCreatedAt()).isNotNull();

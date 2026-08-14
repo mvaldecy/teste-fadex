@@ -17,6 +17,7 @@ public record TicketDto(
 		TicketPriority priority,
 		TicketStatus status,
 		ClassificationOrigin classificationOrigin,
+		String classificationJustification,
 		UserMinDto requester,
 		UserMinDto assignee,
 		LocalDateTime createdAt,
