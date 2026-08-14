@@ -395,6 +395,7 @@ Decisoes:
 - Trocar a imagem do Postgres para uma imagem com pgvector, como `pgvector/pgvector:pg17`.
 - Manter portas configuraveis por variaveis de ambiente.
 - Adicionar `ollama` como servico opcional da stack.
+- Adicionar `ollama-models` como servico one-shot para baixar os modelos configurados no volume do Ollama.
 - Nao criar comando novo no Makefile neste ciclo.
 
 Exemplo de ambiente temporario por worktree:
@@ -416,6 +417,27 @@ O backend em container deve usar:
 ```env
 AI_BASE_URL=http://ollama:11434
 ```
+
+O Compose deve declarar o preparo dos modelos:
+
+```yaml
+ollama-models:
+  image: ollama/ollama:latest
+  restart: "no"
+  depends_on:
+    ollama:
+      condition: service_started
+  environment:
+    OLLAMA_HOST: http://ollama:11434
+    AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:1b}
+    AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
+  entrypoint: ["/bin/sh", "-c"]
+  command: >
+    "ollama pull $$AI_CLASSIFICATION_MODEL &&
+     ollama pull $$AI_EMBEDDING_MODEL"
+```
+
+O primeiro uso pode demorar porque os pesos serao baixados para `ollama-data`. Execucoes seguintes reutilizam o volume.
 
 O backend rodando fora do Docker deve usar:
 
