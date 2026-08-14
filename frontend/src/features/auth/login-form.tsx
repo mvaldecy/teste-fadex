@@ -2,26 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { loginDefaultValues } from "@/src/features/auth/login-default-values";
 import { loginFormSchema } from "@/src/schemas/auth.schema";
 import { useSessionStore } from "@/src/stores/session.store";
 import { routes } from "@/src/routes/routes";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
 
-const mockCredentials = {
-  email: "admin@fadex.org.br",
-  password: "123456"
-};
-
 export function LoginForm() {
   const router = useRouter();
-  const simulateLogin = useSessionStore((state) => state.simulateLogin);
+  const login = useSessionStore((state) => state.login);
+  const apiError = useSessionStore((state) => state.error);
+  const isLoading = useSessionStore((state) => state.isLoading);
+  const clearSessionError = useSessionStore((state) => state.clearError);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSubmitting(true);
+    clearSessionError();
 
     const formData = new FormData(event.currentTarget);
     const parsed = loginFormSchema.safeParse({
@@ -35,13 +33,15 @@ export function LoginForm() {
         email: fieldErrors.email?.[0],
         password: fieldErrors.password?.[0]
       });
-      setIsSubmitting(false);
       return;
     }
 
     setErrors({});
-    simulateLogin(parsed.data);
-    router.push(routes.home);
+    const didLogin = await login(parsed.data);
+
+    if (didLogin) {
+      router.push(routes.home);
+    }
   }
 
   return (
@@ -52,7 +52,7 @@ export function LoginForm() {
         </label>
         <input
           className="h-11 rounded-md border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          defaultValue={mockCredentials.email}
+          defaultValue={loginDefaultValues.email}
           id="email"
           name="email"
           type="email"
@@ -68,7 +68,7 @@ export function LoginForm() {
         </label>
         <input
           className="h-11 rounded-md border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-          defaultValue={mockCredentials.password}
+          defaultValue={loginDefaultValues.password}
           id="password"
           name="password"
           type="password"
@@ -78,12 +78,18 @@ export function LoginForm() {
         ) : null}
       </div>
 
+      {apiError ? (
+        <p className="text-sm font-medium text-red-700" role="alert">
+          {apiError}
+        </p>
+      ) : null}
+
       <button
         className="h-11 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
-        disabled={isSubmitting}
+        disabled={isLoading}
         type="submit"
       >
-        Entrar
+        {isLoading ? "Entrando..." : "Entrar"}
       </button>
     </form>
   );
