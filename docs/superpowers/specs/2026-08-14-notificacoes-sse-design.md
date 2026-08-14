@@ -76,6 +76,9 @@ Todo o motor vive em `br.org.fadex.helpdesk.sse`, com subpastas por camada. O m�
 | `sse/model/NotificationAudience.java` | `sealed interface` com `Users`, `Roles` e `Everyone` |
 | `sse/model/NotificationConnectionDto.java` | Payload do evento inicial de conexão |
 | `sse/config/SchedulingConfig.java` | `@EnableScheduling` |
+| `sse/config/AsyncConfig.java` | `@EnableAsync` e o bean `sseNotificationExecutor`, executor dedicado do fanout de notificações |
+
+O fanout (`NotificationDispatcher.onNotificationMessage`) roda em `@Async("sseNotificationExecutor")` em vez de na própria thread que fez o commit. `sseNotificationExecutor` é um `ThreadPoolTaskExecutor` dedicado e nomeado (core 2, máximo 4, fila 500, prefixo de thread `sse-notification-`), declarado em `sse/config/AsyncConfig.java`, para não competir com nem depender do executor default do Spring. Qualquer exceção do fanout é capturada e logada em `NotificationDispatcher`, sem propagar para o publicador do evento — a transação já commitou, então uma falha no envio não pode virar um `500` numa requisição de domínio que já persistiu com sucesso.
 
 `NotificationAudience` é o que mantém o motor independente da branch de RBAC. O filtro por role usa o claim já capturado no JWT, sem depender de `AccessControlService`. Quando o histórico mergear, o service de domínio publica `new NotificationMessage(..., new Users(destinatários))` e nenhuma linha do motor muda.
 
@@ -144,8 +147,9 @@ Não há proxy reverso em `infra/` nesta branch. Quando houver, o servidor à fr
 ## Testes
 
 - `NotificationEmitterRegistryTest`: múltiplas conexões do mesmo usuário; remoção em conclusão, timeout e erro; acesso concorrente.
-- `NotificationServiceTest`: fanout correto para cada tipo de audiência; assinatura que lança `IOException` é removida sem interromper as demais; identidade usada é a capturada, não a do contexto de segurança corrente.
-- `NotificationDispatcherTest`: nada é entregue antes do commit; entrega ocorre em `AFTER_COMMIT`.
+- `NotificationServiceTest`: fanout correto para cada tipo de audiência; assinatura que lança `IOException` é removida sem interromper as demais e sem chamar `completeWithError` (desconexão é esperada, o container já dispara o error dispatch sozinho); assinatura que lança `IllegalStateException` é removida e tem o emitter encerrado via `completeWithError` (tanto no fanout quanto no heartbeat), porque cobre tanto o emitter já concluído quanto uma falha de serialização num emitter vivo, e sem isso o socket ficaria mudo até o timeout; identidade usada é a capturada, não a do contexto de segurança corrente.
+- `NotificationDispatcherTest`: nada é entregue antes do commit; entrega ocorre em `AFTER_COMMIT`; o listener carrega `@Async("sseNotificationExecutor")`.
+- `NotificationDispatcherIntegrationTest`: verificação de entrega pós-commit usa `verify(..., timeout(2000))` do Mockito em vez de `verify` síncrono, porque o fanout agora roda em `@Async` e a entrega não é mais garantida na mesma thread nem no mesmo instante do commit; a asserção de não entrega antes do commit continua síncrona, sem timeout, porque o `AFTER_COMMIT` só aciona o listener depois do commit independente do `@Async`.
 - `NotificationHeartbeatSchedulerTest`: keep-alive alcança todas as conexões vivas; conexão morta é removida no lugar de propagar exceção.
 - `NotificationControllerTest` com `@WebMvcTest`: `200` com `text/event-stream`, `401` sem token, identidade extraída dos claims.
 
@@ -154,3 +158,13 @@ Baseline da worktree verificado antes do início: `make backend-test` conclui co
 ## Integração Futura
 
 Depois do merge de `feature(backend)/auth-rbac-historico`, a integração se resume a publicar a mensagem no mesmo ponto em que o `TicketEvent` é gravado, reaproveitando `TicketEventType` como nome do evento e `TicketEventMinDto` como payload. Histórico e notificação passam a ser o mesmo fato de domínio com dois destinos, sem taxonomia paralela. A audiência sai das regras de RBAC daquela branch.
+
+## Follow-ups Conhecidos
+
+Itens identificados na revisão final do motor e conscientemente adiados — não fazem parte desta entrega:
+
+- **Identidade capturada sobrevive ao token.** O timeout do emitter (`notifications.sse.timeout`, 30 min) é independente da expiração do JWT (1 h). Mudança de papel, logout ou expiração do token não encerram um stream já aberto: a assinatura continua ativa com a identidade capturada no momento da conexão até o emitter estourar o próprio timeout. Correção sugerida: derivar o timeout do emitter do tempo restante do token no momento da assinatura.
+- **Sem limite de streams simultâneos por usuário.** Nada impede que o mesmo usuário acumule assinaturas indefinidamente (várias abas, várias reconexões sem limpeza do lado do cliente), cada uma consumindo um lugar no registry e uma conexão no servidor.
+- **Heartbeat roda no scheduler default de thread única.** `NotificationHeartbeatScheduler` usa o `TaskScheduler` padrão do Spring Boot, dimensionado para uma única thread. Um socket travado durante o envio do keep-alive atrasa o keep-alive dos demais assinantes, porque `@EnableScheduling` é global e não há pool dedicado para essa tarefa.
+- **`fallbackExecution = true` suaviza a garantia transacional.** A garantia de entrega do motor não é "entrega apenas após o commit", e sim "entrega após o commit, quando houver uma transação ativa". Quem publicar `NotificationMessage` fora de um contexto `@Transactional` recebe entrega imediata, sem a barreira do `AFTER_COMMIT`.
+- **Regra de uso da audiência para a integração futura.** Eventos de escopo de chamado — criação, comentário, mudança de status — devem sempre usar `Users` com os destinatários explícitos daquele chamado. `Roles` serve para anúncios amplos por papel, sem vínculo com um registro específico. `Everyone` é broadcast puro. Um evento de chamado publicado com `Everyone` (ou com `Roles` além dos papéis que deveriam ter acesso àquele chamado específico) vazaria a existência do chamado, e potencialmente metadado sensível do payload, para todo usuário conectado sem relação com o registro. O motor não valida essa regra porque não conhece RBAC; a responsabilidade é de quem publicar na branch de integração.
