@@ -1,6 +1,8 @@
 package br.org.fadex.helpdesk.sse.service;
 
 import br.org.fadex.helpdesk.model.enums.Role;
+import br.org.fadex.helpdesk.sse.model.NotificationAudience;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
 import org.junit.jupiter.api.Test;
@@ -10,9 +12,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,5 +61,88 @@ class NotificationServiceTest {
 		assertThat(subscription.connectionId()).isNotBlank();
 		assertThat(subscription.emitter()).isSameAs(emitter);
 		assertThat(emitter.getTimeout()).isEqualTo(TIMEOUT);
+	}
+
+	@Test
+	void deveEnviarApenasParaAssinaturasDaAudiencia() throws Exception {
+		NotificationService notificationService = new NotificationService(
+				registry,
+				authenticatedUserService,
+				TIMEOUT,
+				RECONNECT_TIME
+		);
+		SseEmitter emitterDoDestinatario = mock(SseEmitter.class);
+		SseEmitter emitterDeOutroUsuario = mock(SseEmitter.class);
+		SseSubscription destinatario = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterDoDestinatario);
+		SseSubscription outroUsuario = new SseSubscription(
+				"conexao-2",
+				UUID.fromString("2f5b1c77-9e4a-4a1e-9c8e-2b1d3f4a5c6d"),
+				Role.SOLICITANTE,
+				emitterDeOutroUsuario
+		);
+		NotificationMessage message = NotificationMessage.of(
+				"CHAMADO_CRIADO",
+				"conteudo",
+				new NotificationAudience.Users(Set.of(USUARIO))
+		);
+
+		when(registry.findAll()).thenReturn(List.of(destinatario, outroUsuario));
+
+		notificationService.dispatch(message);
+
+		verify(emitterDoDestinatario).send(any(SseEmitter.SseEventBuilder.class));
+		verify(emitterDeOutroUsuario, never()).send(any(SseEmitter.SseEventBuilder.class));
+	}
+
+	@Test
+	void deveRemoverConexaoQuebradaSemInterromperAsDemais() throws Exception {
+		NotificationService notificationService = new NotificationService(
+				registry,
+				authenticatedUserService,
+				TIMEOUT,
+				RECONNECT_TIME
+		);
+		SseEmitter emitterQuebrado = mock(SseEmitter.class);
+		SseEmitter emitterSaudavel = mock(SseEmitter.class);
+		SseSubscription conexaoQuebrada = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterQuebrado);
+		SseSubscription conexaoSaudavel = new SseSubscription("conexao-2", USUARIO, Role.ADMIN, emitterSaudavel);
+		NotificationMessage message = NotificationMessage.of(
+				"CHAMADO_CRIADO",
+				"conteudo",
+				new NotificationAudience.Everyone()
+		);
+
+		when(registry.findAll()).thenReturn(List.of(conexaoQuebrada, conexaoSaudavel));
+		doThrow(new IOException("conexao fechada")).when(emitterQuebrado).send(any(SseEmitter.SseEventBuilder.class));
+
+		notificationService.dispatch(message);
+
+		verify(registry).remove(conexaoQuebrada);
+		verify(emitterSaudavel).send(any(SseEmitter.SseEventBuilder.class));
+	}
+
+	@Test
+	void deveRemoverConexaoJaEncerradaQueLancaIllegalState() throws Exception {
+		NotificationService notificationService = new NotificationService(
+				registry,
+				authenticatedUserService,
+				TIMEOUT,
+				RECONNECT_TIME
+		);
+		SseEmitter emitterEncerrado = mock(SseEmitter.class);
+		SseSubscription conexaoEncerrada = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterEncerrado);
+		NotificationMessage message = NotificationMessage.of(
+				"CHAMADO_CRIADO",
+				"conteudo",
+				new NotificationAudience.Everyone()
+		);
+
+		when(registry.findAll()).thenReturn(List.of(conexaoEncerrada));
+		doThrow(new IllegalStateException("ResponseBodyEmitter has already completed"))
+				.when(emitterEncerrado).send(any(SseEmitter.SseEventBuilder.class));
+
+		notificationService.dispatch(message);
+
+		verify(registry).remove(conexaoEncerrada);
 	}
 }

@@ -2,6 +2,7 @@ package br.org.fadex.helpdesk.sse.service;
 
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.sse.model.NotificationConnectionDto;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +12,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -49,6 +51,18 @@ public class NotificationService {
 		sendConnectionEvent(subscription);
 
 		return emitter;
+	}
+
+	public void dispatch(NotificationMessage message) {
+		List<SseSubscription> subscriptions = registry.findAll();
+
+		for (SseSubscription subscription : subscriptions) {
+			boolean shouldReceive = message.audience().includes(subscription.userId(), subscription.role());
+
+			if (shouldReceive) {
+				send(subscription, message.eventId(), message.eventName(), message.data());
+			}
+		}
 	}
 
 	private void sendConnectionEvent(SseSubscription subscription) {
