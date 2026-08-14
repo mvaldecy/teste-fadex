@@ -1,5 +1,6 @@
 package br.org.fadex.helpdesk.service;
 
+import br.org.fadex.helpdesk.ai.job.AiJobService;
 import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.enums.TicketCategory;
@@ -37,6 +38,9 @@ class TicketServiceTest {
 	@Mock
 	private AuthenticatedUserService authenticatedUserService;
 
+	@Mock
+	private AiJobService aiJobService;
+
 	@InjectMocks
 	private TicketService ticketService;
 
@@ -72,5 +76,6 @@ class TicketServiceTest {
 		assertThat(ticketToSave.getPriority()).isEqualTo(TicketPriority.MEDIA);
 		assertThat(ticketToSave.getClassificationOrigin()).isEqualTo(ClassificationOrigin.PENDENTE);
 		assertThat(response.requester().name()).isEqualTo("Maria Solicitante");
+		verify(aiJobService).enqueueTicketJobs(ticketToSave);
 	}
 }

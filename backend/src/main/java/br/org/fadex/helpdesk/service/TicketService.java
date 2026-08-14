@@ -1,5 +1,6 @@
 package br.org.fadex.helpdesk.service;
 
+import br.org.fadex.helpdesk.ai.job.AiJobService;
 import br.org.fadex.helpdesk.exception.NotFoundException;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.model.ticket.TicketCreationDto;
@@ -25,15 +26,18 @@ public class TicketService {
 	private final TicketRepository ticketRepository;
 	private final UserService userService;
 	private final AuthenticatedUserService authenticatedUserService;
+	private final AiJobService aiJobService;
 
 	public TicketService(
 			TicketRepository ticketRepository,
 			UserService userService,
-			AuthenticatedUserService authenticatedUserService
+			AuthenticatedUserService authenticatedUserService,
+			AiJobService aiJobService
 	) {
 		this.ticketRepository = ticketRepository;
 		this.userService = userService;
 		this.authenticatedUserService = authenticatedUserService;
+		this.aiJobService = aiJobService;
 	}
 
 	@Transactional(readOnly = true)
@@ -65,6 +69,7 @@ public class TicketService {
 		User requester = userService.findEntityById(authenticatedUserId);
 		Ticket ticket = TicketMapper.toEntity(ticketCreationDto, requester);
 		Ticket savedTicket = ticketRepository.save(ticket);
+		aiJobService.enqueueTicketJobs(savedTicket);
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
 		return response;
