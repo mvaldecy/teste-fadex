@@ -22,6 +22,18 @@ Use o `Makefile` da raiz como interface principal:
 
 O backend usa Java 21 e Spring Boot. Mantenha pacotes sob `br.org.fadex.helpdesk`; use PascalCase para classes, camelCase para campos e métodos, e sufixo `Dto` para objetos de transferência. Siga nomes por camada, como `TicketController`, `TicketService` e `TicketRepository`.
 
+No backend, cada subdomínio deve concentrar entidade e DTOs dentro de `model`, por exemplo `model/ticket`, `model/user` e `model/comment`. Enums ficam em `model/enums` e devem expor label quando forem apresentados ao frontend. O frontend deve consumir choices por endpoint próprio, sem replicar regra ou label de enum.
+
+Para DTOs, use o padrão `NomeCreationDto`, `NomeDto` e `NomeMinDto`. DTOs de resposta devem representar agregados com DTOs mínimos, como `UserMinDto`, em vez de expor ids soltos de relacionamento. Ids de relacionamento podem existir em filtros quando fizer sentido para busca ou dropdown.
+
+Controllers devem retornar `ResponseEntity` para manter controle explícito de status e corpo. Listagens devem nascer com paginação e filtros dinâmicos; o padrão de paginação é tamanho 10 e ordenação decrescente por `createdAt`, salvo necessidade específica do fluxo.
+
+Services devem manter a lógica em variáveis intermediárias, evitando concentrar criação de specification, chamada de repository e mapping diretamente no `return`. Entidades não devem concentrar regra de negócio. Conversões devem ficar em mappers do próprio subdomínio, com métodos como `toResponseDto`, `toMinDto` e `toEntity`.
+
+Filtros devem ter métodos `hasCampo` para cada campo opcional. Specifications devem ficar em classe própria, com método `createSpecification`, adicionando predicates apenas quando o filtro tiver valor. Use classes `Fields`, como `TicketFields`, para evitar strings soltas em criteria queries.
+
+Erros devem passar pelo `GlobalExceptionHandler` e retornar a estrutura padrão de erro da API. Novas exceções de negócio devem estender a base da aplicação e usar `HttpStatusCode`/status explícito quando aplicável.
+
 O frontend usa TypeScript estrito, Next.js, React, Tailwind CSS e alias `@/*`. Use kebab-case para arquivos de rotas e componentes quando esse padrão já existir, como `login-form.tsx`, e camelCase para variáveis e funções.
 
 ## Diretrizes de Testes
@@ -32,10 +44,18 @@ No frontend, lint e build são as verificações automatizadas atuais. Rode `mak
 
 ## Commits e Pull Requests
 
-As convenções estão em `docs/configuracao/convencoes-git.md`. Escreva commits, títulos e descrições de PR em português. Prefira prefixos objetivos como `feat:`, `fix:`, `docs:`, `test:`, `refactor:` e `chore:`.
+As convenções estão em `docs/configuracao/convencoes-git.md`. Escreva commits, títulos e descrições de PR em português. Prefira prefixos objetivos com escopo do monorepo, como `feat(backend):`, `fix(frontend):`, `docs(configuracao):`, `test(backend):`, `refactor(backend):` e `chore(infra):`.
 
 Branches de trabalho devem partir de `dev` e incluir escopo, por exemplo `feature(backend)/auth-jwt` ou `fix(frontend)/login-validacao`. Mantenha PRs pequenos e inclua objetivo, mudanças, passos de teste e observações. Use squash merge nas branches protegidas.
+
+PRs devem ser abertos como draft quando ainda estiverem em validação. Use PR stacks quando uma entrega depender de outra e deixe a base/dependência clara na descrição.
+
+## Documentação
+
+Mantenha documentação em `docs` separada por subdomínio, como `docs/configuracao`, `docs/backend` e `docs/frontend`. Atualize `docs/backend/api.md` quando alterar contrato de endpoint para que o frontend não precise inferir comportamento pelo código.
 
 ## Segurança e Configuração
 
 Não versione arquivos reais de ambiente: `.env`, `backend/.env` ou `frontend/.env.local`. Segredos nunca devem usar `NEXT_PUBLIC_`, pois esses valores ficam expostos no navegador.
+
+O backend deve rodar localmente fora do Docker durante desenvolvimento. O banco local deve ser preferencialmente dockerizado via `make db-up`. Integrações de IA local podem ter services preparados, mas implementação pendente deve ficar isolada e sem bloquear CRUDs básicos.
