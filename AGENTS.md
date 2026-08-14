@@ -6,6 +6,11 @@ Este é um monorepo da aplicação Fadex Helpdesk. O backend fica em `backend/sr
 
 O frontend é uma aplicação Next.js em `frontend`. Páginas do App Router ficam em `frontend/app`; código compartilhado fica em `frontend/src`, incluindo `features`, `services`, `stores`, `schemas`, `types`, `routes` e `config`.
 
+Use também as diretrizes específicas de cada área:
+
+- `backend/AGENTS.md` para arquitetura e convenções do Spring Boot.
+- `frontend/AGENTS.md` para arquitetura e convenções do Next.js/React.
+
 ## Comandos de Build, Teste e Desenvolvimento
 
 Use o `Makefile` da raiz como interface principal:
@@ -20,21 +25,7 @@ Use o `Makefile` da raiz como interface principal:
 
 ## Estilo de Código e Nomenclatura
 
-O backend usa Java 21 e Spring Boot. Mantenha pacotes sob `br.org.fadex.helpdesk`; use PascalCase para classes, camelCase para campos e métodos, e sufixo `Dto` para objetos de transferência. Siga nomes por camada, como `TicketController`, `TicketService` e `TicketRepository`.
-
-No backend, cada subdomínio deve concentrar entidade e DTOs dentro de `model`, por exemplo `model/ticket`, `model/user` e `model/comment`. Enums ficam em `model/enums` e devem expor label quando forem apresentados ao frontend. O frontend deve consumir choices por endpoint próprio, sem replicar regra ou label de enum.
-
-Para DTOs, use o padrão `NomeCreationDto`, `NomeDto` e `NomeMinDto`. DTOs de resposta devem representar agregados com DTOs mínimos, como `UserMinDto`, em vez de expor ids soltos de relacionamento. Ids de relacionamento podem existir em filtros quando fizer sentido para busca ou dropdown.
-
-Controllers devem retornar `ResponseEntity` para manter controle explícito de status e corpo. Listagens devem nascer com paginação e filtros dinâmicos; o padrão de paginação é tamanho 10 e ordenação decrescente por `createdAt`, salvo necessidade específica do fluxo.
-
-Services devem manter a lógica em variáveis intermediárias, evitando concentrar criação de specification, chamada de repository e mapping diretamente no `return`. Entidades não devem concentrar regra de negócio. Conversões devem ficar em mappers do próprio subdomínio, com métodos como `toResponseDto`, `toMinDto` e `toEntity`.
-
-Filtros devem ter métodos `hasCampo` para cada campo opcional. Specifications devem ficar em classe própria, com método `createSpecification`, adicionando predicates apenas quando o filtro tiver valor. Use classes `Fields`, como `TicketFields`, para evitar strings soltas em criteria queries.
-
-Erros devem passar pelo `GlobalExceptionHandler` e retornar a estrutura padrão de erro da API. Novas exceções de negócio devem estender a base da aplicação e usar `HttpStatusCode`/status explícito quando aplicável.
-
-O frontend usa TypeScript estrito, Next.js, React, Tailwind CSS e alias `@/*`. Use kebab-case para arquivos de rotas e componentes quando esse padrão já existir, como `login-form.tsx`, e camelCase para variáveis e funções.
+O backend usa Java 21 e Spring Boot. O frontend usa TypeScript estrito, Next.js, React, Tailwind CSS e alias `@/*`. Siga as convenções específicas nos `AGENTS.md` internos antes de alterar cada área.
 
 ## Diretrizes de Testes
 
