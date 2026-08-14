@@ -191,6 +191,7 @@ class TicketPersistenceTest {
 		ticket.markResolved(instant.plusHours(2));
 		ticket.markClosed(instant.plusHours(3));
 		ticket.applyAiSuggestion(TicketCategory.ACESSO, TicketPriority.ALTA, 0.87);
+		ticket.markClassificationReviewed(instant.plusHours(4));
 
 		Ticket savedTicket = ticketRepository.saveAndFlush(ticket);
 		Ticket foundTicket = ticketRepository.findById(savedTicket.getId()).orElseThrow();
@@ -202,6 +203,7 @@ class TicketPersistenceTest {
 		assertThat(foundTicket.getAiSuggestedCategory()).isEqualTo(TicketCategory.ACESSO);
 		assertThat(foundTicket.getAiSuggestedPriority()).isEqualTo(TicketPriority.ALTA);
 		assertThat(foundTicket.getAiConfidence()).isEqualTo(0.87);
+		assertThat(foundTicket.getClassificationReviewedAt()).isEqualTo(instant.plusHours(4));
 	}
 
 	@Test
