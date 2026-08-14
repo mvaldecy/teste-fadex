@@ -53,15 +53,29 @@ O backend tera um boundary de IA em `br.org.fadex.helpdesk.ai`, separado dos ser
 ```text
 backend/src/main/java/br/org/fadex/helpdesk/ai/
 ├── AiIntegrationException.java
-├── AiJobService.java
-├── AiJobWorker.java
-├── AiTriageClient.java
-├── AiEmbeddingClient.java
-├── LocalAiTriageClient.java
-├── LocalAiEmbeddingClient.java
-├── FallbackTicketClassifier.java
-├── TicketClassification.java
-└── TicketEmbedding.java
+├── client/
+│   ├── AiEmbeddingClient.java
+│   ├── AiTriageClient.java
+│   ├── LocalAiEmbeddingClient.java
+│   └── LocalAiTriageClient.java
+├── job/
+│   ├── AiJob.java
+│   ├── AiJobController.java
+│   ├── AiJobDto.java
+│   ├── AiJobFields.java
+│   ├── AiJobFilter.java
+│   ├── AiJobRepository.java
+│   ├── AiJobService.java
+│   ├── AiJobSpecification.java
+│   ├── AiJobStatus.java
+│   ├── AiJobSummaryDto.java
+│   ├── AiJobType.java
+│   └── AiJobWorker.java
+├── model/
+│   ├── TicketClassification.java
+│   └── TicketEmbedding.java
+└── triage/
+    └── FallbackTicketClassifier.java
 ```
 
 O dominio de chamados continua responsavel pela regra de negocio:
@@ -84,6 +98,8 @@ TicketLinkService
 ├── lista vinculos por chamado
 └── remove vinculos apenas por acao explicita
 ```
+
+Os services `TicketSimilarityService` e `TicketLinkService` ficam no dominio de chamados, porque representam comportamento da central de chamados. O pacote `ai` fica responsavel por integracao, fila, worker, classificacao automatica e embeddings.
 
 ## Fluxo de Criacao
 
@@ -131,6 +147,58 @@ O worker roda periodicamente e processa poucos jobs por ciclo:
 ```
 
 O Quartz nao sera tratado como fila. A fila sera a tabela `ai_jobs`; o Quartz sera apenas o agendador/worker que consome essa fila. Assim os jobs sobrevivem a restart da aplicacao.
+
+## Observabilidade da Fila
+
+O ADMIN tera endpoints para acompanhar a fila de IA e retentar jobs com falha. Esse controller fica em `br.org.fadex.helpdesk.ai.job`, pois expoe o estado operacional da fila, e nao uma funcionalidade publica de chamado.
+
+Endpoints:
+
+```text
+GET  /api/v1/admin/ai-jobs
+GET  /api/v1/admin/ai-jobs/summary
+GET  /api/v1/admin/ai-jobs/{id}
+POST /api/v1/admin/ai-jobs/{id}/retry
+```
+
+Filtros da listagem:
+
+- `status`: `PENDING`, `PROCESSING`, `DONE`, `FAILED`
+- `type`: `CLASSIFICATION`, `EMBEDDING`
+- `ticketId`: UUID
+
+Resumo esperado:
+
+```json
+{
+  "pending": 3,
+  "processing": 1,
+  "done": 42,
+  "failed": 2
+}
+```
+
+DTO de item:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "ticketId": "00000000-0000-0000-0000-000000000000",
+  "type": "CLASSIFICATION",
+  "status": "FAILED",
+  "attempts": 3,
+  "nextAttemptAt": "2026-08-14T10:00:00",
+  "lastError": "Timeout ao chamar Ollama",
+  "createdAt": "2026-08-14T09:50:00",
+  "updatedAt": "2026-08-14T09:55:00"
+}
+```
+
+Regras:
+
+- Apenas ADMIN acessa esses endpoints.
+- `retry` volta um job `FAILED` para `PENDING`, zera `lastError`, ajusta `nextAttemptAt` para agora e preserva o historico de `attempts`.
+- Nao havera endpoint para cancelar, processar imediatamente ou limpar fila neste ciclo.
 
 ## Classificacao
 
@@ -382,6 +450,7 @@ Regras iniciais:
 
 - Criacao de chamado continua disponivel para usuario autenticado.
 - Revisao de classificacao e gerenciamento de vinculos sao exclusivos de ADMIN.
+- Observabilidade e retry de jobs de IA sao exclusivos de ADMIN.
 - Listagem de similares e links deve respeitar as regras de visibilidade de chamados.
 - SOLICITANTE nao deve receber dados de chamados de outros solicitantes quando a autorizacao por papel estiver aplicada.
 
@@ -394,6 +463,8 @@ Falha do modelo local nao deve quebrar CRUD basico.
 Comportamentos esperados:
 
 - Timeout ou erro no Ollama marca job como FAILED apenas depois do numero maximo de tentativas.
+- `retry` de job inexistente retorna 404.
+- `retry` de job que nao esteja `FAILED` retorna 400.
 - Enquanto o job estiver pendente, o chamado mostra `classificationOrigin=PENDENTE`.
 - Se embedding nao existir, `/similar` retorna lista vazia.
 - Payload invalido em revisao manual retorna 400.
@@ -408,6 +479,7 @@ Cobertura minima de backend:
 - `TicketServiceTest`: criacao de chamado enfileira jobs e nao chama IA sincrona.
 - `AiJobServiceTest`: cria jobs, controla tentativas e backoff.
 - `AiJobWorkerTest`: processa classificacao valida, embedding valido e falhas.
+- `AiJobControllerTest`: lista jobs, retorna summary e permite retry apenas para ADMIN.
 - `FallbackTicketClassifierTest`: cobre palavras-chave para categoria/prioridade.
 - `TicketSimilarityServiceTest`: monta busca por distancia cosseno, aplica threshold, limit e statusGroup.
 - `TicketLinkServiceTest`: cria vinculo bidirecional logico, impede auto-vinculo e duplicidade.
@@ -440,6 +512,7 @@ make frontend-build
 - Criar chamado nunca depende de resposta sincrona do modelo local.
 - Jobs de classificacao e embedding sao persistidos.
 - Worker Quartz processa jobs com concorrencia baixa e retry limitado.
+- ADMIN consegue consultar summary/listagem/detalhe de jobs e retentar jobs `FAILED`.
 - Chamado recebe categoria/prioridade/justificativa quando classificacao termina.
 - ADMIN consegue corrigir classificacao manualmente.
 - Embedding e salvo quando o job termina.
