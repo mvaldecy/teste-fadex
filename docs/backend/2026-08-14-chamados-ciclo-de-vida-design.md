@@ -191,9 +191,18 @@ e o campo ainda esta `null`.
 existir e precisa ter role `ADMIN` — atribuir chamado a um `SOLICITANTE` seria dar trabalho de
 atendimento a quem nao tem permissao de mudar status, produzindo um chamado travado.
 
-**Esta regra e uma invencao desta feature**: nem o desafio nem o documento de frentes a pedem.
-Ela restringe o seletor de responsavel do Frontend a usuarios ADMIN e por isso esta destacada
-aqui em vez de embutida no codigo.
+**Confirmada na revisao.** A razao e que o sistema so tem os papeis `ADMIN` e `SOLICITANTE`:
+responsavel e necessariamente `ADMIN`. O seletor de responsavel do Frontend usa
+`GET /api/v1/users?role=ADMIN`.
+
+A revisao fixou tambem a semantica da atribuicao, mais restrita do que este design supunha:
+
+- `PATCH /assignee` **so atribui chamado sem responsavel**. Chamado ja atribuido responde `409`.
+  Trocar de responsavel e `DELETE` seguido de `PATCH`. Assim toda troca deixa os dois eventos no
+  historico; um `PATCH` sobrepondo o anterior registraria so a chegada e apagaria a saida.
+- Nao ha regra de "so o proprio": um `ADMIN` pode se atribuir ou atribuir outro, indiferentemente.
+- Efeito na UI: o botao e "Atribuir" quando `assignee` e nulo e "Recusar" quando nao e, nunca os
+  dois.
 
 Violacao responde `409 CONFLICT` via `ConflictException`. As alternativas foram descartadas:
 `ValidationException` **nao existe** no projeto, e criar uma reutilizando o codigo
@@ -206,12 +215,15 @@ valido; o que impede a operacao e o papel do usuario referenciado, que e estado 
 o ADMIN recusa um chamado que lhe foi atribuido, e o ADMIN retira a atribuicao de outro. Como
 descrito acima, `assigned_at` e preservado.
 
-Os dois eventos de historico usam `TicketEventType.RESPONSAVEL_ATRIBUIDO`, inclusive o de
-remocao: `model/enums` esta fora da posse desta frente e acrescentar `RESPONSAVEL_REMOVIDO`
-implicaria mexer no enum e na lista de filtros do `api.md`. **Efeito colateral conhecido:** o
-Frontend renderiza o `getLabel()` do tipo, entao a remocao aparece no historico rotulada como
-"Responsavel atribuido", com a descricao correta so no texto do evento. Se a revisao preferir o
-enum novo, e uma troca barata e o unico ponto que muda e este.
+A remocao registra `TicketEventType.RESPONSAVEL_REMOVIDO`, constante nova com label
+"Responsavel removido". A revisao autorizou mexer em `model/enums/TicketEventType.java`, fora da
+posse nominal desta frente, porque nenhuma outra frente toca nesse arquivo — e reaproveitar
+`RESPONSAVEL_ATRIBUIDO` faria a aba de historico, visivel nesta rodada, escrever exatamente o
+oposto do que aconteceu.
+
+**A `V4` precisa alterar o check constraint `ck_ticket_events_type`.** Ele foi fixado na `V2` com
+a lista fechada de sete tipos e rejeitaria o valor novo no insert. Constraint congelada em
+migration antiga e o tipo de detalhe que so aparece em runtime, no primeiro `DELETE /assignee`.
 
 Ambos exigem chamado nao `FECHADO`: mexer no responsavel de um chamado terminal responde `409`.
 
@@ -371,6 +383,14 @@ cada registro hoje so posicionam eventos de historico. Com a `V4`, o `insert` pa
 - `first_response_at` = `created_at + firstReplyAfterHours` quando ha comentario de responsavel.
 - `resolved_at` = `created_at + resolvedAfterHours` para status `RESOLVIDO` e `FECHADO`.
 - `closed_at` = mesmo instante, apenas para status `FECHADO`.
+- `ai_suggested_category`, `ai_suggested_priority` e `ai_confidence` em todo chamado com origem
+  `IA` ou `MANUAL` (origem `PENDENTE` nunca foi classificada e fica sem sugestao).
+
+Nos chamados de origem `MANUAL`, **parte das sugestoes precisa divergir** da classificacao
+efetiva: sao justamente os chamados em que o ADMIN corrigiu a IA. Se toda sugestao batesse com a
+classificacao final, a taxa de concordancia admin x IA sairia 100% e a metrica nao mostraria nada.
+A confianca tambem varia — sugestao corrigida recebe confianca mais baixa, que e o padrao realista
+e o que da sentido ao cruzamento entre confianca e acerto.
 
 Sem isso o dashboard da frente IA renderiza todas as metricas de tempo como vazias mesmo com 20
 chamados no banco, e o avaliador ve um dashboard zerado.

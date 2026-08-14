@@ -46,6 +46,7 @@
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/service/TicketService.java`: seam `applyClassification(...)`.
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/model/ticket/TicketDto.java` e `TicketMapper.java`: expor os carimbos.
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/model/ticket/TicketFields.java`: constantes dos campos novos.
+- Modify `backend/src/main/java/br/org/fadex/helpdesk/model/enums/TicketEventType.java`: constante `RESPONSAVEL_REMOVIDO`.
 - Modify `docs/backend/api.md`: delta dos endpoints e dos campos novos, **antes** da implementacao.
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/config/DevTicketSeeder.java`: preencher os carimbos.
 
@@ -107,7 +108,24 @@ alter table tickets add constraint ck_tickets_ai_confidence_range
 
 create index idx_tickets_closed_at on tickets (closed_at);
 create index idx_tickets_created_at on tickets (created_at);
+
+alter table ticket_events drop constraint ck_ticket_events_type;
+
+alter table ticket_events add constraint ck_ticket_events_type check (type in (
+    'CHAMADO_CRIADO',
+    'COMENTARIO_ADICIONADO',
+    'STATUS_ALTERADO',
+    'RESPONSAVEL_ATRIBUIDO',
+    'RESPONSAVEL_REMOVIDO',
+    'PRIORIDADE_ALTERADA',
+    'CATEGORIA_ALTERADA',
+    'CLASSIFICACAO_ATUALIZADA'
+));
 ```
+
+O `drop`/`add` do `ck_ticket_events_type` e obrigatorio: a `V2` fixou a lista com sete tipos e
+rejeitaria `RESPONSAVEL_REMOVIDO` no insert. Sem isto, a falha so aparece em runtime, no primeiro
+`DELETE /assignee`.
 
 Nota: os `alter table` sao separados de proposito. H2 em modo PostgreSQL nao aceita `add column` multiplo com a mesma sintaxe do Postgres, e a suite roda em H2.
 
@@ -215,7 +233,19 @@ Mais os sete getters correspondentes, no mesmo estilo dos existentes.
 
 `Double` e nao `double`: a coluna e anulavel e o primitivo transformaria ausencia de sugestao em confianca `0.0`.
 
-- [ ] **Step 5: Acrescentar as constantes em `TicketFields`**
+- [ ] **Step 5: Acrescentar `RESPONSAVEL_REMOVIDO` em `TicketEventType`**
+
+Em `backend/src/main/java/br/org/fadex/helpdesk/model/enums/TicketEventType.java`, depois de
+`RESPONSAVEL_ATRIBUIDO`:
+
+```java
+	RESPONSAVEL_REMOVIDO("Responsavel removido"),
+```
+
+`model/enums` esta fora da posse nominal desta frente; a revisao autorizou por nenhuma outra
+frente tocar no arquivo. O label e o que o Frontend renderiza na aba de historico.
+
+- [ ] **Step 6: Acrescentar as constantes em `TicketFields`**
 
 ```java
 	public static final String RESOLVED_AT = "resolvedAt";
@@ -227,12 +257,12 @@ Mais os sete getters correspondentes, no mesmo estilo dos existentes.
 	public static final String AI_CONFIDENCE = "aiConfidence";
 ```
 
-- [ ] **Step 6: Rodar os testes e ver passar**
+- [ ] **Step 7: Rodar os testes e ver passar**
 
 Run: `make backend-test`
 Expected: BUILD SUCCESSFUL. `ddl-auto=validate` valida a `V4` contra a entidade em todo `@SpringBootTest`; divergencia de tipo derruba o contexto.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Marco de conclusao (sem commit nesta rodada)**
 
 ```bash
 git add backend/src/main/resources/db/migration/V4__add_ticket_lifecycle_columns.sql \
@@ -644,6 +674,8 @@ git commit -m "docs(backend): documenta ciclo de vida do chamado no contrato da 
 
 Os dados ja existem no seeder: `resolvedAfterHours` e `firstReplyAfterHours` hoje so posicionam eventos de historico. Sem esta task, o dashboard da frente IA renderiza todas as metricas de tempo vazias com 20 chamados no banco.
 
+Alem dos carimbos, o seed passa a gravar `ai_suggested_category`, `ai_suggested_priority` e `ai_confidence`. Regra que da sentido a metrica: **em parte dos chamados de origem `MANUAL` a sugestao precisa divergir da classificacao efetiva** — sao os chamados em que o ADMIN corrigiu a IA. Se toda sugestao batesse com a classificacao final, a taxa de concordancia sairia 100% e o indicador nao mostraria nada. Chamados de origem `PENDENTE` ficam sem sugestao: nunca foram classificados.
+
 - [ ] **Step 1: Calcular os instantes no `insertTicket`**
 
 Depois do calculo de `resolvedAt` ja existente:
@@ -658,7 +690,35 @@ Depois do calculo de `resolvedAt` ja existente:
 
 `assignedAt` usa `createdAt.plusHours(1)`, o mesmo instante ja usado no evento `RESPONSAVEL_ATRIBUIDO` logo abaixo — os dois precisam contar a mesma historia.
 
-- [ ] **Step 2: Incluir as colunas no insert**
+- [ ] **Step 2: Acrescentar os campos de sugestao ao record `TicketSeed`**
+
+No record `TicketSeed`, ao final:
+
+```java
+			TicketCategory aiSuggestedCategory,
+			TicketPriority aiSuggestedPriority,
+			Double aiConfidence
+```
+
+E preencher os 20 registros seguindo estas regras, que sao o ponto da task:
+
+- origem `IA`: sugestao **igual** a classificacao efetiva, confianca alta, entre `0.78` e `0.94`.
+- origem `MANUAL`: sugestao **diferente** da classificacao efetiva em categoria, prioridade ou
+  ambas, confianca baixa, entre `0.31` e `0.58` — a IA erra mais quando esta menos confiante, e e
+  isso que torna o cruzamento entre confianca e acerto legivel.
+- origem `PENDENTE`: os tres campos `null`.
+
+Exemplo de registro `MANUAL` divergente, do chamado "Reembolso de diaria nao processado", que e
+`FINANCEIRO`/`MEDIA` na classificacao efetiva:
+
+```java
+						TicketCategory.RH, TicketPriority.BAIXA, 0.41
+```
+
+A justificativa desse chamado ja diz "reclassificado manualmente de RH para Financeiro" — a
+sugestao gravada precisa bater com a historia que a justificativa conta.
+
+- [ ] **Step 3: Incluir as colunas no insert**
 
 Trocar o `insert into tickets` por:
 
@@ -668,8 +728,9 @@ Trocar o `insert into tickets` por:
 				insert into tickets (
 					id, title, description, category, priority, status, requester_id, assignee_id,
 					classification_origin, classification_justification, created_at, updated_at,
-					assigned_at, first_response_at, resolved_at, closed_at
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					assigned_at, first_response_at, resolved_at, closed_at,
+					ai_suggested_category, ai_suggested_priority, ai_confidence
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				ticketId,
 				seed.title(),
@@ -686,16 +747,19 @@ Trocar o `insert into tickets` por:
 				assignedAt == null ? null : Timestamp.valueOf(assignedAt),
 				firstResponseAt == null ? null : Timestamp.valueOf(firstResponseAt),
 				resolvedAt == null ? null : Timestamp.valueOf(resolvedAt),
-				closedAt == null ? null : Timestamp.valueOf(closedAt)
+				closedAt == null ? null : Timestamp.valueOf(closedAt),
+				seed.aiSuggestedCategory() == null ? null : seed.aiSuggestedCategory().name(),
+				seed.aiSuggestedPriority() == null ? null : seed.aiSuggestedPriority().name(),
+				seed.aiConfidence()
 		);
 ```
 
-- [ ] **Step 3: Rodar os testes**
+- [ ] **Step 4: Rodar os testes**
 
 Run: `make backend-test`
 Expected: BUILD SUCCESSFUL. O seed nao roda na suite (`app.seed.enabled=false` em `application-test.properties`), entao a verificacao real e subir o backend com banco limpo e conferir que `select count(*) from tickets where closed_at is not null` devolve 4.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Marco de conclusao (sem commit nesta rodada)**
 
 ```bash
 git add backend/src/main/java/br/org/fadex/helpdesk/config/DevTicketSeeder.java
@@ -1129,7 +1193,7 @@ void updateAssigneeDeveAtribuirECarimbarAssignedAt() {
 }
 
 @Test
-void updateAssigneeNaoDeveSobrescreverAssignedAtNaReatribuicao() {
+void updateAssigneeNaoDeveSobrescreverAssignedAtAoReatribuirDepoisDeRecusar() {
     Ticket ticket = newTicket(TicketPriority.MEDIA);
     LocalDateTime original = LocalDateTime.of(2026, 1, 1, 0, 0);
     ticket.markAssigned(original);
@@ -1151,6 +1215,17 @@ void updateAssigneeDeveRecusarResponsavelSemPapelAdmin() {
 
     assertThatThrownBy(() -> ticketService.updateAssignee(
             ticket.getId(), new TicketAssigneeUpdateDto(solicitanteId)
+    )).isInstanceOf(ConflictException.class);
+}
+
+@Test
+void updateAssigneeDeveRecusarChamadoQueJaTemResponsavel() {
+    Ticket ticket = newTicket(TicketPriority.MEDIA);
+    ticket.assignTo(admin);
+    when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+    assertThatThrownBy(() -> ticketService.updateAssignee(
+            ticket.getId(), new TicketAssigneeUpdateDto(adminId)
     )).isInstanceOf(ConflictException.class);
 }
 
@@ -1178,7 +1253,7 @@ void removeAssigneeDeveRemoverResponsavelEPreservarAssignedAt() {
     assertThat(ticket.getAssignee()).isNull();
     assertThat(ticket.getAssignedAt()).isEqualTo(original);
     verify(ticketEventService).record(
-            eq(ticket), eq(admin), eq(TicketEventType.RESPONSAVEL_ATRIBUIDO), anyString()
+            eq(ticket), eq(admin), eq(TicketEventType.RESPONSAVEL_REMOVIDO), anyString()
     );
 }
 
@@ -1222,6 +1297,12 @@ public record TicketAssigneeUpdateDto(
 		Ticket ticket = findEntityById(id);
 		assertTicketIsOpen(ticket);
 
+		if (ticket.getAssignee() != null) {
+			throw new ConflictException(
+					"O chamado ja possui responsavel. Remova a atribuicao atual antes de atribuir outro."
+			);
+		}
+
 		User assignee = userService.findEntityById(ticketAssigneeUpdateDto.assigneeId());
 
 		if (assignee.getRole() != Role.ADMIN) {
@@ -1264,7 +1345,7 @@ public record TicketAssigneeUpdateDto(
 		Ticket savedTicket = ticketRepository.save(ticket);
 		String description = "Atribuicao removida de " + previousAssignee.getName() + ".";
 		ticketEventService.record(
-				savedTicket, previousAssignee, TicketEventType.RESPONSAVEL_ATRIBUIDO, description
+				savedTicket, previousAssignee, TicketEventType.RESPONSAVEL_REMOVIDO, description
 		);
 		publishTicketUpdated(savedTicket);
 
@@ -1282,9 +1363,11 @@ public record TicketAssigneeUpdateDto(
 
 `assigned_at` so e escrito na primeira atribuicao e nunca limpo no `removeAssignee`: a metrica e "tempo ate a primeira atribuicao", que mede a velocidade da triagem. Limpar apagaria o fato de que a triagem aconteceu.
 
+`PATCH /assignee` **so atribui chamado sem responsavel** — decisao da revisao. Trocar de responsavel e `DELETE` seguido de `PATCH`, para que a troca deixe os dois eventos no historico em vez de um `RESPONSAVEL_ATRIBUIDO` solitario que apaga quem saiu. Nao ha regra de "so o proprio": qualquer ADMIN atribui a si ou a outro ADMIN.
+
 Nenhuma excecao nova: `ConflictException` ja existe. Nao criar `ValidationException` reutilizando o codigo `VALIDATION_ERROR` — ele ja pertence a bean validation e o `api.md` o documenta carregando um array `fields`.
 
-Os dois eventos usam `TicketEventType.RESPONSAVEL_ATRIBUIDO`, inclusive o de remocao. `TicketEventType` fica em `model/enums`, fora da posse desta frente. **Efeito colateral conhecido:** o Frontend renderiza `getLabel()`, entao a linha de remocao no historico aparece rotulada como "Responsavel atribuido", com a descricao correta apenas no texto do evento.
+A remocao registra `RESPONSAVEL_REMOVIDO`, constante acrescentada na Task 1.
 
 - [ ] **Step 5: Acrescentar os endpoints no controller**
 
