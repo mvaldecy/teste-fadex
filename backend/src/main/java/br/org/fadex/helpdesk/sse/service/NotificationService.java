@@ -5,6 +5,7 @@ import br.org.fadex.helpdesk.sse.model.NotificationConnectionDto;
 import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class NotificationService {
 
@@ -77,8 +79,17 @@ public class NotificationService {
 	private void sendComment(SseSubscription subscription) {
 		try {
 			subscription.emitter().send(SseEmitter.event().comment(HEARTBEAT_COMMENT));
-		} catch (IOException | IllegalStateException exception) {
+		} catch (IOException exception) {
+			log.debug("Cliente desconectado durante o keep-alive da conexao {}.", subscription.connectionId());
 			registry.remove(subscription);
+		} catch (IllegalStateException exception) {
+			log.warn(
+					"Falha ao enviar keep-alive para a conexao {}; encerrando o emitter.",
+					subscription.connectionId(),
+					exception
+			);
+			registry.remove(subscription);
+			subscription.emitter().completeWithError(exception);
 		}
 	}
 
@@ -98,8 +109,17 @@ public class NotificationService {
 					.name(eventName)
 					.reconnectTime(reconnectTime)
 					.data(data, MediaType.APPLICATION_JSON));
-		} catch (IOException | IllegalStateException exception) {
+		} catch (IOException exception) {
+			log.debug("Cliente desconectado ao entregar notificacao na conexao {}.", subscription.connectionId());
 			registry.remove(subscription);
+		} catch (IllegalStateException exception) {
+			log.warn(
+					"Falha ao entregar notificacao na conexao {}; encerrando o emitter.",
+					subscription.connectionId(),
+					exception
+			);
+			registry.remove(subscription);
+			subscription.emitter().completeWithError(exception);
 		}
 	}
 }

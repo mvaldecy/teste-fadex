@@ -95,7 +95,7 @@ class NotificationServiceTest {
 	}
 
 	@Test
-	void deveRemoverConexaoQuebradaSemInterromperAsDemais() throws Exception {
+	void deveRemoverConexaoQuebradaSemInterromperAsDemaisENaoCompletarComErro() throws Exception {
 		NotificationService notificationService = new NotificationService(
 				registry,
 				authenticatedUserService,
@@ -119,31 +119,38 @@ class NotificationServiceTest {
 
 		verify(registry).remove(conexaoQuebrada);
 		verify(emitterSaudavel).send(any(SseEmitter.SseEventBuilder.class));
+		// IOException e desconexao do cliente: o container ja dispara o error dispatch
+		// sozinho, entao a aplicacao nao deve chamar completeWithError.
+		verify(emitterQuebrado, never()).completeWithError(any());
 	}
 
 	@Test
-	void deveRemoverConexaoJaEncerradaQueLancaIllegalState() throws Exception {
+	void deveRemoverConexaoECompletarComErroQuandoFalhaDeSerializacaoLancaIllegalState() throws Exception {
 		NotificationService notificationService = new NotificationService(
 				registry,
 				authenticatedUserService,
 				TIMEOUT,
 				RECONNECT_TIME
 		);
-		SseEmitter emitterEncerrado = mock(SseEmitter.class);
-		SseSubscription conexaoEncerrada = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterEncerrado);
+		SseEmitter emitterComFalha = mock(SseEmitter.class);
+		SseSubscription conexaoComFalha = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterComFalha);
 		NotificationMessage message = NotificationMessage.of(
 				"CHAMADO_CRIADO",
 				"conteudo",
 				new NotificationAudience.Everyone()
 		);
 
-		when(registry.findAll()).thenReturn(List.of(conexaoEncerrada));
-		doThrow(new IllegalStateException("ResponseBodyEmitter has already completed"))
-				.when(emitterEncerrado).send(any(SseEmitter.SseEventBuilder.class));
+		when(registry.findAll()).thenReturn(List.of(conexaoComFalha));
+		IllegalStateException falhaDeSerializacao = new IllegalStateException("erro ao serializar o corpo do evento");
+		doThrow(falhaDeSerializacao).when(emitterComFalha).send(any(SseEmitter.SseEventBuilder.class));
 
 		notificationService.dispatch(message);
 
-		verify(registry).remove(conexaoEncerrada);
+		verify(registry).remove(conexaoComFalha);
+		// IllegalStateException pode ser um emitter ja concluido ou uma falha de
+		// serializacao num emitter vivo; nos dois casos o stream precisa fechar de
+		// fato para que o cliente detecte e reconecte, em vez de ficar mudo ate o timeout.
+		verify(emitterComFalha).completeWithError(falhaDeSerializacao);
 	}
 
 	@Test
@@ -168,7 +175,7 @@ class NotificationServiceTest {
 	}
 
 	@Test
-	void deveRemoverConexaoMortaDetectadaPeloKeepAlive() throws Exception {
+	void deveRemoverConexaoMortaDetectadaPeloKeepAliveENaoCompletarComErro() throws Exception {
 		NotificationService notificationService = new NotificationService(
 				registry,
 				authenticatedUserService,
@@ -184,5 +191,27 @@ class NotificationServiceTest {
 		notificationService.sendHeartbeat();
 
 		verify(registry).remove(conexaoMorta);
+		verify(emitterMorto, never()).completeWithError(any());
+	}
+
+	@Test
+	void deveEncerrarEmitterQuandoKeepAliveEncontraFalhaDeSerializacao() throws Exception {
+		NotificationService notificationService = new NotificationService(
+				registry,
+				authenticatedUserService,
+				TIMEOUT,
+				RECONNECT_TIME
+		);
+		SseEmitter emitterComFalha = mock(SseEmitter.class);
+		SseSubscription conexaoComFalha = new SseSubscription("conexao-1", USUARIO, Role.ADMIN, emitterComFalha);
+
+		when(registry.findAll()).thenReturn(List.of(conexaoComFalha));
+		IllegalStateException falhaDeSerializacao = new IllegalStateException("erro interno do emitter");
+		doThrow(falhaDeSerializacao).when(emitterComFalha).send(any(SseEmitter.SseEventBuilder.class));
+
+		notificationService.sendHeartbeat();
+
+		verify(registry).remove(conexaoComFalha);
+		verify(emitterComFalha).completeWithError(falhaDeSerializacao);
 	}
 }

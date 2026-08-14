@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -46,5 +47,14 @@ class NotificationDispatcherTest {
 		assertThat(annotation).isNotNull();
 		assertThat(annotation.phase()).isEqualTo(TransactionPhase.AFTER_COMMIT);
 		assertThat(annotation.fallbackExecution()).isTrue();
+	}
+
+	@Test
+	void deveRodarNoExecutorDedicadoDeNotificacoes() throws Exception {
+		Method listener = NotificationDispatcher.class.getMethod("onNotificationMessage", NotificationMessage.class);
+		Async annotation = AnnotationUtils.findAnnotation(listener, Async.class);
+
+		assertThat(annotation).isNotNull();
+		assertThat(annotation.value()).isEqualTo("sseNotificationExecutor");
 	}
 }
