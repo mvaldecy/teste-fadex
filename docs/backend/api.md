@@ -365,7 +365,73 @@ Response `200`:
 
 Response `404` quando nao encontrar.
 
+## Comentarios
+
+### `GET /api/v1/tickets/{ticketId}/comments`
+
+Protegido.
+
+Filtros:
+
+- `authorId`: UUID
+- `search`: busca parcial pelo texto do comentario
+
+Tambem aceita `page`, `size` e `sort`.
+
+Response `200`:
+
+```json
+{
+  "content": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "author": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "name": "Administrador"
+      },
+      "text": "Consegui reproduzir o erro.",
+      "createdAt": "2026-08-13T20:00:00"
+    }
+  ]
+}
+```
+
+### `POST /api/v1/tickets/{ticketId}/comments`
+
+Protegido.
+
+O autor do comentario e definido pelo usuario autenticado no token. O front nao envia dados do autor.
+
+Request:
+
+```json
+{
+  "text": "Consegui reproduzir o erro."
+}
+```
+
+Regras de validacao:
+
+- `text`: obrigatorio
+
+Response `201`:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "author": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "Administrador"
+  },
+  "text": "Consegui reproduzir o erro.",
+  "createdAt": "2026-08-13T20:00:00",
+  "updatedAt": "2026-08-13T20:00:00"
+}
+```
+
+Response `404` quando o chamado nao existir.
+
 ## Pendencias Conhecidas
 
-- Atualizacao de status, atribuicao, comentarios e historico ainda serao definidos.
+- Atualizacao de status, atribuicao e historico de eventos ainda serao definidos.
 - O service de IA ainda esta pendente; por enquanto a classificacao fica preparada com origem `PENDENTE`.

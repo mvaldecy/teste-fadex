@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -35,6 +36,7 @@ public class TicketService {
 		this.authenticatedUserService = authenticatedUserService;
 	}
 
+	@Transactional(readOnly = true)
 	public Page<TicketMinDto> findAll(TicketFilter filter, Pageable pageable) {
 		Specification<Ticket> spec = TicketSpecification.createSpecification(filter);
 		Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
@@ -43,14 +45,21 @@ public class TicketService {
 		return response;
 	}
 
+	@Transactional(readOnly = true)
 	public TicketDto findById(UUID id) {
-		Ticket ticket = ticketRepository.findById(id)
-				.orElseThrow(() -> new NotFoundException("Chamado não encontrado."));
+		Ticket ticket = findEntityById(id);
 		TicketDto response = TicketMapper.toResponseDto(ticket);
 
 		return response;
 	}
 
+	@Transactional(readOnly = true)
+	public Ticket findEntityById(UUID id) {
+		return ticketRepository.findById(id)
+				.orElseThrow(() -> new NotFoundException("Chamado não encontrado."));
+	}
+
+	@Transactional
 	public TicketDto create(TicketCreationDto ticketCreationDto) {
 		UUID authenticatedUserId = authenticatedUserService.getUserId();
 		User requester = userService.findEntityById(authenticatedUserId);

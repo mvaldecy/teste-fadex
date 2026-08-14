@@ -23,7 +23,11 @@ public class AuthenticatedUserService {
 			throw new UnauthorizedException("Usuário autenticado inválido.");
 		}
 
-		return UUID.fromString(userId);
+		try {
+			return UUID.fromString(userId);
+		} catch (IllegalArgumentException exception) {
+			throw new UnauthorizedException("Usuário autenticado inválido.");
+		}
 	}
 
 	public String getEmail() {
@@ -40,7 +44,11 @@ public class AuthenticatedUserService {
 			throw new UnauthorizedException("Usuário autenticado inválido.");
 		}
 
-		return Role.valueOf(role);
+		try {
+			return Role.valueOf(role);
+		} catch (IllegalArgumentException exception) {
+			throw new UnauthorizedException("Usuário autenticado inválido.");
+		}
 	}
 
 	private Jwt getJwt() {

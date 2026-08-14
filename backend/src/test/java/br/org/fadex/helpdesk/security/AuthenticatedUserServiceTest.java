@@ -42,6 +42,39 @@ class AuthenticatedUserServiceTest {
 				.hasMessage("Autenticação necessária.");
 	}
 
+	@Test
+	void deveFalharQuandoClaimUserIdEstiverInvalido() {
+		Jwt jwt = Jwt.withTokenValue("token")
+				.header("alg", "HS256")
+				.subject("admin@fadex.org.br")
+				.claim("userId", "id-invalido")
+				.claim("role", Role.ADMIN.name())
+				.build();
+		JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+
+		assertThatThrownBy(authenticatedUserService::getUserId)
+				.isInstanceOf(UnauthorizedException.class)
+				.hasMessage("Usuário autenticado inválido.");
+	}
+
+	@Test
+	void deveFalharQuandoClaimRoleEstiverInvalida() {
+		UUID userId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
+		Jwt jwt = Jwt.withTokenValue("token")
+				.header("alg", "HS256")
+				.subject("admin@fadex.org.br")
+				.claim("userId", userId.toString())
+				.claim("role", "ROLE_INVALIDA")
+				.build();
+		JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+
+		assertThatThrownBy(authenticatedUserService::getRole)
+				.isInstanceOf(UnauthorizedException.class)
+				.hasMessage("Usuário autenticado inválido.");
+	}
+
 	private Jwt createJwt(UUID userId, String email, Role role) {
 		Instant issuedAt = Instant.parse("2026-08-13T20:00:00Z");
 		Instant expiresAt = Instant.parse("2026-08-13T21:00:00Z");
