@@ -20,6 +20,10 @@ public record TicketDto(
 		String classificationJustification,
 		UserMinDto requester,
 		UserMinDto assignee,
+		LocalDateTime assignedAt,
+		LocalDateTime firstResponseAt,
+		LocalDateTime resolvedAt,
+		LocalDateTime closedAt,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt
 ) {

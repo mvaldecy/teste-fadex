@@ -382,11 +382,16 @@ Response `201`:
   "priority": "MEDIA",
   "status": "ABERTO",
   "classificationOrigin": "PENDENTE",
+  "classificationJustification": null,
   "requester": {
     "id": "00000000-0000-0000-0000-000000000000",
     "name": "Solicitante"
   },
   "assignee": null,
+  "assignedAt": null,
+  "firstResponseAt": null,
+  "resolvedAt": null,
+  "closedAt": null,
   "createdAt": "2026-08-13T20:00:00",
   "updatedAt": "2026-08-13T20:00:00"
 }
@@ -424,6 +429,7 @@ Response `200`:
         "name": "Solicitante"
       },
       "assignee": null,
+      "assignedAt": null,
       "createdAt": "2026-08-13T20:00:00"
     }
   ]
@@ -445,17 +451,148 @@ Response `200`:
   "priority": "MEDIA",
   "status": "ABERTO",
   "classificationOrigin": "PENDENTE",
+  "classificationJustification": null,
   "requester": {
     "id": "00000000-0000-0000-0000-000000000000",
     "name": "Solicitante"
   },
   "assignee": null,
+  "assignedAt": null,
+  "firstResponseAt": null,
+  "resolvedAt": null,
+  "closedAt": null,
   "createdAt": "2026-08-13T20:00:00",
   "updatedAt": "2026-08-13T20:00:00"
 }
 ```
 
 Response `404` quando nao encontrar.
+
+## Ciclo de Vida do Chamado
+
+Os tres endpoints desta secao sao exclusivos de `ADMIN`. Um `SOLICITANTE` recebe `403` em todos,
+mesmo no proprio chamado.
+
+### Carimbos de tempo
+
+Alem de `createdAt` e `updatedAt`, o chamado tem quatro carimbos, todos anulaveis e todos
+presentes no `TicketDto`. `assignedAt` tambem aparece no item de listagem (`TicketMinDto`), por
+ser o unico consumido por tela de lista e pelo payload de notificacao.
+
+| Campo | Preenchido quando | Reescrita |
+| --- | --- | --- |
+| `assignedAt` | primeira atribuicao de responsavel | nunca reescrito, nem ao remover o responsavel |
+| `firstResponseAt` | primeiro comentario de um `ADMIN` | nunca reescrito |
+| `resolvedAt` | transicao para `RESOLVIDO` | reescrito a cada nova resolucao |
+| `closedAt` | transicao para `FECHADO` | escrito uma unica vez |
+
+Ao fechar um chamado que nunca passou por `RESOLVIDO`, `resolvedAt` recebe o mesmo instante de
+`closedAt`. Sem isso, chamado fechado direto sairia das metricas de tempo de resolucao.
+
+### Transicoes de status
+
+| De / Para | ABERTO | EM_ANDAMENTO | RESOLVIDO | FECHADO |
+| --- | --- | --- | --- | --- |
+| `ABERTO` | — | sim | sim | sim |
+| `EM_ANDAMENTO` | sim | — | sim | sim |
+| `RESOLVIDO` | nao | sim | — | sim |
+| `FECHADO` | nao | nao | nao | — |
+
+`FECHADO` e terminal: qualquer transicao a partir dele responde `409`. Transicao para o status
+atual tambem responde `409`, em vez de `200` silencioso, para que duplo clique na UI apareca.
+
+`RESOLVIDO` para `ABERTO` nao existe: reabrir um chamado resolvido significa voltar a trabalha-lo,
+que corresponde a `EM_ANDAMENTO`.
+
+### `PATCH /api/v1/tickets/{id}/status`
+
+Protegido. Somente `ADMIN`.
+
+Request:
+
+```json
+{
+  "status": "EM_ANDAMENTO"
+}
+```
+
+Regras de validacao:
+
+- `status`: obrigatorio, um dos valores de `ticketStatuses`
+
+Response `200`: `TicketDto` com o status novo e os carimbos atualizados.
+
+Registra evento `STATUS_ALTERADO` no historico e emite `CHAMADO_ATUALIZADO` no stream SSE.
+
+| Situacao | Status |
+| --- | --- |
+| chamado nao encontrado | `404` |
+| usuario nao e `ADMIN` | `403` |
+| chamado esta `FECHADO` | `409` |
+| status igual ao atual | `409` |
+| transicao nao permitida pela matriz | `409` |
+
+### `PATCH /api/v1/tickets/{id}/assignee`
+
+Protegido. Somente `ADMIN`.
+
+Request:
+
+```json
+{
+  "assigneeId": "00000000-0000-0000-0000-000000000000"
+}
+```
+
+Regras de validacao:
+
+- `assigneeId`: obrigatorio, UUID de usuario existente
+
+**Atribui apenas chamado sem responsavel.** Chamado que ja tem responsavel responde `409`: trocar
+de responsavel e `DELETE` seguido de `PATCH`, nunca um `PATCH` sobre o outro. Assim toda troca
+deixa os dois eventos no historico, e nao um `RESPONSAVEL_ATRIBUIDO` solitario que apaga quem
+saiu.
+
+O responsavel indicado precisa ter papel `ADMIN`. Nao ha regra de "so o proprio": um `ADMIN` pode
+se atribuir ou atribuir outro `ADMIN`, indiferentemente. Como os unicos papeis do sistema sao
+`ADMIN` e `SOLICITANTE`, responsavel e necessariamente `ADMIN` — o front deve popular o seletor
+com `GET /api/v1/users?role=ADMIN`.
+
+Consequencia para a UI: o botao e "Atribuir" quando `assignee` e nulo e "Recusar" quando nao e.
+Nunca os dois ao mesmo tempo.
+
+Response `200`: `TicketDto` com o responsavel novo. Preenche `assignedAt` apenas na primeira
+atribuicao — uma reatribuicao posterior, depois de um `DELETE`, mantem o carimbo original.
+Registra evento `RESPONSAVEL_ATRIBUIDO` e emite `CHAMADO_ATUALIZADO`.
+
+| Situacao | Status |
+| --- | --- |
+| chamado ou usuario nao encontrado | `404` |
+| usuario autenticado nao e `ADMIN` | `403` |
+| chamado esta `FECHADO` | `409` |
+| chamado ja possui responsavel | `409` |
+| responsavel indicado nao tem papel `ADMIN` | `409` |
+
+### `DELETE /api/v1/tickets/{id}/assignee`
+
+Protegido. Somente `ADMIN`. Sem corpo de requisicao.
+
+Cobre a recusa de atribuicao pelo proprio responsavel e a retirada de atribuicao de outro.
+
+Response `200`: `TicketDto` com `assignee` nulo. Devolve o chamado inteiro em vez de `204` para
+que o front possa atualizar a tela sem uma segunda chamada; recarregar tambem funciona.
+
+`assignedAt` e preservado — a metrica e "tempo ate a primeira atribuicao" e limpar apagaria o fato
+de que a triagem aconteceu.
+
+Registra evento `RESPONSAVEL_REMOVIDO` no historico e emite `CHAMADO_ATUALIZADO`.
+
+| Situacao | Status |
+| --- | --- |
+| chamado nao encontrado | `404` |
+| usuario nao e `ADMIN` | `403` |
+| chamado esta `FECHADO` | `409` |
+| chamado nao possui responsavel | `409` |
 
 ### `GET /api/v1/tickets/{ticketId}/events`
 
@@ -466,7 +603,7 @@ Lista o historico de eventos do chamado. O usuario precisa ter acesso ao chamado
 Filtros:
 
 - `actorId`: UUID
-- `type`: `CHAMADO_CRIADO`, `COMENTARIO_ADICIONADO`, `STATUS_ALTERADO`, `RESPONSAVEL_ATRIBUIDO`, `PRIORIDADE_ALTERADA`, `CATEGORIA_ALTERADA`, `CLASSIFICACAO_ATUALIZADA`
+- `type`: `CHAMADO_CRIADO`, `COMENTARIO_ADICIONADO`, `STATUS_ALTERADO`, `RESPONSAVEL_ATRIBUIDO`, `RESPONSAVEL_REMOVIDO`, `PRIORIDADE_ALTERADA`, `CATEGORIA_ALTERADA`, `CLASSIFICACAO_ATUALIZADA`
 - `search`: busca parcial pela descricao do evento
 
 Tambem aceita `page`, `size` e `sort`.
@@ -591,6 +728,37 @@ Sem token valido, a resposta e `401` no formato padrao de erro da API.
 
 Nao ha reenvio de eventos perdidos: o cabecalho `Last-Event-ID` nao e tratado. Ao reconectar, o cliente deve recarregar os dados pelo endpoint REST correspondente.
 
+### Eventos de dominio
+
+Cada frame tem `event` com o nome do evento, `id` com um UUID unico e `data` com JSON. O cliente
+deve ignorar eventos cujo nome nao reconheca — a lista cresce sem quebrar quem ja consome.
+
+| Evento | Audiencia | `data` |
+| --- | --- | --- |
+| `CHAMADO_ATUALIZADO` | solicitante e responsavel do chamado | `TicketMinDto` |
+| `CHAMADO_ALTA_PRIORIDADE` | todos os `ADMIN` | `TicketMinDto` |
+| `CLASSIFICACAO_CONCLUIDA` | solicitante do chamado e todos os `ADMIN` | definido pela frente de IA |
+| `JOB_IA_FALHOU` | todos os `ADMIN` | definido pela frente de IA |
+| `INDICADORES_ATUALIZADOS` | todos os `ADMIN` | definido pela frente de IA |
+
+`CHAMADO_ATUALIZADO` e emitido em mudanca de status, atribuicao, remocao de responsavel e
+reclassificacao. O `data` e o mesmo objeto do item de `GET /api/v1/tickets`, para que a linha da
+lista seja atualizada sem uma segunda chamada REST.
+
+`CHAMADO_ALTA_PRIORIDADE` e emitido apenas quando a prioridade **passa a ser** `ALTA`. Chamado que
+ja era `ALTA` e reclassificado em outro campo nao gera alerta novo.
+
+Exemplo de frame:
+
+```text
+event: CHAMADO_ATUALIZADO
+id: 9d2f1a44-3c5b-4e8a-9f10-2b7c6d5e4f31
+data: {"id":"00000000-0000-0000-0000-000000000000","title":"Erro ao acessar sistema","category":"SISTEMAS","priority":"ALTA","status":"EM_ANDAMENTO","classificationOrigin":"IA","requester":{"id":"00000000-0000-0000-0000-000000000000","name":"Solicitante"},"assignee":{"id":"00000000-0000-0000-0000-000000000000","name":"Administrador"},"assignedAt":"2026-08-14T10:00:00","createdAt":"2026-08-13T20:00:00"}
+```
+
+Os tres eventos da frente de IA tem nome e audiencia fixados aqui; o formato do `data` e definido
+por aquela frente.
+
 ## Pendencias Conhecidas
 
 Ja implementado e disponivel (nao reimplementar):
@@ -603,7 +771,6 @@ Ja implementado e disponivel (nao reimplementar):
 
 Ainda pendente:
 
-- Atualizacao de status e atribuicao de responsavel.
 - Revisao da sugestao da IA pelo ADMIN, aceitando ou corrigindo a classificacao.
 - Indicadores agregados e alerta de chamado com prioridade ALTA.
 - Exposicao dos jobs de IA para o ADMIN; `AiJobService.retry` existe e ainda nao tem endpoint.

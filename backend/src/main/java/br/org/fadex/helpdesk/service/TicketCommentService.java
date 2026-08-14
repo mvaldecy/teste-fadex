@@ -6,6 +6,7 @@ import br.org.fadex.helpdesk.model.comment.TicketCommentDto;
 import br.org.fadex.helpdesk.model.comment.TicketCommentFilter;
 import br.org.fadex.helpdesk.model.comment.TicketCommentMapper;
 import br.org.fadex.helpdesk.model.comment.TicketCommentMinDto;
+import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.enums.TicketEventType;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.model.user.User;
@@ -18,6 +19,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -64,6 +66,15 @@ public class TicketCommentService {
 		User author = userService.findEntityById(authenticatedUserId);
 		TicketComment ticketComment = TicketCommentMapper.toEntity(ticketCommentCreationDto, ticket, author);
 		TicketComment savedComment = ticketCommentRepository.save(ticketComment);
+
+		// Primeira resposta e a do atendimento: comentario do proprio solicitante nao conta.
+		// O chamado e entidade gerenciada, entao o dirty checking persiste a mudanca.
+		boolean isFirstAdminResponse = author.getRole() == Role.ADMIN && ticket.getFirstResponseAt() == null;
+
+		if (isFirstAdminResponse) {
+			ticket.markFirstResponse(LocalDateTime.now());
+		}
+
 		ticketEventService.record(ticket, author, TicketEventType.COMENTARIO_ADICIONADO, "Comentario adicionado.");
 		TicketCommentDto response = TicketCommentMapper.toResponseDto(savedComment);
 

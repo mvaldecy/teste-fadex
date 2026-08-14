@@ -27,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -252,5 +253,85 @@ class TicketCommentServiceTest {
 
 	private Specification<TicketComment> anyCommentSpecification() {
 		return any();
+	}
+
+	@Test
+	void createDevePreencherPrimeiraRespostaQuandoAutorForAdmin() {
+		UUID ticketId = UUID.randomUUID();
+		UUID authorId = UUID.randomUUID();
+		User requester = newUser("solicitante@fadex.org.br", Role.SOLICITANTE);
+		User admin = newUser("admin@fadex.org.br", Role.ADMIN);
+		Ticket ticket = newTicket(requester);
+
+		when(ticketService.findEntityById(ticketId)).thenReturn(ticket);
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(authenticatedUserService.getUserId()).thenReturn(authorId);
+		when(userService.findEntityById(authorId)).thenReturn(admin);
+		when(ticketCommentRepository.save(any(TicketComment.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		ticketCommentService.create(ticketId, new TicketCommentCreationDto("Estamos analisando."));
+
+		assertThat(ticket.getFirstResponseAt()).isNotNull();
+	}
+
+	@Test
+	void createNaoDevePreencherPrimeiraRespostaQuandoAutorForSolicitante() {
+		UUID ticketId = UUID.randomUUID();
+		UUID authorId = UUID.randomUUID();
+		User requester = newUser("solicitante@fadex.org.br", Role.SOLICITANTE);
+		Ticket ticket = newTicket(requester);
+		ReflectionTestUtils.setField(requester, "id", authorId);
+
+		when(ticketService.findEntityById(ticketId)).thenReturn(ticket);
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+		when(authenticatedUserService.getUserId()).thenReturn(authorId);
+		when(userService.findEntityById(authorId)).thenReturn(requester);
+		when(ticketCommentRepository.save(any(TicketComment.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		ticketCommentService.create(ticketId, new TicketCommentCreationDto("Alguma novidade?"));
+
+		assertThat(ticket.getFirstResponseAt()).isNull();
+	}
+
+	@Test
+	void createNaoDeveSobrescreverPrimeiraRespostaJaRegistrada() {
+		UUID ticketId = UUID.randomUUID();
+		UUID authorId = UUID.randomUUID();
+		User requester = newUser("solicitante@fadex.org.br", Role.SOLICITANTE);
+		User admin = newUser("admin@fadex.org.br", Role.ADMIN);
+		Ticket ticket = newTicket(requester);
+		LocalDateTime primeiraResposta = LocalDateTime.of(2026, 1, 1, 0, 0);
+		ticket.markFirstResponse(primeiraResposta);
+
+		when(ticketService.findEntityById(ticketId)).thenReturn(ticket);
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(authenticatedUserService.getUserId()).thenReturn(authorId);
+		when(userService.findEntityById(authorId)).thenReturn(admin);
+		when(ticketCommentRepository.save(any(TicketComment.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		ticketCommentService.create(ticketId, new TicketCommentCreationDto("Mais uma atualizacao."));
+
+		assertThat(ticket.getFirstResponseAt()).isEqualTo(primeiraResposta);
+	}
+
+	private User newUser(String email, Role role) {
+		User user = new User("Usuario", email, "hash", role, false);
+		ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
+
+		return user;
+	}
+
+	private Ticket newTicket(User requester) {
+		return new Ticket(
+				"Chamado",
+				"Descricao do chamado.",
+				TicketCategory.OUTROS,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		);
 	}
 }

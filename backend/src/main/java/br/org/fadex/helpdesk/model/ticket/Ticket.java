@@ -73,6 +73,29 @@ public class Ticket {
 	@Column(name = "embedding_updated_at")
 	private LocalDateTime embeddingUpdatedAt;
 
+	@Column(name = "resolved_at")
+	private LocalDateTime resolvedAt;
+
+	@Column(name = "closed_at")
+	private LocalDateTime closedAt;
+
+	@Column(name = "first_response_at")
+	private LocalDateTime firstResponseAt;
+
+	@Column(name = "assigned_at")
+	private LocalDateTime assignedAt;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "ai_suggested_category", length = 40)
+	private TicketCategory aiSuggestedCategory;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "ai_suggested_priority", length = 20)
+	private TicketPriority aiSuggestedPriority;
+
+	@Column(name = "ai_confidence")
+	private Double aiConfidence;
+
 	@Column(name = "created_at", nullable = false)
 	@CreatedDate
 	private LocalDateTime createdAt;
@@ -113,15 +136,24 @@ public class Ticket {
 		this.status = status;
 	}
 
+	public void applyClassification(
+			TicketCategory category,
+			TicketPriority priority,
+			ClassificationOrigin classificationOrigin,
+			String classificationJustification
+	) {
+		this.category = category;
+		this.priority = priority;
+		this.classificationOrigin = classificationOrigin;
+		this.classificationJustification = classificationJustification;
+	}
+
 	public void applyAutomaticClassification(
 			TicketCategory category,
 			TicketPriority priority,
 			String classificationJustification
 	) {
-		this.category = category;
-		this.priority = priority;
-		this.classificationOrigin = ClassificationOrigin.IA;
-		this.classificationJustification = classificationJustification;
+		applyClassification(category, priority, ClassificationOrigin.IA, classificationJustification);
 	}
 
 	public void applyManualClassification(
@@ -129,10 +161,29 @@ public class Ticket {
 			TicketPriority priority,
 			String classificationJustification
 	) {
-		this.category = category;
-		this.priority = priority;
-		this.classificationOrigin = ClassificationOrigin.MANUAL;
-		this.classificationJustification = classificationJustification;
+		applyClassification(category, priority, ClassificationOrigin.MANUAL, classificationJustification);
+	}
+
+	public void applyAiSuggestion(TicketCategory category, TicketPriority priority, Double confidence) {
+		this.aiSuggestedCategory = category;
+		this.aiSuggestedPriority = priority;
+		this.aiConfidence = confidence;
+	}
+
+	public void markResolved(LocalDateTime resolvedAt) {
+		this.resolvedAt = resolvedAt;
+	}
+
+	public void markClosed(LocalDateTime closedAt) {
+		this.closedAt = closedAt;
+	}
+
+	public void markAssigned(LocalDateTime assignedAt) {
+		this.assignedAt = assignedAt;
+	}
+
+	public void markFirstResponse(LocalDateTime firstResponseAt) {
+		this.firstResponseAt = firstResponseAt;
 	}
 
 	public void updateEmbeddingMetadata(String embeddingModel, LocalDateTime embeddingUpdatedAt) {
@@ -186,6 +237,34 @@ public class Ticket {
 
 	public LocalDateTime getEmbeddingUpdatedAt() {
 		return embeddingUpdatedAt;
+	}
+
+	public LocalDateTime getResolvedAt() {
+		return resolvedAt;
+	}
+
+	public LocalDateTime getClosedAt() {
+		return closedAt;
+	}
+
+	public LocalDateTime getFirstResponseAt() {
+		return firstResponseAt;
+	}
+
+	public LocalDateTime getAssignedAt() {
+		return assignedAt;
+	}
+
+	public TicketCategory getAiSuggestedCategory() {
+		return aiSuggestedCategory;
+	}
+
+	public TicketPriority getAiSuggestedPriority() {
+		return aiSuggestedPriority;
+	}
+
+	public Double getAiConfidence() {
+		return aiConfidence;
 	}
 
 	public LocalDateTime getCreatedAt() {
