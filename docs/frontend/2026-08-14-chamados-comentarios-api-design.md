@@ -9,6 +9,8 @@ Integrar o frontend aos endpoints de criacao de chamados e comentarios publicado
 - Criar a branch `feature(frontend)/chamados-comentarios-api` a partir de `dev`.
 - Manter a implementacao restrita ao frontend, salvo ajustes pequenos de documentacao de convencoes.
 - Adicionar tipos, schemas e services para `POST /api/v1/tickets` e `GET/POST /api/v1/tickets/{ticketId}/comments`.
+- Adicionar uma base de UI com `shadcn/ui`, usando componentes versionados no proprio repositorio em `frontend/src/components/ui`.
+- Adicionar toasts com Sonner para feedback de operacoes assincronas.
 - Evoluir a home inicial para uma area operacional de chamados com listagem, filtros basicos, detalhe, criacao de chamado e comentarios.
 - Criar hooks especificos da feature para orquestrar carregamento, selecao, criacao, comentarios, estados de erro e refresh.
 - Consumir labels de status, prioridade, categoria e origem por `GET /api/v1/choices`; o frontend nao deve criar novas regras de label para enums.
@@ -30,8 +32,11 @@ A integracao segue as camadas ja existentes no frontend:
 - `src/types`: contratos TypeScript da API.
 - `src/schemas`: validacao de formularios e filtros com Zod.
 - `src/services`: chamadas HTTP por recurso.
+- `src/components/ui`: componentes base do `shadcn/ui`, versionados como codigo local.
 - `src/features/tickets`: hooks e componentes especificos da experiencia de chamados.
 - `app/(dashboard)/home/page.tsx`: entrada da area autenticada, mantendo a pagina fina e delegando regra para a feature.
+
+`shadcn/ui` sera usado como base visual e de acessibilidade para controles comuns, como botoes, inputs, textarea, selects, badges, dialog/sheet e Sonner. A implementacao deve manter os componentes copiados pequenos e sem regra de dominio; regra de chamados continua em `src/features/tickets`.
 
 Os services devem permanecer stateless e focados em HTTP. A coordenacao de dados da tela fica em hooks da feature, por exemplo um hook para o workspace de chamados e outro para comentarios do chamado selecionado. Esses hooks concentram loading, erro normalizado, selecao, refresh e callbacks de criacao, mantendo componentes focados em renderizacao e interacao.
 
@@ -63,6 +68,8 @@ Estados esperados:
 - comentarios vazios;
 - envio de chamado ou comentario em andamento.
 
+Toasts devem ser usados para confirmacoes e falhas de operacoes assincronas, como chamado criado, comentario publicado, falha ao salvar chamado e falha ao publicar comentario. Erros de validacao de formulario continuam inline, perto do campo afetado, para nao depender de toast como unica forma de correcao.
+
 ## Erros
 
 Erros HTTP devem passar por `toApiErrorMessage`. Validacoes de formulario ficam nos schemas locais e devem cobrir:
@@ -87,6 +94,8 @@ O frontend ainda nao possui testes automatizados de UI. A validacao deste increm
 - Home deixa de ser placeholder e passa a oferecer fluxo funcional de chamados.
 - `ticketsService` cobre listagem, detalhe e criacao de chamado.
 - Ha service ou metodos dedicados para listar e criar comentarios de um chamado.
+- `shadcn/ui` fica configurado no frontend com componentes base usados pela tela de chamados.
+- Sonner fica montado no layout raiz e e usado para feedback de criacao de chamados/comentarios.
 - Hooks de `src/features/tickets` concentram busca, selecao, envio, refresh, loading e erro da experiencia de chamados.
 - A arquitetura deixa ponto de extensao documentado para hook futuro de SSE sem implementar tempo real neste ciclo.
 - Labels de choices exibidas na UI vêm de `/choices`.
