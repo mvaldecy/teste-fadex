@@ -1,4 +1,4 @@
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import br.org.fadex.helpdesk.model.enums.Role;
 import org.junit.jupiter.api.Test;

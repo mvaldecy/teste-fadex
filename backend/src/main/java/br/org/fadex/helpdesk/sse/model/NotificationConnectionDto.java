@@ -1,4 +1,4 @@
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import java.time.LocalDateTime;
 

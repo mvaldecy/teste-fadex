@@ -1,7 +1,7 @@
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
 import br.org.fadex.helpdesk.model.enums.Role;
-import br.org.fadex.helpdesk.model.notification.SseSubscription;
+import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
