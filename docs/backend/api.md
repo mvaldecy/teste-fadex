@@ -564,6 +564,33 @@ Response `201`:
 
 Response `404` quando o chamado nao existir.
 
+## Notificacoes
+
+### `GET /api/v1/notifications/stream`
+
+Protegido. Abre um fluxo Server-Sent Events com as notificacoes do usuario autenticado. A resposta e `text/event-stream` e permanece aberta.
+
+Autenticacao usa o mesmo `Authorization: Bearer <token>` do restante da API. Como o `EventSource` nativo do navegador nao envia headers, o cliente deve consumir o stream via `fetch` com leitura incremental do corpo.
+
+Evento inicial, enviado assim que a conexao e aceita:
+
+```
+event: CONEXAO_ESTABELECIDA
+id: 4f1c8b2a-1d2e-4f3a-8b9c-0d1e2f3a4b5c
+retry: 5000
+data: {"connectionId":"4f1c8b2a-1d2e-4f3a-8b9c-0d1e2f3a4b5c","serverTime":"2026-08-14T15:54:58"}
+```
+
+A cada vinte segundos o servidor envia um comentario de keep-alive, ignorado pelo parser SSE:
+
+```
+: ping
+```
+
+Sem token valido, a resposta e `401` no formato padrao de erro da API.
+
+Nao ha reenvio de eventos perdidos: o cabecalho `Last-Event-ID` nao e tratado. Ao reconectar, o cliente deve recarregar os dados pelo endpoint REST correspondente.
+
 ## Pendencias Conhecidas
 
 - Atualizacao de status e atribuicao ainda serao definidos.
