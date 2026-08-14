@@ -3,7 +3,7 @@
 Base: `dev` em `e8695b8` (motor SSE mergeado). Prazo de submissão: 15/08/2026 às 12h.
 
 Documento de divisão de escopo para execução em paralelo. Cada frente trabalha em worktree próprio,
-parte de `dev` e abre PR separada.
+parte de `dev` e abre PR separada. São **três** frentes paralelas: API, IA e Frontend.
 
 ## Contratos Compartilhados (definidos pela frente API antes das demais começarem)
 
@@ -101,7 +101,7 @@ cada registro definem os instantes, hoje usados só para posicionar os eventos d
 
 ---
 
-## Frente 1 — API (Chamados, RBAC e Indicadores)
+## Frente 1 — API (Chamados e Ciclo de Vida)
 
 Dona de: `controller/`, `service/`, `security/`, `repository/`, `model/ticket`, `model/event`,
 `db/migration`.
@@ -118,22 +118,10 @@ Dona de: `controller/`, `service/`, `security/`, `repository/`, `model/ticket`, 
 - RBAC por ação: `SOLICITANTE` só enxerga e comenta os próprios chamados; mudança de status,
   atribuição e classificação são de `ADMIN`.
 - `first_response_at` preenchido no primeiro comentário de um `ADMIN`.
-- `GET /api/v1/tickets/indicators` — camadas 1, 2 e 4 das estatísticas (abaixo).
-- Disparo de `CHAMADO_ATUALIZADO`, `CHAMADO_ALTA_PRIORIDADE` e `INDICADORES_ATUALIZADOS`.
+- Disparo de `CHAMADO_ATUALIZADO` e `CHAMADO_ALTA_PRIORIDADE`.
+- `assertAdmin()` em cada mutação nova (ver nota de RBAC no fim do documento).
 
-### Estatísticas sob responsabilidade desta frente
-
-Camada 1 — contagem por status, prioridade e categoria; abertos vs. fechados hoje/semana;
-chamados ALTA em aberto.
-
-Camada 2 — tempo de fechamento (**média, mediana e p90**, por prioridade e categoria);
-tempo até primeira resposta; tempo até atribuição; aging do backlog em buckets 0–1d / 1–3d / >3d;
-idade do chamado aberto mais antigo; % dentro do SLA (ALTA 4h, MÉDIA 24h, BAIXA 72h — como enum
-de configuração, **não** como tabela).
-
-Camada 4 — carga aberta por responsável; tempo médio de fechamento por responsável; top solicitantes.
-
-Nota: com volume de seed, média isolada é enganosa. Sempre expor mediana junto.
+Os indicadores saíram desta frente — ver frente IA.
 
 ---
 
@@ -154,14 +142,30 @@ Não edita `TicketService` — a revisão de classificação vive em service pr�
 - Detecção de duplicados por embedding, gravando em `ticket_links` (tabela já existe na V3, sem uso).
 - `GET /api/v1/ai/jobs` e `POST /api/v1/ai/jobs/{id}/retry` — **`@PreAuthorize("hasRole('ADMIN')")`**.
   O `AiJobService.retry()` já existe e nunca foi exposto.
-- `GET /api/v1/ai/indicators` — camada 3 das estatísticas.
-- Disparo de `CLASSIFICACAO_CONCLUIDA` e `JOB_IA_FALHOU`.
+- `GET /api/v1/indicators` — **todas** as camadas de estatística num payload só.
+- Disparo de `CLASSIFICACAO_CONCLUIDA`, `JOB_IA_FALHOU` e `INDICADORES_ATUALIZADOS`.
 
 ### Estatísticas sob responsabilidade desta frente
+
+Ficaram todas aqui, em vez de divididas entre API e IA: são um endpoint só, um payload só e um
+evento SSE só, e o front consome de um lugar único. A frente lê `TicketRepository`, que pertence
+à frente API — **somente leitura**, nunca escrita.
+
+Camada 1 — contagem por status, prioridade e categoria; abertos vs. fechados hoje/semana;
+chamados ALTA em aberto.
+
+Camada 2 — tempo de fechamento (**média, mediana e p90**, por prioridade e categoria);
+tempo até primeira resposta; tempo até atribuição; aging do backlog em buckets 0–1d / 1–3d / >3d;
+idade do chamado aberto mais antigo; % dentro do SLA (ALTA 4h, MÉDIA 24h, BAIXA 72h — como enum
+de configuração, **não** como tabela).
 
 Camada 3 — taxa de concordância admin×IA (% de sugestões aceitas sem correção); confiança média;
 distribuição IA / Manual / Pendente; fila de jobs (pendentes, falhos, tempo médio de processamento);
 duplicados detectados.
+
+Camada 4 — carga aberta por responsável; tempo médio de fechamento por responsável; top solicitantes.
+
+Nota: com o volume do seed, média isolada é enganosa. Sempre expor mediana junto.
 
 ---
 
@@ -181,7 +185,8 @@ real enquanto o endpoint não existe, trocando a fonte quando a API subir.
 - Ações no detalhe do chamado: alterar status, atribuir responsável, recusar atribuição,
   classificar manualmente / aceitar sugestão da IA. Hoje `ticket-actions.tsx` só tem "Visualizar".
 - **Página `/admin/jobs`** (somente ADMIN) com retry de job.
-- Gating por papel na navegação e nas rotas.
+- Gating por papel na navegação e nas rotas fica para o próximo ciclo; por ora, esconder apenas o
+  que for trivial.
 - **Consumo do stream SSE** em `use-ticket-events.ts` (hoje é um stub com `useEffect` vazio).
 
 ### Atenção no SSE
@@ -193,10 +198,11 @@ Tratar isso como tarefa dedicada, não como plugar um `EventSource`.
 
 ---
 
-## Frente 4 — Entrega (pequena, mas bloqueia a submissão)
+## Fora das frentes — Entrega (no fim, sem agente)
 
-Itens de checklist avaliados que não aparecem em nenhuma das três frentes acima e estão como
-Pendente em `docs/projeto/acompanhamento-desenvolvimento.md`:
+Decidido não paralelizar: fica para o fim do ciclo, conduzido diretamente, sem frente própria.
+Continua na checklist de submissão e não pode ser esquecido. Itens, todos como Pendente em
+`docs/projeto/acompanhamento-desenvolvimento.md`:
 
 - README com descrição, stack e passo a passo de execução local.
 - README com credenciais de ADMIN e SOLICITANTE.
@@ -204,8 +210,7 @@ Pendente em `docs/projeto/acompanhamento-desenvolvimento.md`:
 - Exemplos de requisição (curl ou coleção Postman/Insomnia).
 - Repositório tornado público antes da submissão.
 
-Documentação vale 5% e os itens de README estão na checklist obrigatória de submissão. Precisa de
-dono e de horário reservado — não é polimento opcional.
+Documentação vale 5% e os itens de README estão na checklist obrigatória de submissão.
 
 ## Linha de Corte
 
@@ -220,10 +225,24 @@ detecção de duplicados via `ticket_links`, página `/admin/jobs`, `% dentro do
 
 ## Ordem de Execução
 
-1. Frente API entrega V4 + seed + `applyClassification` + nomes de eventos + delta do `api.md`.
-   **Sozinha.**
+1. Frente API entrega V4 + `applyClassification` + nomes de eventos + delta do `api.md`. **Sozinha.**
+   (O seed já foi entregue antes da divisão.)
 2. Frentes IA e Frontend seguem em paralelo a partir daí.
-3. Frente Entrega fecha README e exemplos de requisição perto do fim, com horário reservado.
+3. Entrega (README e exemplos de requisição) fecha no fim, fora das frentes.
+
+## RBAC — decisão
+
+O RBAC **já está implementado nos caminhos de leitura** e o `acompanhamento-desenvolvimento.md`
+está desatualizado ao marcá-lo como pendente. `AccessControlService` expõe `assertCanAccessTicket`,
+`assertCanAccessUser` e `assertAdmin`, e `TicketService.resolveFilterByRole` já restringe a
+listagem: SOLICITANTE vê só os próprios chamados, ADMIN vê todos.
+
+Fica para o próximo ciclo: tabela formal papel × ação, endurecimento por rota no `SecurityConfig`
+e gating de navegação no frontend.
+
+Não fica para o próximo ciclo: **toda mutação nova nasce com `assertAdmin()`**. É uma linha por
+endpoint e, sem ela, um SOLICITANTE altera status e atribuição de chamado alheio — um buraco novo,
+não uma dívida herdada.
 
 ## Riscos
 
@@ -231,3 +250,7 @@ detecção de duplicados via `ticket_links`, página `/admin/jobs`, `% dentro do
   na sua própria seção.
 - `TicketService` é o ponto de colisão entre API e IA. Resolvido pela regra de posse acima.
 - O arquivo de nomes de eventos SSE tem dono único (API) justamente para não conflitar.
+- A frente IA lê `TicketRepository`, de posse da API. Leitura é tolerada; escrita no `Ticket` passa
+  obrigatoriamente por `applyClassification`.
+- O hook de consumo do SSE é usado pelo dashboard e pelo detalhe do chamado. Como o frontend é uma
+  frente única, a dependência cruzada é interna e aceita.
