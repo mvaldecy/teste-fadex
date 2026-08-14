@@ -64,6 +64,18 @@ public class Ticket {
 	@Column(name = "classification_origin", nullable = false, length = 30)
 	private ClassificationOrigin classificationOrigin;
 
+	@Column(name = "classification_justification", columnDefinition = "text")
+	private String classificationJustification;
+
+	@Column(columnDefinition = "text")
+	private String embedding;
+
+	@Column(name = "embedding_model", length = 120)
+	private String embeddingModel;
+
+	@Column(name = "embedding_updated_at")
+	private LocalDateTime embeddingUpdatedAt;
+
 	@Column(name = "created_at", nullable = false)
 	@CreatedDate
 	private LocalDateTime createdAt;
@@ -94,6 +106,34 @@ public class Ticket {
 
 	public void assignTo(User assignee) {
 		this.assignee = assignee;
+	}
+
+	public void applyAutomaticClassification(
+			TicketCategory category,
+			TicketPriority priority,
+			String classificationJustification
+	) {
+		this.category = category;
+		this.priority = priority;
+		this.classificationOrigin = ClassificationOrigin.IA;
+		this.classificationJustification = classificationJustification;
+	}
+
+	public void applyManualClassification(
+			TicketCategory category,
+			TicketPriority priority,
+			String classificationJustification
+	) {
+		this.category = category;
+		this.priority = priority;
+		this.classificationOrigin = ClassificationOrigin.MANUAL;
+		this.classificationJustification = classificationJustification;
+	}
+
+	public void updateEmbedding(String embedding, String embeddingModel, LocalDateTime embeddingUpdatedAt) {
+		this.embedding = embedding;
+		this.embeddingModel = embeddingModel;
+		this.embeddingUpdatedAt = embeddingUpdatedAt;
 	}
 
 	public UUID getId() {
@@ -130,6 +170,22 @@ public class Ticket {
 
 	public ClassificationOrigin getClassificationOrigin() {
 		return classificationOrigin;
+	}
+
+	public String getClassificationJustification() {
+		return classificationJustification;
+	}
+
+	public String getEmbedding() {
+		return embedding;
+	}
+
+	public String getEmbeddingModel() {
+		return embeddingModel;
+	}
+
+	public LocalDateTime getEmbeddingUpdatedAt() {
+		return embeddingUpdatedAt;
 	}
 
 	public LocalDateTime getCreatedAt() {

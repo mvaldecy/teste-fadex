@@ -1,5 +1,6 @@
 package br.org.fadex.helpdesk.service;
 
+import br.org.fadex.helpdesk.ai.job.AiJobService;
 import br.org.fadex.helpdesk.exception.NotFoundException;
 import br.org.fadex.helpdesk.model.enums.TicketEventType;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
@@ -27,17 +28,20 @@ public class TicketService {
 	private final UserService userService;
 	private final AccessControlService accessControlService;
 	private final TicketEventService ticketEventService;
+	private final AiJobService aiJobService;
 
 	public TicketService(
 			TicketRepository ticketRepository,
 			UserService userService,
 			AccessControlService accessControlService,
-			TicketEventService ticketEventService
+			TicketEventService ticketEventService,
+			AiJobService aiJobService
 	) {
 		this.ticketRepository = ticketRepository;
 		this.userService = userService;
 		this.accessControlService = accessControlService;
 		this.ticketEventService = ticketEventService;
+		this.aiJobService = aiJobService;
 	}
 
 	@Transactional(readOnly = true)
@@ -72,6 +76,7 @@ public class TicketService {
 		Ticket ticket = TicketMapper.toEntity(ticketCreationDto, requester);
 		Ticket savedTicket = ticketRepository.save(ticket);
 		ticketEventService.record(savedTicket, requester, TicketEventType.CHAMADO_CRIADO, "Chamado criado.");
+		aiJobService.enqueueTicketJobs(savedTicket);
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
 		return response;

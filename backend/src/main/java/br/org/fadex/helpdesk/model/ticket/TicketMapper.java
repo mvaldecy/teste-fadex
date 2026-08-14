@@ -23,6 +23,7 @@ public abstract class TicketMapper {
 				ticket.getPriority(),
 				ticket.getStatus(),
 				ticket.getClassificationOrigin(),
+				ticket.getClassificationJustification(),
 				UserMapper.toMinDto(requester),
 				assignee != null ? UserMapper.toMinDto(assignee) : null,
 				ticket.getCreatedAt(),

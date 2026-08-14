@@ -1,5 +1,6 @@
 package br.org.fadex.helpdesk.service;
 
+import br.org.fadex.helpdesk.ai.job.AiJobService;
 import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.enums.TicketCategory;
@@ -58,6 +59,9 @@ class TicketServiceTest {
 	@Mock
 	private TicketEventService ticketEventService;
 
+	@Mock
+	private AiJobService aiJobService;
+
 	private AccessControlService accessControlService;
 
 	private TicketService ticketService;
@@ -65,7 +69,13 @@ class TicketServiceTest {
 	@BeforeEach
 	void setUp() {
 		accessControlService = new AccessControlService(authenticatedUserService);
-		ticketService = new TicketService(ticketRepository, userService, accessControlService, ticketEventService);
+		ticketService = new TicketService(
+				ticketRepository,
+				userService,
+				accessControlService,
+				ticketEventService,
+				aiJobService
+		);
 	}
 
 	@Test
@@ -100,6 +110,7 @@ class TicketServiceTest {
 		assertThat(ticketToSave.getPriority()).isEqualTo(TicketPriority.MEDIA);
 		assertThat(ticketToSave.getClassificationOrigin()).isEqualTo(ClassificationOrigin.PENDENTE);
 		assertThat(response.requester().name()).isEqualTo("Maria Solicitante");
+		verify(aiJobService).enqueueTicketJobs(ticketToSave);
 	}
 
 	@Test

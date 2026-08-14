@@ -1,9 +1,8 @@
-name: fadex-helpdesk
+name: ${COMPOSE_PROJECT_NAME:-fadex-helpdesk}
 
 services:
   postgres:
-    image: postgres:17-alpine
-    container_name: fadex-helpdesk-postgres
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-fadex_helpdesk}
@@ -22,7 +21,6 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.27
-    container_name: fadex-helpdesk-mailpit
     restart: unless-stopped
     ports:
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
@@ -31,7 +29,6 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: fadex-helpdesk-backend
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
@@ -49,6 +46,18 @@ services:
       SMTP_AUTH: ${SMTP_AUTH:-false}
       SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS_ENABLE:-false}
       MAIL_FROM: ${MAIL_FROM:-no-reply@fadex.local}
+      AI_TRIAGE_ENABLED: ${AI_TRIAGE_ENABLED:-false}
+      AI_BASE_URL: http://ollama:11434
+      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:1b}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-384}
+      AI_WORKER_ENABLED: ${AI_WORKER_ENABLED:-true}
+      AI_WORKER_BATCH_SIZE: ${AI_WORKER_BATCH_SIZE:-1}
+      AI_WORKER_MAX_ATTEMPTS: ${AI_WORKER_MAX_ATTEMPTS:-3}
+      AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-20}
+      AI_SIMILARITY_THRESHOLD: ${AI_SIMILARITY_THRESHOLD:-0.75}
+      AI_SIMILARITY_LIMIT: ${AI_SIMILARITY_LIMIT:-5}
+      QUARTZ_THREAD_COUNT: ${QUARTZ_THREAD_COUNT:-1}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -63,7 +72,6 @@ services:
       args:
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Fadex Helpdesk}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${BACKEND_PORT:-8080}/api/v1}
-    container_name: fadex-helpdesk-frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Fadex Helpdesk}
@@ -74,5 +82,29 @@ services:
       backend:
         condition: service_started
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  ollama-models:
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_started
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:1b}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama pull $$AI_CLASSIFICATION_MODEL &&
+       ollama pull $$AI_EMBEDDING_MODEL"
+
 volumes:
   postgres-data:
+  ollama-data:
