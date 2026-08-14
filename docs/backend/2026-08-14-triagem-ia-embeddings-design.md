@@ -15,8 +15,8 @@ Incluido neste ciclo:
 - Classificacao de chamado por IA local, com fallback deterministico.
 - Persistencia de jobs de IA em banco relacional.
 - Worker Quartz para processar classificacao e embedding de forma assincrona.
-- Persistencia do embedding do chamado.
-- Endpoint de similares calculado sob demanda por cosine similarity.
+- Persistencia do embedding do chamado em coluna vetorial com pgvector.
+- Endpoint de similares calculado sob demanda por busca vetorial no Postgres.
 - Relacionamento persistido e bidirecional entre chamados.
 - Endpoint para ADMIN revisar/corrigir classificacao.
 - Configuracao para stacks Docker paralelas por worktree.
@@ -26,7 +26,6 @@ Fora deste ciclo:
 
 - Treinamento de modelo proprio.
 - Uso de API externa de IA.
-- pgvector ou busca vetorial nativa no banco.
 - Kafka, RabbitMQ ou broker externo.
 - Agrupamento automatico em entidade de incidente/problema.
 - Bloqueio de criacao por duplicidade.
@@ -76,7 +75,7 @@ TicketService
 
 TicketSimilarityService
 ├── busca embedding do chamado base
-├── calcula similares sob demanda
+├── consulta vizinhos por distancia vetorial no Postgres
 ├── aplica filtro por grupo de status
 └── retorna candidatos com score
 
@@ -193,7 +192,11 @@ O job `EMBEDDING` gera vetor a partir de:
 titulo + "\n\n" + descricao
 ```
 
-O vetor sera persistido inicialmente no proprio banco relacional sem pgvector. A representacao pode ser JSON/texto ou outra forma simples validada pelo backend. A busca de similares sera calculada em Java com cosine similarity, adequada ao volume pequeno do desafio.
+O vetor sera persistido no Postgres usando `pgvector`. A migracao deve habilitar a extensao com `CREATE EXTENSION IF NOT EXISTS vector` e gravar embeddings em uma coluna `vector(n)`.
+
+Para o modelo padrao `all-minilm`, a dimensao esperada sera `384`. Essa dimensao deve ficar documentada e alinhada com `AI_EMBEDDING_MODEL`. Se o modelo de embedding for trocado por outro com dimensao diferente, a migracao ou coluna vetorial precisa ser ajustada no mesmo ciclo.
+
+A busca de similares sera feita no banco com distancia cosseno. O score retornado pela API sera similaridade cosseno, calculada como `1 - cosine_distance`. Com `pgvector`, a consulta pode usar o operador `<=>` para distancia cosseno.
 
 Endpoint sob demanda:
 
@@ -210,6 +213,7 @@ Regras:
 - Apenas chamados com embedding disponivel entram no calculo.
 - O retorno respeita limite e threshold configuraveis.
 - Se o chamado base ainda nao tiver embedding, retorna lista vazia com status HTTP 200.
+- A query deve ordenar do mais parecido para o menos parecido.
 
 Configuracoes:
 
@@ -253,10 +257,27 @@ Alteracoes em `tickets`:
 
 ```text
 classification_justification text null
-embedding text null
+embedding vector(384) null
 embedding_model varchar(120) null
 embedding_updated_at timestamp null
 ```
+
+Extensao exigida:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+Indice vetorial inicial:
+
+```sql
+CREATE INDEX idx_tickets_embedding_hnsw
+ON tickets
+USING hnsw (embedding vector_cosine_ops)
+WHERE embedding IS NOT NULL;
+```
+
+O indice HNSW melhora a busca aproximada por similaridade. Para o volume pequeno do desafio, a implementacao tambem deve funcionar sem depender de tuning manual de `hnsw.ef_search`.
 
 Nova tabela `ai_jobs`:
 
@@ -303,6 +324,7 @@ Decisoes:
 
 - Usar `name: ${COMPOSE_PROJECT_NAME:-fadex-helpdesk}`.
 - Remover `container_name` fixo dos servicos.
+- Trocar a imagem do Postgres para uma imagem com pgvector, como `pgvector/pgvector:pg17`.
 - Manter portas configuraveis por variaveis de ambiente.
 - Adicionar `ollama` como servico opcional da stack.
 - Nao criar comando novo no Makefile neste ciclo.
@@ -342,6 +364,7 @@ AI_TRIAGE_ENABLED=false
 AI_BASE_URL=http://localhost:11434
 AI_CLASSIFICATION_MODEL=llama3.2:1b
 AI_EMBEDDING_MODEL=all-minilm
+AI_EMBEDDING_DIMENSIONS=384
 AI_WORKER_ENABLED=true
 AI_WORKER_BATCH_SIZE=1
 AI_WORKER_MAX_ATTEMPTS=3
@@ -351,7 +374,7 @@ AI_SIMILARITY_LIMIT=5
 QUARTZ_THREAD_COUNT=1
 ```
 
-`AI_TRIAGE_ENABLED=false` e o default mais seguro para desenvolvimento local sem Ollama. Na stack com Ollama, o valor pode ser ativado por `.env` da worktree. Os nomes de modelo podem ser ajustados conforme disponibilidade local. A documentacao final deve explicar que o avaliador pode usar outro modelo compativel com Ollama alterando as variaveis.
+`AI_TRIAGE_ENABLED=false` e o default mais seguro para desenvolvimento local sem Ollama. Na stack com Ollama, o valor pode ser ativado por `.env` da worktree. Os nomes de modelo podem ser ajustados conforme disponibilidade local, mas o modelo de embedding deve manter a dimensao configurada em `AI_EMBEDDING_DIMENSIONS` e na coluna `vector(n)`.
 
 ## Autorizacao
 
@@ -386,7 +409,7 @@ Cobertura minima de backend:
 - `AiJobServiceTest`: cria jobs, controla tentativas e backoff.
 - `AiJobWorkerTest`: processa classificacao valida, embedding valido e falhas.
 - `FallbackTicketClassifierTest`: cobre palavras-chave para categoria/prioridade.
-- `TicketSimilarityServiceTest`: calcula cosine similarity, aplica threshold, limit e statusGroup.
+- `TicketSimilarityServiceTest`: monta busca por distancia cosseno, aplica threshold, limit e statusGroup.
 - `TicketLinkServiceTest`: cria vinculo bidirecional logico, impede auto-vinculo e duplicidade.
 - Controller tests para revisao de classificacao, similares e links.
 - Teste de propriedades para defaults de IA/Quartz.
@@ -408,7 +431,7 @@ make frontend-build
 ## Documentacao a Atualizar na Implementacao
 
 - `docs/backend/api.md`: novos endpoints e campos de resposta.
-- `docs/configuracao/env.md`: Ollama, variaveis de IA, stacks por worktree e portas.
+- `docs/configuracao/env.md`: Ollama, pgvector, variaveis de IA, stacks por worktree e portas.
 - `docs/projeto/acompanhamento-desenvolvimento.md`: status de IA, similares e pendencias.
 - `README.md`: justificativa da abordagem de IA local, fallback, comandos de execucao e exemplos.
 
@@ -421,6 +444,7 @@ make frontend-build
 - ADMIN consegue corrigir classificacao manualmente.
 - Embedding e salvo quando o job termina.
 - Endpoint de similares retorna candidatos com score e filtro `statusGroup`.
+- Banco usa pgvector para armazenar embeddings e consultar similares.
 - ADMIN consegue persistir/remover vinculos entre chamados.
 - Vinculos persistidos sao bidirecionais e permanecem apos resolucao/fechamento.
 - Compose permite stacks paralelas por worktree sem conflito de `container_name`.
