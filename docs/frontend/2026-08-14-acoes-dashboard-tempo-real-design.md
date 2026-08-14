@@ -103,18 +103,29 @@ Resposta esperada: `TicketDto`.
 
 `DELETE /api/v1/tickets/{id}/assignee`
 
-Sem corpo. Resposta esperada: `TicketDto` (ou `204`; o frontend recarrega o chamado de
-qualquer forma, entao os dois funcionam).
+Sem corpo. **Confirmado pela frente API:** responde `200` com `TicketDto`, nao `204`.
+
+**Confirmado tambem: atribuir e recusar sao mutuamente exclusivos.** `PATCH /assignee` num
+chamado que ja tem responsavel responde `409` — decisao do Marcos. Trocar de responsavel e
+recusar primeiro e atribuir depois.
+
+Isso mudou a UI: o bloco de responsavel nao mostra mais o seletor e o botao "Recusar" ao mesmo
+tempo. Com responsavel, mostra o nome e o botao "Recusar atribuicao"; sem responsavel, mostra o
+seletor e o botao "Atribuir". Manter os dois convidaria o usuario a uma acao que a API recusa.
 
 `PATCH /api/v1/tickets/{id}/classification`
 
 ```json
-{ "category": "SISTEMAS", "priority": "ALTA", "justification": "texto opcional" }
+{
+  "category": "SISTEMAS",
+  "priority": "ALTA",
+  "classificationJustification": "texto opcional"
+}
 ```
 
-Atencao ao nome no retorno: o `TicketDto` do backend ja tem `classificationJustification`
-(verificado no codigo), nao `justification`. O tipo do frontend usa o nome do backend na
-**leitura**; o nome do campo no corpo do `PATCH` segue provisorio.
+**Confirmado pela frente API:** o campo chama-se `classificationJustification`, tanto na
+leitura quanto no corpo do `PATCH`. Nao existe `justification`. O nome ja estava no `TicketDto`
+desde a triagem por IA, so nunca tinha sido documentado.
 
 Resposta esperada: `TicketDto`. Aceitar a sugestao da IA e enviar `aiSuggestedCategory` e
 `aiSuggestedPriority` sem alteracao — nao ha endpoint separado de "aceitar".
@@ -187,9 +198,11 @@ unica excecao a regra de nao hardcodar label de enum no frontend, e esta registr
 
 ### Campos novos no `TicketDto`
 
-A frente IA vai expor `aiSuggestedCategory`, `aiSuggestedPriority` e `confidence`. O
-`TicketDto` do backend **ja tem** `classificationJustification` hoje. O frontend declara os
-quatro como opcionais em `TicketDto`. Enquanto o
+A frente API ja entregou as colunas e o `Ticket.applyAiSuggestion(...)`, mas expor
+`aiSuggestedCategory`, `aiSuggestedPriority` e `confidence` no DTO e da frente IA e ainda nao
+aconteceu. Os tres seguem opcionais no tipo do frontend e, por ora, vem sempre ausentes: o
+bloco de sugestao da IA nao renderiza e a tela mostra "Sem sugestao da IA para este chamado".
+`classificationJustification` ja vem preenchido hoje. Enquanto o
 backend nao os enviar, o bloco de sugestao da IA nao aparece — nao ha fixture aqui, porque o
 resto do `TicketDto` e real e misturar campo inventado com campo real seria enganoso.
 
@@ -292,8 +305,18 @@ Reconexao com backoff exponencial de 1s a 30s. Como o contrato nao faz replay de
 por isso o evento sintetico `CONEXAO_ESTABELECIDA` e repassado aos hooks como gatilho de
 refresh, e nao apenas logado.
 
-`401` no stream nao e reconectavel: significa token expirado ou ausente. Nesse caso o cliente
-para de tentar, em vez de bombardear o backend.
+`401` no stream exige cuidado maior do que "parar de tentar". O `fetch` do stream **nao passa
+pelo interceptor do axios**, entao um token vencido mataria o stream para sempre enquanto as
+chamadas REST seguiriam renovando normalmente — a sessao pareceria viva e o tempo real estaria
+morto, exatamente no cenario de trabalho longo que motivou o refresh.
+
+Por isso o cliente renova o token no proprio `401`, reusando a promessa compartilhada de
+`refreshAccessToken()`, e reconecta. Desiste apenas se o refresh falhar ou se um token novo
+tambem levar `401` (limite de duas tentativas), o que evita laco contra token revogado.
+
+Casos vizinhos: sem token, o cliente para (sessao encerrada, reconectar so geraria laco); e o
+`logout()` chama `stopNotificationsStream()` explicitamente, senao o cliente continuaria
+tentando reconectar depois de a sessao ter sido limpa.
 
 ### 4. Refresh por evento, nao merge incremental
 
