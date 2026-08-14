@@ -40,7 +40,7 @@ export function LoginForm() {
     const didLogin = await login(parsed.data);
 
     if (didLogin) {
-      router.push(routes.home);
+      router.push(routes.dashboard);
     }
   }
 

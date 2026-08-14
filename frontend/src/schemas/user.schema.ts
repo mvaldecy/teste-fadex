@@ -18,10 +18,6 @@ export const createUserFormSchema = z.object({
   email: z
     .email("Informe um e-mail valido")
     .max(180, "O e-mail deve ter no maximo 180 caracteres"),
-  password: z
-    .string()
-    .min(6, "A senha deve ter pelo menos 6 caracteres")
-    .max(72, "A senha deve ter no maximo 72 caracteres"),
   role: z.enum(roleValues, "Informe o perfil")
 });
 

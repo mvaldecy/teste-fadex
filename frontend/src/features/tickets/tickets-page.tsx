@@ -10,7 +10,7 @@ export function TicketsPage() {
   const tickets = useTicketList();
 
   useTicketEvents({
-    enabled: false,
+    enabled: true,
     onTicketChanged: () => void tickets.loadTickets(),
     onCommentChanged: () => void tickets.loadTickets()
   });
