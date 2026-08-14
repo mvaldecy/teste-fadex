@@ -45,6 +45,8 @@ PRs devem ser abertos como draft quando ainda estiverem em validação. Use PR s
 
 Mantenha documentação em `docs` separada por subdomínio, como `docs/configuracao`, `docs/backend` e `docs/frontend`. Atualize `docs/backend/api.md` quando alterar contrato de endpoint para que o frontend não precise inferir comportamento pelo código.
 
+Specs, planos e documentos de trabalho também devem seguir o domínio correspondente em `docs`, por exemplo `docs/frontend` para entregas do Next.js e `docs/backend` para entregas do Spring Boot.
+
 ## Segurança e Configuração
 
 Não versione arquivos reais de ambiente: `.env`, `backend/.env` ou `frontend/.env.local`. Segredos nunca devem usar `NEXT_PUBLIC_`, pois esses valores ficam expostos no navegador.

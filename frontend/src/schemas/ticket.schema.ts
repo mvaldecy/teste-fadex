@@ -28,4 +28,14 @@ export const ticketFiltersSchema = paginationParamsSchema.extend({
   search: optionalTextSchema
 });
 
+export const createTicketSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Informe o titulo.")
+    .max(160, "Use no maximo 160 caracteres."),
+  description: z.string().trim().min(1, "Informe a descricao.")
+});
+
 export type TicketFiltersData = z.infer<typeof ticketFiltersSchema>;
+export type CreateTicketData = z.infer<typeof createTicketSchema>;
