@@ -3,6 +3,7 @@ package br.org.fadex.helpdesk.ai.job;
 import br.org.fadex.helpdesk.ai.AiIntegrationException;
 import br.org.fadex.helpdesk.ai.client.AiEmbeddingClient;
 import br.org.fadex.helpdesk.ai.client.AiTriageClient;
+import br.org.fadex.helpdesk.ai.duplicate.DuplicateDetectionService;
 import br.org.fadex.helpdesk.ai.model.TicketClassification;
 import br.org.fadex.helpdesk.ai.model.TicketEmbedding;
 import br.org.fadex.helpdesk.ai.triage.FallbackTicketClassifier;
@@ -53,6 +54,9 @@ class AiJobWorkerTest {
 
 	@Mock
 	private TicketEmbeddingRepository ticketEmbeddingRepository;
+
+	@Mock
+	private DuplicateDetectionService duplicateDetectionService;
 
 	@Test
 	void deveClassificarChamadoComClienteLocalEFinalizarJob() {
@@ -127,6 +131,21 @@ class AiJobWorkerTest {
 		assertThat(job.getStatus()).isEqualTo(AiJobStatus.DONE);
 	}
 
+	@Test
+	void deveDetectarDuplicadosDepoisDeGravarOEmbedding() {
+		Ticket ticket = ticket();
+		AiJob job = job(ticket, AiJobType.EMBEDDING);
+		AiJobWorker worker = worker(true, true);
+
+		when(aiJobService.findDueJobs(any(LocalDateTime.class), eq(BATCH_SIZE))).thenReturn(List.of(job));
+		when(aiEmbeddingClient.embed(anyString()))
+				.thenReturn(new TicketEmbedding(List.of(0.1, 0.2, 0.3), "all-minilm"));
+
+		worker.processDueJobs();
+
+		verify(duplicateDetectionService).detect(ticket.getId());
+	}
+
 	private AiJobWorker worker(boolean triageEnabled, boolean workerEnabled) {
 		return new AiJobWorker(
 				aiJobService,
@@ -135,6 +154,7 @@ class AiJobWorkerTest {
 				aiEmbeddingClient,
 				fallbackTicketClassifier,
 				ticketEmbeddingRepository,
+				duplicateDetectionService,
 				triageEnabled,
 				workerEnabled,
 				BATCH_SIZE,
