@@ -471,7 +471,21 @@ class NotificationServiceTest {
 Run: `make backend-test`
 Expected: falha de compilação, porque `NotificationService` não existe.
 
-- [ ] **Step 3: Implementar `NotificationService`**
+- [ ] **Step 3: Adicionar as propriedades de configuração**
+
+Em `backend/src/main/resources/application.properties`, após o bloco `security.cors.allowed-origins`, acrescente:
+
+```properties
+notifications.sse.timeout=${SSE_TIMEOUT_MS:1800000}
+notifications.sse.heartbeat-interval=${SSE_HEARTBEAT_INTERVAL_MS:20000}
+notifications.sse.reconnect-time=${SSE_RECONNECT_TIME_MS:5000}
+```
+
+Este passo vem **antes** de criar o service, e a ordem é obrigatória. `NotificationService` injeta as três propriedades por `@Value` sem valor padrão; enquanto elas não existirem, todo teste `@SpringBootTest` do projeto falha ao subir o contexto, não apenas os testes novos.
+
+`spring.mvc.async.request-timeout` permanece sem valor de propósito. Verificado no fonte do Spring Framework 7.0.8: `ResponseBodyEmitterReturnValueHandler` constrói `new DeferredResult<>(emitter.getTimeout())`, ou seja, o timeout informado ao `SseEmitter` é exatamente o timeout da requisição assíncrona. Sem isso valeria o padrão do Tomcat, que derrubaria as conexões em trinta segundos.
+
+- [ ] **Step 4: Implementar `NotificationService`**
 
 ```java
 package br.org.fadex.helpdesk.service;
@@ -556,22 +570,10 @@ O `catch` cobre `IllegalStateException` além de `IOException`. Isso foi verific
 
 O envio dentro de `subscribe()` acontece antes de o Spring inicializar o emitter. Isso é suportado: `ResponseBodyEmitter` guarda os envios antecipados e os despacha assim que a resposta é inicializada.
 
-- [ ] **Step 4: Rodar o teste de service para confirmar que passa**
+- [ ] **Step 5: Rodar o teste de service para confirmar que passa**
 
 Run: `make backend-test`
 Expected: BUILD SUCCESSFUL.
-
-- [ ] **Step 5: Adicionar as propriedades de configuração**
-
-Em `backend/src/main/resources/application.properties`, após o bloco `security.cors.allowed-origins`, acrescente:
-
-```properties
-notifications.sse.timeout=${SSE_TIMEOUT_MS:1800000}
-notifications.sse.heartbeat-interval=${SSE_HEARTBEAT_INTERVAL_MS:20000}
-notifications.sse.reconnect-time=${SSE_RECONNECT_TIME_MS:5000}
-```
-
-`spring.mvc.async.request-timeout` permanece sem valor de propósito. Verificado no fonte do Spring Framework 7.0.8: `ResponseBodyEmitterReturnValueHandler` constrói `new DeferredResult<>(emitter.getTimeout())`, ou seja, o timeout informado ao `SseEmitter` é exatamente o timeout da requisição assíncrona. Sem isso valeria o padrão do Tomcat, que derrubaria as conexões em trinta segundos.
 
 - [ ] **Step 6: Escrever o teste de controller que falha**
 
