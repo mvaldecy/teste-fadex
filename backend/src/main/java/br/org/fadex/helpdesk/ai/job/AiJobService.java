@@ -3,7 +3,10 @@ package br.org.fadex.helpdesk.ai.job;
 import br.org.fadex.helpdesk.exception.ConflictException;
 import br.org.fadex.helpdesk.exception.NotFoundException;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,15 @@ public class AiJobService {
 
 		aiJobRepository.save(classificationJob);
 		aiJobRepository.save(embeddingJob);
+	}
+
+	@Transactional(readOnly = true)
+	public Page<AiJobDto> findAll(AiJobFilter filter, Pageable pageable) {
+		Specification<AiJob> spec = AiJobSpecification.createSpecification(filter);
+		Page<AiJob> jobs = aiJobRepository.findAll(spec, pageable);
+		Page<AiJobDto> response = jobs.map(AiJobMapper::toResponseDto);
+
+		return response;
 	}
 
 	@Transactional(readOnly = true)

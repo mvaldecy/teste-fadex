@@ -7,7 +7,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.mockito.ArgumentMatchers;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -109,5 +114,38 @@ class AiJobServiceTest {
 		assertThatThrownBy(() -> service.retry(jobId))
 				.isInstanceOf(NotFoundException.class)
 				.hasMessage("Job de IA nao encontrado.");
+	}
+
+	@Test
+	void deveListarJobsPaginadosAplicandoFiltro() {
+		Pageable pageable = PageRequest.of(0, 10);
+		AiJob job = new AiJob(UUID.randomUUID(), AiJobType.CLASSIFICATION, LocalDateTime.now());
+		Page<AiJob> page = new PageImpl<>(List.of(job), pageable, 1);
+		AiJobService service = new AiJobService(aiJobRepository);
+
+		when(aiJobRepository.findAll(ArgumentMatchers.<Specification<AiJob>>any(), eq(pageable)))
+				.thenReturn(page);
+
+		Page<AiJobDto> response = service.findAll(new AiJobFilter(AiJobStatus.FAILED, null, null), pageable);
+
+		assertThat(response.getTotalElements()).isEqualTo(1);
+		assertThat(response.getContent().getFirst().type()).isEqualTo(AiJobType.CLASSIFICATION);
+	}
+
+	@Test
+	void deveMapearItensDaListagemParaDto() {
+		Pageable pageable = PageRequest.of(0, 10);
+		UUID ticketId = UUID.randomUUID();
+		AiJob job = new AiJob(ticketId, AiJobType.EMBEDDING, LocalDateTime.of(2026, 8, 14, 9, 0));
+		AiJobService service = new AiJobService(aiJobRepository);
+
+		when(aiJobRepository.findAll(ArgumentMatchers.<Specification<AiJob>>any(), eq(pageable)))
+				.thenReturn(new PageImpl<>(List.of(job), pageable, 1));
+
+		AiJobDto dto = service.findAll(new AiJobFilter(null, null, null), pageable).getContent().getFirst();
+
+		assertThat(dto.ticketId()).isEqualTo(ticketId);
+		assertThat(dto.status()).isEqualTo(AiJobStatus.PENDING);
+		assertThat(dto.attempts()).isZero();
 	}
 }

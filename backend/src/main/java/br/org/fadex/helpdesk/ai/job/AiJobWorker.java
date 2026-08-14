@@ -3,6 +3,7 @@ package br.org.fadex.helpdesk.ai.job;
 import br.org.fadex.helpdesk.ai.AiIntegrationException;
 import br.org.fadex.helpdesk.ai.client.AiEmbeddingClient;
 import br.org.fadex.helpdesk.ai.client.AiTriageClient;
+import br.org.fadex.helpdesk.ai.duplicate.DuplicateDetectionService;
 import br.org.fadex.helpdesk.ai.model.TicketClassification;
 import br.org.fadex.helpdesk.ai.model.TicketEmbedding;
 import br.org.fadex.helpdesk.ai.triage.FallbackTicketClassifier;
@@ -30,6 +31,7 @@ public class AiJobWorker implements Job {
 	private final AiEmbeddingClient aiEmbeddingClient;
 	private final FallbackTicketClassifier fallbackTicketClassifier;
 	private final TicketEmbeddingRepository ticketEmbeddingRepository;
+	private final DuplicateDetectionService duplicateDetectionService;
 	private final boolean triageEnabled;
 	private final boolean workerEnabled;
 	private final int batchSize;
@@ -42,6 +44,7 @@ public class AiJobWorker implements Job {
 			AiEmbeddingClient aiEmbeddingClient,
 			FallbackTicketClassifier fallbackTicketClassifier,
 			TicketEmbeddingRepository ticketEmbeddingRepository,
+			DuplicateDetectionService duplicateDetectionService,
 			@Value("${app.ai.triage.enabled}") boolean triageEnabled,
 			@Value("${app.ai.worker.enabled}") boolean workerEnabled,
 			@Value("${app.ai.worker.batch-size}") int batchSize,
@@ -53,6 +56,7 @@ public class AiJobWorker implements Job {
 		this.aiEmbeddingClient = aiEmbeddingClient;
 		this.fallbackTicketClassifier = fallbackTicketClassifier;
 		this.ticketEmbeddingRepository = ticketEmbeddingRepository;
+		this.duplicateDetectionService = duplicateDetectionService;
 		this.triageEnabled = triageEnabled;
 		this.workerEnabled = workerEnabled;
 		this.batchSize = batchSize;
@@ -128,6 +132,11 @@ public class AiJobWorker implements Job {
 				embedding.model(),
 				now
 		);
+
+		// Deteccao roda dentro do try de process(...): se falhar, o job ja e marcado como falho e
+		// reagendado pelo caminho de erro existente. Duplicado e sinal, nao regra — nunca altera o
+		// chamado nem bloqueia nada.
+		duplicateDetectionService.detect(ticket.getId());
 	}
 
 	private void handleFailure(AiJob job, RuntimeException exception) {
