@@ -6,7 +6,7 @@ SDKMAN_INIT := $(HOME)/.sdkman/bin/sdkman-init.sh
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
-.PHONY: help sdk env db-up db-down db-logs db-ps db-reset backend-test backend-build backend-run backend-clean frontend-install frontend-dev frontend-lint frontend-build test build run clean
+.PHONY: help sdk env db-up db-down db-logs db-ps db-reset stack-build stack-up stack-down stack-logs stack-ps backend-test backend-build backend-run backend-clean frontend-install frontend-dev frontend-lint frontend-build test build run clean
 
 
 help: ## Lista os comandos disponiveis
@@ -36,6 +36,21 @@ db-ps: ## Mostra status dos servicos Docker Compose
 
 db-reset: ## Remove containers e volume local do PostgreSQL
 	@docker compose down -v
+
+stack-build: env ## Constroi imagens da stack completa
+	@docker compose build
+
+stack-up: env ## Sobe backend, frontend, PostgreSQL e Mailpit
+	@docker compose up -d --build postgres mailpit backend frontend
+
+stack-down: ## Para a stack Docker Compose
+	@docker compose down
+
+stack-logs: ## Exibe logs da stack Docker Compose
+	@docker compose logs -f
+
+stack-ps: ## Mostra status da stack Docker Compose
+	@docker compose ps
 
 backend-test: ## Executa os testes do backend
 	@source "$(SDKMAN_INIT)" && sdk env >/dev/null && cd "$(BACKEND_DIR)" && ./gradlew test

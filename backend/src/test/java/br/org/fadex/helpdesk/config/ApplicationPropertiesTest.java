@@ -20,5 +20,8 @@ class ApplicationPropertiesTest {
 		assertThat(environment.getProperty("spring.application.name")).isEqualTo("helpdesk");
 		assertThat(environment.getProperty("spring.datasource.url")).startsWith("jdbc:h2:mem:");
 		assertThat(environment.getProperty("spring.jpa.open-in-view")).isEqualTo("false");
+		assertThat(environment.getProperty("spring.mail.host")).isEqualTo("localhost");
+		assertThat(environment.getProperty("spring.mail.port")).isEqualTo("1025");
+		assertThat(environment.getProperty("app.mail.from")).isEqualTo("no-reply@fadex.local");
 	}
 }
