@@ -26,6 +26,10 @@ public abstract class TicketMapper {
 				ticket.getClassificationJustification(),
 				UserMapper.toMinDto(requester),
 				assignee != null ? UserMapper.toMinDto(assignee) : null,
+				ticket.getAssignedAt(),
+				ticket.getFirstResponseAt(),
+				ticket.getResolvedAt(),
+				ticket.getClosedAt(),
 				ticket.getCreatedAt(),
 				ticket.getUpdatedAt()
 		);
@@ -71,6 +75,7 @@ public abstract class TicketMapper {
 				ticket.getClassificationOrigin(),
 				UserMapper.toMinDto(requester),
 				assignee != null ? UserMapper.toMinDto(assignee) : null,
+				ticket.getAssignedAt(),
 				ticket.getCreatedAt()
 		);
 	}

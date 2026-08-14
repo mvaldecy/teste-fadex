@@ -18,6 +18,7 @@ public record TicketMinDto(
 		ClassificationOrigin classificationOrigin,
 		UserMinDto requester,
 		UserMinDto assignee,
+		LocalDateTime assignedAt,
 		LocalDateTime createdAt
 ) {
 }

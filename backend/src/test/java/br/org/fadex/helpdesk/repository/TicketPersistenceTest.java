@@ -167,4 +167,68 @@ class TicketPersistenceTest {
 		assertThat(event.getType()).isEqualTo(TicketEventType.CHAMADO_CRIADO);
 		assertThat(event.getCreatedAt()).isNotNull();
 	}
+
+	@Test
+	void devePersistirCarimbosDeCicloDeVidaESugestaoDaIa() {
+		User requester = userRepository.save(new User(
+				"Solicitante Carimbos",
+				"carimbos@fadex.org.br",
+				"hash",
+				Role.SOLICITANTE
+		));
+		Ticket ticket = new Ticket(
+				"Chamado com carimbos",
+				"Descricao do chamado com carimbos de ciclo de vida.",
+				TicketCategory.SISTEMAS,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		);
+		LocalDateTime instant = LocalDateTime.of(2026, 8, 14, 10, 0);
+
+		ticket.markAssigned(instant);
+		ticket.markFirstResponse(instant.plusHours(1));
+		ticket.markResolved(instant.plusHours(2));
+		ticket.markClosed(instant.plusHours(3));
+		ticket.applyAiSuggestion(TicketCategory.ACESSO, TicketPriority.ALTA, 0.87);
+
+		Ticket savedTicket = ticketRepository.saveAndFlush(ticket);
+		Ticket foundTicket = ticketRepository.findById(savedTicket.getId()).orElseThrow();
+
+		assertThat(foundTicket.getAssignedAt()).isEqualTo(instant);
+		assertThat(foundTicket.getFirstResponseAt()).isEqualTo(instant.plusHours(1));
+		assertThat(foundTicket.getResolvedAt()).isEqualTo(instant.plusHours(2));
+		assertThat(foundTicket.getClosedAt()).isEqualTo(instant.plusHours(3));
+		assertThat(foundTicket.getAiSuggestedCategory()).isEqualTo(TicketCategory.ACESSO);
+		assertThat(foundTicket.getAiSuggestedPriority()).isEqualTo(TicketPriority.ALTA);
+		assertThat(foundTicket.getAiConfidence()).isEqualTo(0.87);
+	}
+
+	@Test
+	void devePersistirEventoDeResponsavelRemovido() {
+		User requester = userRepository.save(new User(
+				"Solicitante Remocao",
+				"remocao@fadex.org.br",
+				"hash",
+				Role.SOLICITANTE
+		));
+		Ticket ticket = ticketRepository.save(new Ticket(
+				"Chamado com recusa de atribuicao",
+				"Descricao do chamado com recusa de atribuicao.",
+				TicketCategory.OUTROS,
+				TicketPriority.BAIXA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		));
+
+		TicketEvent event = ticketEventRepository.saveAndFlush(new TicketEvent(
+				ticket,
+				requester,
+				TicketEventType.RESPONSAVEL_REMOVIDO,
+				"Atribuicao removida.",
+				null
+		));
+
+		assertThat(event.getType()).isEqualTo(TicketEventType.RESPONSAVEL_REMOVIDO);
+	}
 }

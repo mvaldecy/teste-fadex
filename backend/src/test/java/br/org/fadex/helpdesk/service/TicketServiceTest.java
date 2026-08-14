@@ -11,9 +11,17 @@ import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.model.ticket.TicketCreationDto;
 import br.org.fadex.helpdesk.model.ticket.TicketDto;
 import br.org.fadex.helpdesk.model.ticket.TicketFields;
+import br.org.fadex.helpdesk.model.ticket.TicketAssigneeUpdateDto;
 import br.org.fadex.helpdesk.model.ticket.TicketFilter;
+import br.org.fadex.helpdesk.model.ticket.TicketStatusUpdateDto;
 import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.exception.ForbiddenException;
+import br.org.fadex.helpdesk.exception.ConflictException;
+import br.org.fadex.helpdesk.exception.NotFoundException;
+import br.org.fadex.helpdesk.exception.UnauthorizedException;
+import br.org.fadex.helpdesk.sse.model.NotificationAudience;
+import br.org.fadex.helpdesk.sse.model.NotificationEventName;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import br.org.fadex.helpdesk.repository.TicketRepository;
 import br.org.fadex.helpdesk.security.AccessControlService;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
@@ -28,11 +36,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,7 +54,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
@@ -62,6 +77,9 @@ class TicketServiceTest {
 	@Mock
 	private AiJobService aiJobService;
 
+	@Mock
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	private AccessControlService accessControlService;
 
 	private TicketService ticketService;
@@ -74,7 +92,8 @@ class TicketServiceTest {
 				userService,
 				accessControlService,
 				ticketEventService,
-				aiJobService
+				aiJobService,
+				applicationEventPublisher
 		);
 	}
 
@@ -248,5 +267,371 @@ class TicketServiceTest {
 		if (forbiddenRequesterId != null) {
 			verify(criteriaBuilder, never()).equal(requesterIdPath, forbiddenRequesterId);
 		}
+	}
+
+	@Test
+	void applyClassificationDeveAplicarClassificacaoERegistrarEvento() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+		when(authenticatedUserService.getUserId()).thenThrow(new UnauthorizedException("Autenticação necessária."));
+
+		ticketService.applyClassification(
+				ticket.getId(),
+				TicketCategory.ACESSO,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.IA,
+				"Justificativa da IA."
+		);
+
+		assertThat(ticket.getCategory()).isEqualTo(TicketCategory.ACESSO);
+		assertThat(ticket.getClassificationOrigin()).isEqualTo(ClassificationOrigin.IA);
+		assertThat(ticket.getClassificationJustification()).isEqualTo("Justificativa da IA.");
+		verify(ticketEventService).record(
+				eq(ticket), isNull(), eq(TicketEventType.CLASSIFICACAO_ATUALIZADA), anyString()
+		);
+	}
+
+	@Test
+	void applyClassificationNaoDeveExigirUsuarioAutenticado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+		when(authenticatedUserService.getUserId()).thenThrow(new UnauthorizedException("Autenticação necessária."));
+
+		ticketService.applyClassification(
+				ticket.getId(), TicketCategory.RH, TicketPriority.BAIXA, ClassificationOrigin.IA, null
+		);
+
+		verify(authenticatedUserService, never()).getRole();
+	}
+
+	@Test
+	void applyClassificationDevePublicarAlertaQuandoPrioridadeViraAlta() {
+		Ticket ticket = newTicket(TicketPriority.BAIXA);
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+		when(authenticatedUserService.getUserId()).thenThrow(new UnauthorizedException("Autenticação necessária."));
+
+		ticketService.applyClassification(
+				ticket.getId(), TicketCategory.ACESSO, TicketPriority.ALTA, ClassificationOrigin.IA, null
+		);
+
+		verify(applicationEventPublisher, times(2)).publishEvent(captor.capture());
+		List<String> eventNames = captor.getAllValues().stream()
+				.map(NotificationMessage::eventName)
+				.toList();
+
+		assertThat(eventNames).containsExactlyInAnyOrder(
+				NotificationEventName.CHAMADO_ATUALIZADO,
+				NotificationEventName.CHAMADO_ALTA_PRIORIDADE
+		);
+	}
+
+	@Test
+	void applyClassificationNaoDeveRepetirAlertaQuandoPrioridadeJaEraAlta() {
+		Ticket ticket = newTicket(TicketPriority.ALTA);
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+		when(authenticatedUserService.getUserId()).thenThrow(new UnauthorizedException("Autenticação necessária."));
+
+		ticketService.applyClassification(
+				ticket.getId(), TicketCategory.ACESSO, TicketPriority.ALTA, ClassificationOrigin.IA, null
+		);
+
+		verify(applicationEventPublisher, times(1)).publishEvent(captor.capture());
+		assertThat(captor.getValue().eventName()).isEqualTo(NotificationEventName.CHAMADO_ATUALIZADO);
+	}
+
+	@Test
+	void applyClassificationDeveNotificarSolicitanteEResponsavel() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User assignee = newAdmin();
+		ticket.assignTo(assignee);
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+		when(authenticatedUserService.getUserId()).thenThrow(new UnauthorizedException("Autenticação necessária."));
+
+		ticketService.applyClassification(
+				ticket.getId(), TicketCategory.ACESSO, TicketPriority.MEDIA, ClassificationOrigin.IA, null
+		);
+
+		verify(applicationEventPublisher).publishEvent(captor.capture());
+		NotificationAudience audience = captor.getValue().audience();
+
+		assertThat(audience).isInstanceOf(NotificationAudience.Users.class);
+		assertThat(((NotificationAudience.Users) audience).userIds())
+				.containsExactlyInAnyOrder(ticket.getRequester().getId(), assignee.getId());
+	}
+
+	@Test
+	void applyClassificationDeveLancarNotFoundQuandoChamadoNaoExistir() {
+		UUID ticketId = UUID.fromString("2a5b0a5e-8f6d-4c1b-9a3e-7d4c2b1a0f9e");
+
+		when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> ticketService.applyClassification(
+				ticketId, TicketCategory.RH, TicketPriority.BAIXA, ClassificationOrigin.IA, null
+		)).isInstanceOf(NotFoundException.class);
+	}
+
+	private Ticket newTicket(TicketPriority priority) {
+		User requester = new User("Maria", "maria@fadex.org.br", "hash", Role.SOLICITANTE, false);
+		ReflectionTestUtils.setField(requester, "id", UUID.randomUUID());
+
+		Ticket ticket = new Ticket(
+				"Chamado",
+				"Descricao do chamado.",
+				TicketCategory.OUTROS,
+				priority,
+				ClassificationOrigin.PENDENTE,
+				requester
+		);
+		ReflectionTestUtils.setField(ticket, "id", UUID.randomUUID());
+
+		return ticket;
+	}
+
+	private User newAdmin() {
+		User admin = new User("Admin", "admin@fadex.org.br", "hash", Role.ADMIN, false);
+		ReflectionTestUtils.setField(admin, "id", UUID.randomUUID());
+
+		return admin;
+	}
+
+
+	@Test
+	void updateStatusDeveExigirAdmin() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+
+		assertThatThrownBy(() -> ticketService.updateStatus(
+				ticket.getId(), new TicketStatusUpdateDto(TicketStatus.EM_ANDAMENTO)
+		)).isInstanceOf(ForbiddenException.class);
+
+		verify(ticketRepository, never()).save(any(Ticket.class));
+	}
+
+	@Test
+	void updateStatusDeveAlterarStatusERegistrarEvento() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User admin = newAdmin();
+		stubAdminUpdate(ticket, admin);
+
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.EM_ANDAMENTO));
+
+		assertThat(ticket.getStatus()).isEqualTo(TicketStatus.EM_ANDAMENTO);
+		verify(ticketEventService).record(
+				eq(ticket), eq(admin), eq(TicketEventType.STATUS_ALTERADO), anyString()
+		);
+	}
+
+	@Test
+	void updateStatusDeveCarimbarResolvedAtSemFecharChamado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.RESOLVIDO));
+
+		assertThat(ticket.getResolvedAt()).isNotNull();
+		assertThat(ticket.getClosedAt()).isNull();
+	}
+
+	@Test
+	void updateStatusDeveCarimbarResolvedAtAoFecharChamadoNuncaResolvido() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.FECHADO));
+
+		assertThat(ticket.getClosedAt()).isNotNull();
+		assertThat(ticket.getResolvedAt()).isEqualTo(ticket.getClosedAt());
+	}
+
+	@Test
+	void updateStatusDevePreservarResolvedAtOriginalAoFecharChamadoJaResolvido() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		LocalDateTime originalResolvedAt = LocalDateTime.of(2026, 1, 1, 0, 0);
+		ticket.changeStatus(TicketStatus.RESOLVIDO);
+		ticket.markResolved(originalResolvedAt);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.FECHADO));
+
+		assertThat(ticket.getResolvedAt()).isEqualTo(originalResolvedAt);
+		assertThat(ticket.getClosedAt()).isNotNull();
+	}
+
+	@Test
+	void updateStatusDeveSobrescreverResolvedAtNaSegundaResolucao() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		LocalDateTime primeiraResolucao = LocalDateTime.of(2026, 1, 1, 0, 0);
+		ticket.changeStatus(TicketStatus.RESOLVIDO);
+		ticket.markResolved(primeiraResolucao);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.EM_ANDAMENTO));
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.RESOLVIDO));
+
+		assertThat(ticket.getResolvedAt()).isAfter(primeiraResolucao);
+	}
+
+	@Test
+	void updateStatusDeveRecusarChamadoFechado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.FECHADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.updateStatus(
+				ticket.getId(), new TicketStatusUpdateDto(TicketStatus.EM_ANDAMENTO)
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void updateStatusDeveRecusarTransicaoParaOMesmoStatus() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.updateStatus(
+				ticket.getId(), new TicketStatusUpdateDto(TicketStatus.ABERTO)
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void updateStatusDeveRecusarTransicaoDeResolvidoParaAberto() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.RESOLVIDO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.updateStatus(
+				ticket.getId(), new TicketStatusUpdateDto(TicketStatus.ABERTO)
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void updateAssigneeDeveExigirAdmin() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+
+		assertThatThrownBy(() -> ticketService.updateAssignee(
+				ticket.getId(), new TicketAssigneeUpdateDto(UUID.randomUUID())
+		)).isInstanceOf(ForbiddenException.class);
+	}
+
+	@Test
+	void updateAssigneeDeveAtribuirECarimbarAssignedAt() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User admin = newAdmin();
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+		when(userService.findEntityById(admin.getId())).thenReturn(admin);
+
+		ticketService.updateAssignee(ticket.getId(), new TicketAssigneeUpdateDto(admin.getId()));
+
+		assertThat(ticket.getAssignee()).isEqualTo(admin);
+		assertThat(ticket.getAssignedAt()).isNotNull();
+		verify(ticketEventService).record(
+				eq(ticket), eq(admin), eq(TicketEventType.RESPONSAVEL_ATRIBUIDO), anyString()
+		);
+	}
+
+	@Test
+	void updateAssigneeDeveRecusarChamadoQueJaTemResponsavel() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User admin = newAdmin();
+		ticket.assignTo(admin);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.updateAssignee(
+				ticket.getId(), new TicketAssigneeUpdateDto(admin.getId())
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void updateAssigneeDeveRecusarResponsavelSemPapelAdmin() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User solicitante = new User("Outro", "outro@fadex.org.br", "hash", Role.SOLICITANTE, false);
+		ReflectionTestUtils.setField(solicitante, "id", UUID.randomUUID());
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(userService.findEntityById(solicitante.getId())).thenReturn(solicitante);
+
+		assertThatThrownBy(() -> ticketService.updateAssignee(
+				ticket.getId(), new TicketAssigneeUpdateDto(solicitante.getId())
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void updateAssigneeDeveRecusarChamadoFechado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.FECHADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.updateAssignee(
+				ticket.getId(), new TicketAssigneeUpdateDto(UUID.randomUUID())
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void removeAssigneeDeveRemoverResponsavelEPreservarAssignedAt() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User admin = newAdmin();
+		LocalDateTime originalAssignedAt = LocalDateTime.of(2026, 1, 1, 0, 0);
+		ticket.assignTo(admin);
+		ticket.markAssigned(originalAssignedAt);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+		ticketService.removeAssignee(ticket.getId());
+
+		assertThat(ticket.getAssignee()).isNull();
+		assertThat(ticket.getAssignedAt()).isEqualTo(originalAssignedAt);
+		verify(ticketEventService).record(
+				eq(ticket), eq(admin), eq(TicketEventType.RESPONSAVEL_REMOVIDO), anyString()
+		);
+	}
+
+	@Test
+	void removeAssigneeDeveRecusarChamadoSemResponsavel() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.removeAssignee(ticket.getId()))
+				.isInstanceOf(ConflictException.class);
+	}
+
+	private void stubAdminUpdate(Ticket ticket, User admin) {
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(authenticatedUserService.getUserId()).thenReturn(admin.getId());
+		when(userService.findEntityById(admin.getId())).thenReturn(admin);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
 	}
 }

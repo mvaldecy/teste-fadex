@@ -77,13 +77,20 @@ public class DevTicketSeeder {
 				? null
 				: createdAt.plusHours(seed.resolvedAfterHours());
 		LocalDateTime updatedAt = resolvedAt == null ? createdAt : resolvedAt;
+		LocalDateTime assignedAt = assigneeId == null ? null : createdAt.plusHours(1);
+		LocalDateTime firstResponseAt = (seed.firstReplyAfterHours() == null || assigneeId == null)
+				? null
+				: createdAt.plusHours(seed.firstReplyAfterHours());
+		LocalDateTime closedAt = seed.status() == TicketStatus.FECHADO ? resolvedAt : null;
 
 		jdbcTemplate.update(
 				"""
 				insert into tickets (
 					id, title, description, category, priority, status, requester_id, assignee_id,
-					classification_origin, classification_justification, created_at, updated_at
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					classification_origin, classification_justification, created_at, updated_at,
+					assigned_at, first_response_at, resolved_at, closed_at,
+					ai_suggested_category, ai_suggested_priority, ai_confidence
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				ticketId,
 				seed.title(),
@@ -96,7 +103,14 @@ public class DevTicketSeeder {
 				seed.classificationOrigin().name(),
 				seed.justification(),
 				Timestamp.valueOf(createdAt),
-				Timestamp.valueOf(updatedAt)
+				Timestamp.valueOf(updatedAt),
+				assignedAt == null ? null : Timestamp.valueOf(assignedAt),
+				firstResponseAt == null ? null : Timestamp.valueOf(firstResponseAt),
+				resolvedAt == null ? null : Timestamp.valueOf(resolvedAt),
+				closedAt == null ? null : Timestamp.valueOf(closedAt),
+				seed.aiSuggestedCategory() == null ? null : seed.aiSuggestedCategory().name(),
+				seed.aiSuggestedPriority() == null ? null : seed.aiSuggestedPriority().name(),
+				seed.aiConfidence()
 		);
 
 		insertEvent(
@@ -188,7 +202,8 @@ public class DevTicketSeeder {
 						"solicitante@fadex.org.br", null,
 						ClassificationOrigin.IA,
 						"Termos de bloqueio de credencial indicam acesso; impacto imediato eleva a prioridade.",
-						6, null, null, null
+						6, null, null, null,
+						TicketCategory.ACESSO, TicketPriority.ALTA, 0.91
 				),
 				new TicketSeed(
 						"Servidor de arquivos fora do ar",
@@ -197,7 +212,8 @@ public class DevTicketSeeder {
 						"ana.ribeiro@fadex.org.br", null,
 						ClassificationOrigin.IA,
 						"Indisponibilidade generalizada de recurso compartilhado caracteriza infraestrutura critica.",
-						3, null, null, null
+						3, null, null, null,
+						TicketCategory.INFRAESTRUTURA, TicketPriority.ALTA, 0.88
 				),
 				new TicketSeed(
 						"Solicitacao de segunda via de cracha",
@@ -205,7 +221,8 @@ public class DevTicketSeeder {
 						TicketCategory.EQUIPAMENTOS, TicketPriority.BAIXA, TicketStatus.ABERTO,
 						"bruno.carvalho@fadex.org.br", null,
 						ClassificationOrigin.PENDENTE, null,
-						20, null, null, null
+						20, null, null, null,
+						null, null, null
 				),
 				new TicketSeed(
 						"Duvida sobre desconto no holerite",
@@ -213,7 +230,8 @@ public class DevTicketSeeder {
 						TicketCategory.RH, TicketPriority.MEDIA, TicketStatus.ABERTO,
 						"solicitante@fadex.org.br", null,
 						ClassificationOrigin.PENDENTE, null,
-						30, null, null, null
+						30, null, null, null,
+						null, null, null
 				),
 				new TicketSeed(
 						"Teclado com teclas travando",
@@ -221,7 +239,8 @@ public class DevTicketSeeder {
 						TicketCategory.EQUIPAMENTOS, TicketPriority.BAIXA, TicketStatus.ABERTO,
 						"ana.ribeiro@fadex.org.br", null,
 						ClassificationOrigin.PENDENTE, null,
-						52, null, null, null
+						52, null, null, null,
+						null, null, null
 				),
 				new TicketSeed(
 						"Sistema de compras lento no fim do dia",
@@ -230,7 +249,8 @@ public class DevTicketSeeder {
 						"bruno.carvalho@fadex.org.br", null,
 						ClassificationOrigin.IA,
 						"Relato de lentidao recorrente em aplicacao interna, sem indisponibilidade total.",
-						96, null, null, null
+						96, null, null, null,
+						TicketCategory.SISTEMAS, TicketPriority.MEDIA, 0.79
 				),
 				new TicketSeed(
 						"Erro ao emitir relatorio financeiro",
@@ -239,7 +259,8 @@ public class DevTicketSeeder {
 						"solicitante@fadex.org.br", "admin@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Falha de exportacao em rotina financeira mensal com bloqueio de entrega.",
-						28, null, 4, "Reproduzimos o erro e estamos analisando o log do gerador de PDF."
+						28, null, 4, "Reproduzimos o erro e estamos analisando o log do gerador de PDF.",
+						TicketCategory.FINANCEIRO, TicketPriority.ALTA, 0.86
 				),
 				new TicketSeed(
 						"Impressora do terceiro andar sem rede",
@@ -248,7 +269,8 @@ public class DevTicketSeeder {
 						"ana.ribeiro@fadex.org.br", "carla.menezes@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Equipamento de rede compartilhado inacessivel por multiplos usuarios.",
-						45, null, 6, "Trocamos o cabo de rede e seguimos testando a conexao."
+						45, null, 6, "Trocamos o cabo de rede e seguimos testando a conexao.",
+						TicketCategory.INFRAESTRUTURA, TicketPriority.MEDIA, 0.82
 				),
 				new TicketSeed(
 						"Acesso ao modulo de contratos negado",
@@ -257,7 +279,8 @@ public class DevTicketSeeder {
 						"bruno.carvalho@fadex.org.br", "mvaldecy11@gmail.com",
 						ClassificationOrigin.MANUAL,
 						"Reclassificado manualmente: pedido de permissao, nao incidente de sistema.",
-						60, null, 12, "Solicitamos aprovacao da chefia imediata para liberar o perfil."
+						60, null, 12, "Solicitamos aprovacao da chefia imediata para liberar o perfil.",
+						TicketCategory.SISTEMAS, TicketPriority.ALTA, 0.44
 				),
 				new TicketSeed(
 						"Notebook nao liga apos atualizacao",
@@ -266,7 +289,8 @@ public class DevTicketSeeder {
 						"solicitante@fadex.org.br", "admin@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Equipamento inoperante impede o trabalho do solicitante.",
-						14, null, 2, "Notebook recolhido para diagnostico, emprestamos uma maquina reserva."
+						14, null, 2, "Notebook recolhido para diagnostico, emprestamos uma maquina reserva.",
+						TicketCategory.EQUIPAMENTOS, TicketPriority.ALTA, 0.90
 				),
 				new TicketSeed(
 						"Solicitacao de VPN para trabalho remoto",
@@ -274,7 +298,8 @@ public class DevTicketSeeder {
 						TicketCategory.ACESSO, TicketPriority.BAIXA, TicketStatus.EM_ANDAMENTO,
 						"ana.ribeiro@fadex.org.br", "carla.menezes@fadex.org.br",
 						ClassificationOrigin.PENDENTE, null,
-						72, null, 24, "Encaminhado para aprovacao da politica de acesso remoto."
+						72, null, 24, "Encaminhado para aprovacao da politica de acesso remoto.",
+						null, null, null
 				),
 				new TicketSeed(
 						"Reembolso de diaria nao processado",
@@ -283,7 +308,8 @@ public class DevTicketSeeder {
 						"bruno.carvalho@fadex.org.br", "mvaldecy11@gmail.com",
 						ClassificationOrigin.MANUAL,
 						"Reclassificado manualmente de RH para Financeiro apos analise do fluxo.",
-						120, 48, 8, "Localizamos a pendencia de documento e reenviamos ao financeiro."
+						120, 48, 8, "Localizamos a pendencia de documento e reenviamos ao financeiro.",
+						TicketCategory.RH, TicketPriority.BAIXA, 0.41
 				),
 				new TicketSeed(
 						"Senha do e-mail expirada",
@@ -292,7 +318,8 @@ public class DevTicketSeeder {
 						"solicitante@fadex.org.br", "admin@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Expiracao de credencial e um caso rotineiro de acesso, sem impacto coletivo.",
-						96, 3, 1, "Senha redefinida e sincronizacao validada com o solicitante."
+						96, 3, 1, "Senha redefinida e sincronizacao validada com o solicitante.",
+						TicketCategory.ACESSO, TicketPriority.BAIXA, 0.93
 				),
 				new TicketSeed(
 						"Monitor com listras verticais",
@@ -301,7 +328,8 @@ public class DevTicketSeeder {
 						"ana.ribeiro@fadex.org.br", "carla.menezes@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Defeito fisico de periferico com substituicao prevista em estoque.",
-						168, 30, 5, "Monitor substituido por unidade do estoque."
+						168, 30, 5, "Monitor substituido por unidade do estoque.",
+						TicketCategory.EQUIPAMENTOS, TicketPriority.MEDIA, 0.84
 				),
 				new TicketSeed(
 						"Cadastro de fornecedor duplicado",
@@ -309,7 +337,8 @@ public class DevTicketSeeder {
 						TicketCategory.SISTEMAS, TicketPriority.BAIXA, TicketStatus.RESOLVIDO,
 						"bruno.carvalho@fadex.org.br", "mvaldecy11@gmail.com",
 						ClassificationOrigin.PENDENTE, null,
-						200, 72, 20, "Registros consolidados e duplicidade removida da base."
+						200, 72, 20, "Registros consolidados e duplicidade removida da base.",
+						null, null, null
 				),
 				new TicketSeed(
 						"Falha de conexao no sistema de ponto",
@@ -318,7 +347,8 @@ public class DevTicketSeeder {
 						"solicitante@fadex.org.br", "admin@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Sistema de registro obrigatorio indisponivel afeta toda a equipe.",
-						80, 5, 1, "Servico do integrador reiniciado e batidas recuperadas."
+						80, 5, 1, "Servico do integrador reiniciado e batidas recuperadas.",
+						TicketCategory.SISTEMAS, TicketPriority.ALTA, 0.89
 				),
 				new TicketSeed(
 						"Atualizacao de dados bancarios",
@@ -327,7 +357,8 @@ public class DevTicketSeeder {
 						"ana.ribeiro@fadex.org.br", "carla.menezes@fadex.org.br",
 						ClassificationOrigin.MANUAL,
 						"Reclassificado manualmente para RH por envolver cadastro funcional.",
-						300, 96, 36, "Dados atualizados no cadastro e confirmados com a servidora."
+						300, 96, 36, "Dados atualizados no cadastro e confirmados com a servidora.",
+						TicketCategory.FINANCEIRO, TicketPriority.MEDIA, 0.38
 				),
 				new TicketSeed(
 						"Instalacao de pacote estatistico",
@@ -335,7 +366,8 @@ public class DevTicketSeeder {
 						TicketCategory.SISTEMAS, TicketPriority.BAIXA, TicketStatus.FECHADO,
 						"bruno.carvalho@fadex.org.br", "mvaldecy11@gmail.com",
 						ClassificationOrigin.PENDENTE, null,
-						400, 120, 48, "Pacote instalado e licenca registrada no inventario."
+						400, 120, 48, "Pacote instalado e licenca registrada no inventario.",
+						null, null, null
 				),
 				new TicketSeed(
 						"Queda de energia derrubou o rack",
@@ -344,7 +376,8 @@ public class DevTicketSeeder {
 						"solicitante@fadex.org.br", "admin@fadex.org.br",
 						ClassificationOrigin.IA,
 						"Interrupcao de servicos centrais por falha eletrica exige resposta imediata.",
-						240, 6, 1, "Nobreak substituido e servicos restabelecidos."
+						240, 6, 1, "Nobreak substituido e servicos restabelecidos.",
+						TicketCategory.INFRAESTRUTURA, TicketPriority.ALTA, 0.94
 				),
 				new TicketSeed(
 						"Solicitacao de treinamento no novo sistema",
@@ -353,7 +386,8 @@ public class DevTicketSeeder {
 						"ana.ribeiro@fadex.org.br", "carla.menezes@fadex.org.br",
 						ClassificationOrigin.MANUAL,
 						"Reclassificado manualmente como demanda administrativa, nao incidente tecnico.",
-						500, 168, 72, "Treinamento realizado com a equipe e material compartilhado."
+						500, 168, 72, "Treinamento realizado com a equipe e material compartilhado.",
+						TicketCategory.SISTEMAS, TicketPriority.MEDIA, 0.52
 				)
 		);
 	}
@@ -371,7 +405,10 @@ public class DevTicketSeeder {
 			int createdHoursAgo,
 			Integer resolvedAfterHours,
 			Integer firstReplyAfterHours,
-			String firstReply
+			String firstReply,
+			TicketCategory aiSuggestedCategory,
+			TicketPriority aiSuggestedPriority,
+			Double aiConfidence
 	) {
 	}
 }

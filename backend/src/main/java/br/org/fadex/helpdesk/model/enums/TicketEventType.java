@@ -5,6 +5,7 @@ public enum TicketEventType implements LabeledEnum {
 	COMENTARIO_ADICIONADO("Comentario adicionado"),
 	STATUS_ALTERADO("Status alterado"),
 	RESPONSAVEL_ATRIBUIDO("Responsavel atribuido"),
+	RESPONSAVEL_REMOVIDO("Responsavel removido"),
 	PRIORIDADE_ALTERADA("Prioridade alterada"),
 	CATEGORIA_ALTERADA("Categoria alterada"),
 	CLASSIFICACAO_ATUALIZADA("Classificacao atualizada");

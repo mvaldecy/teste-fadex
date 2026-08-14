@@ -1,6 +1,8 @@
 package br.org.fadex.helpdesk.controller;
 
+import br.org.fadex.helpdesk.model.ticket.TicketAssigneeUpdateDto;
 import br.org.fadex.helpdesk.model.ticket.TicketCreationDto;
+import br.org.fadex.helpdesk.model.ticket.TicketStatusUpdateDto;
 import br.org.fadex.helpdesk.model.ticket.TicketFilter;
 import br.org.fadex.helpdesk.model.ticket.TicketDto;
 import br.org.fadex.helpdesk.model.ticket.TicketFields;
@@ -13,7 +15,9 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,5 +59,32 @@ public class TicketController {
 		TicketDto ticket = ticketService.create(ticketCreationDto);
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(ticket);
+	}
+
+	@PatchMapping("/{id}/status")
+	public ResponseEntity<TicketDto> updateStatus(
+			@PathVariable UUID id,
+			@Valid @RequestBody TicketStatusUpdateDto ticketStatusUpdateDto
+	) {
+		TicketDto ticket = ticketService.updateStatus(id, ticketStatusUpdateDto);
+
+		return ResponseEntity.ok(ticket);
+	}
+
+	@PatchMapping("/{id}/assignee")
+	public ResponseEntity<TicketDto> updateAssignee(
+			@PathVariable UUID id,
+			@Valid @RequestBody TicketAssigneeUpdateDto ticketAssigneeUpdateDto
+	) {
+		TicketDto ticket = ticketService.updateAssignee(id, ticketAssigneeUpdateDto);
+
+		return ResponseEntity.ok(ticket);
+	}
+
+	@DeleteMapping("/{id}/assignee")
+	public ResponseEntity<TicketDto> removeAssignee(@PathVariable UUID id) {
+		TicketDto ticket = ticketService.removeAssignee(id);
+
+		return ResponseEntity.ok(ticket);
 	}
 }
