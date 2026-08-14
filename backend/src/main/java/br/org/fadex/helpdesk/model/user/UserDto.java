@@ -10,6 +10,7 @@ public record UserDto(
 		String name,
 		String email,
 		Role role,
+		Boolean mustChangePassword,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt
 ) {
