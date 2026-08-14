@@ -593,5 +593,18 @@ Nao ha reenvio de eventos perdidos: o cabecalho `Last-Event-ID` nao e tratado. A
 
 ## Pendencias Conhecidas
 
-- Atualizacao de status e atribuicao ainda serao definidos.
-- O service de IA ainda esta pendente; por enquanto a classificacao fica preparada com origem `PENDENTE`.
+Ja implementado e disponivel (nao reimplementar):
+
+- Triagem automatica por IA, com worker Quartz, cliente local de classificacao e de embedding e
+  classificador de fallback. Chamados criados pela API entram na fila de classificacao.
+- Motor de notificacoes em tempo real por SSE, em `GET /api/v1/notifications/stream`, com
+  audiencia por usuario, por papel ou para todos.
+- Historico de eventos do chamado, em `GET /api/v1/tickets/{ticketId}/events`.
+
+Ainda pendente:
+
+- Atualizacao de status e atribuicao de responsavel.
+- Revisao da sugestao da IA pelo ADMIN, aceitando ou corrigindo a classificacao.
+- Indicadores agregados e alerta de chamado com prioridade ALTA.
+- Exposicao dos jobs de IA para o ADMIN; `AiJobService.retry` existe e ainda nao tem endpoint.
+- Deteccao de duplicados; a tabela `ticket_links` existe desde a V3 e ainda nao e usada.
