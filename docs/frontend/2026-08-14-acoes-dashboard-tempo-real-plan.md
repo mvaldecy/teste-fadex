@@ -38,6 +38,9 @@
 ## File Structure
 
 **Sessao e shell**
+- `frontend/src/types/auth.ts` (modificar): `refreshToken`, `mustChangePassword`, `AuthRefreshRequest`.
+- `frontend/src/services/auth.service.ts` (modificar): `refresh(payload)`.
+- `frontend/src/services/api.ts` (modificar): interceptor de `401` com refresh unico compartilhado.
 - `frontend/src/stores/session.store.ts` (modificar): middleware `persist` em `sessionStorage`, reidratacao do token.
 - `frontend/src/components/layout/user-menu.tsx` (criar): avatar com iniciais, nome, papel e botao de sair.
 - `frontend/src/components/layout/app-shell.tsx` (modificar): header em todas as larguras, `UserMenu`, itens de nav de ADMIN.
@@ -90,7 +93,7 @@
 - `frontend/app/(dashboard)/home/page.tsx` (modificar): redirect para `/dashboard`.
 
 **Jobs de IA**
-- `frontend/src/types/ai-job.ts` (criar).
+- `frontend/src/types/ai-job.ts` (criar): enums reais `AiJobType`/`AiJobStatus`.
 - `frontend/src/services/ai-jobs.service.ts` (criar).
 - `frontend/src/features/ai-jobs/use-ai-jobs.ts` (criar).
 - `frontend/src/features/ai-jobs/ai-jobs-page.tsx` (criar).
@@ -197,14 +200,94 @@ export default function DashboardLayout({
 }
 ```
 
-- [ ] **Step 4: Verificar**
+- [ ] **Step 4: Aceitar `refreshToken` e `mustChangePassword` no tipo de auth**
+
+O backend ja devolve os dois em `AuthResponseDto`; o tipo do frontend e que os descartava.
+
+```ts
+export type AuthLoginResponse = {
+  accessToken: string;
+  refreshToken: string | null;
+  tokenType: "Bearer";
+  expiresIn: number;
+  mustChangePassword: boolean;
+  role: RoleValue;
+  user: AuthenticatedUser;
+};
+
+export type AuthRefreshRequest = { refreshToken: string };
+```
+
+Guardar `refreshToken` e `mustChangePassword` na store e no `partialize` do Step 2.
+
+- [ ] **Step 5: `refresh` no auth service**
+
+```ts
+async function refresh(payload: AuthRefreshRequest) {
+  const response = await api.post<AuthLoginResponse>("/auth/refresh", payload);
+  return response.data;
+}
+```
+
+- [ ] **Step 6: Interceptor de 401 com refresh unico**
+
+A promessa compartilhada e o ponto critico: sem ela, uma tela com quatro requisicoes paralelas
+recebendo `401` dispara quatro refreshes e invalida o proprio token em cascata.
+
+```ts
+let refreshPromise: Promise<string | null> | null = null;
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: unknown) => {
+    if (!axios.isAxiosError(error) || error.response?.status !== 401) {
+      return Promise.reject(error);
+    }
+
+    const originalRequest = error.config as (InternalAxiosRequestConfig & {
+      _hasRetried?: boolean;
+    }) | undefined;
+
+    if (
+      !originalRequest ||
+      originalRequest._hasRetried ||
+      originalRequest.url?.includes("/auth/")
+    ) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._hasRetried = true;
+    refreshPromise = refreshPromise ?? runRefresh();
+
+    const nextToken = await refreshPromise;
+    refreshPromise = null;
+
+    if (!nextToken) {
+      onSessionExpired?.();
+      return Promise.reject(error);
+    }
+
+    originalRequest.headers.Authorization = `Bearer ${nextToken}`;
+    return api(originalRequest);
+  }
+);
+```
+
+`runRefresh()` le o `refreshToken` do getter registrado, chama `authService.refresh`, grava o
+novo token via `setApiAccessToken` e devolve o `accessToken`; em qualquer falha devolve `null`.
+
+Para nao criar import circular entre `api.ts` e `session.store.ts`, o store **registra** seus
+callbacks no modulo de token: `setSessionRefreshHandlers({ getRefreshToken, onRefreshed, onSessionExpired })`
+em `api-token.ts`. O `api.ts` so consome esses handlers.
+
+- [ ] **Step 7: Verificar**
 
 Run: `make frontend-lint && make frontend-build`
 Expected: ambos sem erro.
 
 Manual: logar, recarregar `/tickets` e confirmar que a listagem carrega em vez de dar `401`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add frontend/src/stores/session.store.ts frontend/app/\(dashboard\)/layout.tsx frontend/src/routes/routes.ts
@@ -1169,23 +1252,37 @@ git commit -m "feat(frontend): adiciona dashboard de indicadores com atualizacao
 
 - [ ] **Step 1: Tipos**
 
+Valores reais, lidos de `ai/job/AiJobType.java`, `ai/job/AiJobStatus.java` e do check
+constraint da migration V3. Em ingles, ao contrario dos enums de dominio do chamado.
+
 ```ts
+export const aiJobTypes = ["CLASSIFICATION", "EMBEDDING"] as const;
+export const aiJobStatuses = ["PENDING", "PROCESSING", "DONE", "FAILED"] as const;
+
+export type AiJobType = (typeof aiJobTypes)[number];
+export type AiJobStatus = (typeof aiJobStatuses)[number];
+
 export type AiJobDto = {
   id: string;
-  ticketId?: string | null;
-  type?: string | null;
-  status: string;
-  attempts?: number | null;
-  errorMessage?: string | null;
+  ticketId: string | null;
+  type: AiJobType | string;
+  status: AiJobStatus | string;
+  attempts: number;
+  nextAttemptAt?: string | null;
+  lastError?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 };
 
-export type AiJobFilters = PageParams & { status?: string };
+export type AiJobFilters = PageParams & { status?: AiJobStatus };
 ```
 
-Campos frouxos de proposito: o enum de status dos jobs nao esta em `GET /api/v1/choices` e o
-contrato ainda nao saiu. Renderizar `job.status` cru e o comportamento certo aqui.
+O campo de erro e `lastError`, nao `errorMessage`, e so existe no `AiJobDto`; o
+`AiJobSummaryDto` da listagem traz `nextAttemptAt` sem o erro — por isso os dois sao opcionais.
+
+Estes enums **nao** estao em `GET /api/v1/choices`, que so expoe enums de dominio do chamado.
+E a unica excecao autorizada a regra de nao hardcodar label de enum, e o mapa de rotulos fica
+isolado em `src/features/ai-jobs/ai-job-labels.ts` para ficar obvio quando o backend expuser.
 
 - [ ] **Step 2: Service**
 

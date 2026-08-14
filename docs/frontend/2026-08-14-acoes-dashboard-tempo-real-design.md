@@ -96,6 +96,10 @@ qualquer forma, entao os dois funcionam).
 { "category": "SISTEMAS", "priority": "ALTA", "justification": "texto opcional" }
 ```
 
+Atencao ao nome no retorno: o `TicketDto` do backend ja tem `classificationJustification`
+(verificado no codigo), nao `justification`. O tipo do frontend usa o nome do backend na
+**leitura**; o nome do campo no corpo do `PATCH` segue provisorio.
+
 Resposta esperada: `TicketDto`. Aceitar a sugestao da IA e enviar `aiSuggestedCategory` e
 `aiSuggestedPriority` sem alteracao — nao ha endpoint separado de "aceitar".
 
@@ -131,27 +135,45 @@ Todo campo agregado e lido como **opcional** no frontend. A camada 4 e o p90 est
 corte do documento de frentes; se a frente IA nao entregar, o card correspondente simplesmente
 nao renderiza, em vez de quebrar a pagina.
 
-`GET /api/v1/ai/jobs` — pagina de jobs. Forma assumida por item:
+`GET /api/v1/ai/jobs` — pagina de jobs. **O corpo aqui nao e inferencia.** `AiJobDto` e
+`AiJobSummaryDto` ja existem em `backend/src/main/java/br/org/fadex/helpdesk/ai/job/`, e os
+enums estao fixados tambem no check constraint da migration V3:
+
+- `AiJobType`: `CLASSIFICATION`, `EMBEDDING`
+- `AiJobStatus`: `PENDING`, `PROCESSING`, `DONE`, `FAILED`
+
+Valores em ingles, ao contrario dos enums de dominio do chamado, que sao em portugues. O frontend
+segue o backend nos dois casos, sem traduzir.
 
 ```json
 {
   "id": "00000000-0000-0000-0000-000000000000",
   "ticketId": "00000000-0000-0000-0000-000000000000",
-  "type": "CLASSIFICACAO",
-  "status": "FALHOU",
+  "type": "CLASSIFICATION",
+  "status": "FAILED",
   "attempts": 2,
-  "errorMessage": "timeout ao chamar o modelo local",
+  "nextAttemptAt": "2026-08-14T10:10:00",
+  "lastError": "timeout ao chamar o modelo local",
   "createdAt": "2026-08-14T10:00:00",
   "updatedAt": "2026-08-14T10:05:00"
 }
 ```
 
+O campo de erro chama-se `lastError`, nao `errorMessage`, e existe apenas no `AiJobDto`; o
+`AiJobSummaryDto`, provavel retorno da listagem, traz `nextAttemptAt` mas nao o erro. O frontend
+declara `lastError` opcional para servir aos dois. Continua provisorio apenas o **caminho** do
+endpoint e o formato de paginacao — nao o corpo do item.
+
+Estes enums nao estao em `GET /api/v1/choices`, que so expoe enums de dominio do chamado. E a
+unica excecao a regra de nao hardcodar label de enum no frontend, e esta registrada como tal.
+
 `POST /api/v1/ai/jobs/{id}/retry` — sem corpo, resposta ignorada; a tela recarrega a lista.
 
 ### Campos novos no `TicketDto`
 
-A frente IA vai expor `aiSuggestedCategory`, `aiSuggestedPriority`, `confidence` e
-`justification`. O frontend declara os quatro como opcionais em `TicketDto`. Enquanto o
+A frente IA vai expor `aiSuggestedCategory`, `aiSuggestedPriority` e `confidence`. O
+`TicketDto` do backend **ja tem** `classificationJustification` hoje. O frontend declara os
+quatro como opcionais em `TicketDto`. Enquanto o
 backend nao os enviar, o bloco de sugestao da IA nao aparece — nao ha fixture aqui, porque o
 resto do `TicketDto` e real e misturar campo inventado com campo real seria enganoso.
 
@@ -165,9 +187,10 @@ resto do `TicketDto` e real e misturar campo inventado com campo real seria enga
    pedem `password`. O frontend corrige o proprio lado neste ciclo.
 3. **`UserDto` no frontend nao tem `mustChangePassword`**, que o `api.md` documenta. Corrigido
    neste ciclo.
-4. **`AuthLoginResponse` no frontend nao tem `refreshToken` nem `mustChangePassword`.** Sem
-   isso nao da para implementar refresh silencioso nem fluxo de troca de senha obrigatoria.
-   Fica registrado; o refresh nao entra neste ciclo.
+4. **`AuthLoginResponse` no frontend descarta `refreshToken` e `mustChangePassword`.** Isto
+   nao e pendencia do backend: `AuthResponseDto` **ja devolve os dois**, e `POST /api/v1/auth/refresh`
+   ja existe no `AuthController`. Quem joga fora os campos e o tipo do frontend. Verificado no
+   codigo, corrigido neste ciclo — ver "Renovacao de sessao" abaixo.
 
 ## Decisoes de Arquitetura
 
@@ -194,6 +217,30 @@ realmente segura, cookie `HttpOnly` emitido pelo backend, esta fora do escopo de
 Junto vem uma guarda: `app/(dashboard)/layout.tsx` vira um client component que espera a
 reidratacao e redireciona para `/login` quando nao ha sessao. Sem a espera pela reidratacao, o
 redirect dispara antes do storage carregar e o usuario e expulso ao recarregar.
+
+### 1.1 Renovacao de sessao com refresh token
+
+O `accessToken` expira em uma hora. Sem renovacao, a sessao morre no meio do trabalho e o
+usuario e expulso para o login sem aviso — inclusive durante uma madrugada de desenvolvimento,
+que e o cenario real desta entrega.
+
+O backend ja entrega tudo o que falta: `AuthResponseDto` inclui `refreshToken` e
+`mustChangePassword`, e `POST /api/v1/auth/refresh` esta publicado. O frontend so precisa parar
+de descartar os campos.
+
+Decisao: interceptor de resposta no `api.ts` que, ao receber `401` em requisicao que nao seja a
+propria `/auth/refresh`, chama o refresh **uma unica vez** e repete a requisicao original. As
+chamadas concorrentes que falharem no mesmo intervalo compartilham a mesma promessa de refresh,
+em vez de dispararem um refresh cada — sem isso, uma tela com quatro requisicoes paralelas gera
+quatro refreshes e invalida o proprio token em cascata.
+
+Se o refresh falhar, a sessao e encerrada e o usuario vai para o login. Nao ha segunda tentativa:
+refresh que falha significa token revogado ou expirado, e insistir so multiplica `401`.
+
+`mustChangePassword` passa a ser guardado na sessao. O fluxo de troca obrigatoria de senha
+(`POST /api/v1/auth/change-password`) **nao** entra neste ciclo — o seed nao cria usuario nesse
+estado, e a tela extra nao cabe no prazo. Mas o campo fica disponivel para o proximo ciclo, em
+vez de ser descartado no parse.
 
 ### 2. Uma unica conexao SSE, compartilhada
 
