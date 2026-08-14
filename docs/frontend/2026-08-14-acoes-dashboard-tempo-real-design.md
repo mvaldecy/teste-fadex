@@ -55,13 +55,29 @@ responde `404`.
 
 ### Regra de fallback
 
-O fallback e por `404` — e so por `404`. Um `401`, `403`, `409` ou `500` continua sendo erro
-visivel na tela. Um `catch` generico esconderia bug real de integracao e faria a tela parecer
-saudavel contra um backend quebrado.
+O desenho original dizia "cai para dado fixo **somente** em `404`". **Verificado contra o
+backend rodando, isso estava errado e nunca funcionaria:** uma rota inexistente nao responde
+`404`. O handler global de excecao converte `NoHandlerFound` em
+`{"code":"INTERNAL_ERROR","status":500}`.
 
-Quando o dado exibido veio do fixture, a tela mostra um marcador visivel
-("Dados de exemplo — endpoint ainda nao publicado"). O avaliador nunca ve numero inventado
-apresentado como numero real.
+```
+GET /api/v1/indicators -> 500
+GET /api/v1/ai/jobs    -> 500
+```
+
+Regra corrigida, em `src/services/endpoint-fallback.ts`: cai para dado fixo em `404` **ou**
+`500`. `401` e `403` continuam subindo, porque sao sessao e permissao e precisam acionar o
+refresh ou o logout. Erro de rede, sem resposta, tambem sobe — nao ha o que interpretar.
+
+O preco de aceitar `500` e real: um erro genuino de um endpoint ja publicado tambem cai no
+fallback. A mitigacao e nao mentir sobre a causa. O motivo observado viaja junto do resultado
+(`fixtureReason`) e a faixa de aviso mostra o status de verdade:
+
+> Dados de exemplo: os numeros abaixo nao vem do banco. A API respondeu 500 em
+> GET /api/v1/indicators. O endpoint provavelmente ainda nao foi publicado pela frente API.
+
+Assim o avaliador ve o status real em vez de uma explicacao inventada, e o dado fixo nunca
+aparece sem aviso. Mutacoes seguem sem fallback nenhum.
 
 ### Contratos provisorios — confirmar com a frente API
 
@@ -261,7 +277,12 @@ subscribe do segundo reabre — uma conexao viva, nao duas.
 `EventSource` nao envia `Authorization` e axios nao expoe corpo incremental no navegador.
 
 Decisao: `fetch` com `AbortController`, `response.body.getReader()`, `TextDecoder` com
-`stream: true`, buffer acumulado e quebra por `\n\n`. Cada frame e lido linha a linha:
+`stream: true`, buffer acumulado e quebra por `\n\n`.
+
+Detalhe confirmado capturando os bytes do backend rodando: os campos vem **sem espaco** depois
+dos dois-pontos (`event:CONEXAO_ESTABELECIDA`, `data:{...}`), e o keep-alive e `:ping`, tambem
+sem espaco. O parser trata o espaco como opcional e descarta qualquer linha iniciada por `:`,
+entao os dois formatos funcionam. Cada frame e lido linha a linha:
 `event:` define o nome, `data:` acumula (pode haver varias linhas), `id:` e `retry:` sao lidos
 e ignorados, e linha iniciada por `:` e comentario de keep-alive (o `: ping` de 20s) e e
 descartada. `data` sem JSON valido nao derruba o stream: o evento e entregue com payload `null`.
@@ -332,7 +353,17 @@ falha de acao assincrona usam toast do Sonner, como no resto do app.
 
 ## Validacao
 
-`make frontend-lint` e `make frontend-build` a cada commit. Nao ha runner de teste no frontend
-neste ciclo — o parser SSE, que e a parte com maior risco de regressao, e escrito como funcao
-pura exportada (`parseSseFrame`) justamente para ficar testavel quando o runner existir, e e
-verificado manualmente contra o backend rodando.
+`make frontend-lint` e `make frontend-build` a cada commit.
+
+Nao ha runner de teste no frontend neste ciclo, mas o parser SSE — a parte com maior risco de
+regressao — e funcao pura exportada e foi verificado de verdade, executando o modulo real com
+`node --experimental-strip-types`:
+
+- 9 verificacoes de comportamento: frame do contrato, `: ping` descartado, `data:` multi-linha,
+  JSON invalido virando payload `null` sem derrubar o stream, terminadores CRLF, ausencia de
+  `event:` caindo em `message`, campo sem espaco apos os dois-pontos, bloco so de comentarios,
+  e frame partido ao meio entre dois chunks.
+- 1 verificacao contra os **bytes exatos** capturados do backend rodando, confirmando que o
+  `:ping` real nao vira evento.
+
+Quando um runner for adicionado, esses casos viram o arquivo de teste sem reescrita.
