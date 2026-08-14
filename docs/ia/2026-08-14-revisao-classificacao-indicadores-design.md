@@ -267,9 +267,24 @@ cobertura.
 candidatos, calcula similaridade de cosseno em Java e grava em `ticket_links` os pares acima do
 limiar. Testavel em H2, e o volume de comparacao e o de uma central interna.
 
-Candidatos: chamados com embedding gravado, excluindo o proprio. Limiar configuravel via
-`app.ai.duplicate.similarity-threshold`, default `0.90`. Maximo de vinculos por chamado
-configuravel, default 3, para um chamado generico nao virar hub de duplicados.
+Candidatos: chamados com embedding gravado, excluindo o proprio.
+
+**Configuracao reusada, nao criada.** `app.ai.similarity.threshold` e `app.ai.similarity.limit` ja
+existiam em `application.properties` desde a V3 e **nunca foram lidas por nenhuma classe** — foram
+declaradas para a busca de similares que nao chegou a ser implementada. Esta frente passa a consumi-las
+em vez de inventar `app.ai.duplicate.*`, que deixaria quatro propriedades para o mesmo conceito.
+
+Os defaults foram ajustados de `0.75`/`5` para `0.90`/`3`. Alterar default de propriedade viva seria
+mudanca de comportamento; como nada as lia, nao ha regressao possivel. O motivo: `0.75` de cosseno em
+embeddings `all-minilm` e frouxo para duplicidade — dois chamados de assuntos diferentes na mesma
+categoria passam desse valor com facilidade, e o limiar precisa ser conservador porque um falso
+positivo vira vinculo persistido que alguem tem que desfazer. O teto de 3 evita que um chamado
+generico ("nao consigo acessar") vire hub ligado a meia base.
+
+Candidatos com vetor de dimensao diferente da do chamado de origem sao ignorados, nao comparados: o
+cosseno exigiria mesmo tamanho e um `IllegalArgumentException` no meio do worker derrubaria o job de
+embedding inteiro. Isso acontece de verdade quando `AI_EMBEDDING_MODEL` muda e a base fica com vetores
+de dois modelos.
 
 O vinculo e gravado com `created_by` apontando para o solicitante do chamado de origem — a coluna e
 `not null` na `V3` e nao existe usuario de sistema. Alternativa (usuario tecnico) exigiria migration
