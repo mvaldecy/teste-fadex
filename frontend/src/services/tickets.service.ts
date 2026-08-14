@@ -1,4 +1,5 @@
 import type {
+  CreateTicketRequest,
   PageResponse,
   TicketDto,
   TicketFilters,
@@ -19,7 +20,13 @@ async function getById(id: string) {
   return response.data;
 }
 
+async function create(payload: CreateTicketRequest) {
+  const response = await api.post<TicketDto>("/tickets", payload);
+  return response.data;
+}
+
 export const ticketsService = {
   list,
-  getById
+  getById,
+  create
 };

@@ -24,6 +24,11 @@ export type TicketDto = TicketSummary & {
   updatedAt: string;
 };
 
+export type CreateTicketRequest = {
+  title: string;
+  description: string;
+};
+
 export type TicketFilters = PageParams & {
   status?: TicketStatusValue;
   priority?: TicketPriorityValue;
