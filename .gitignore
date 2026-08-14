@@ -50,3 +50,6 @@ temp/
 
 # Docker local
 docker-data/
+
+# Workspace de execucao de planos (scratch, nao versionar)
+.superpowers/
