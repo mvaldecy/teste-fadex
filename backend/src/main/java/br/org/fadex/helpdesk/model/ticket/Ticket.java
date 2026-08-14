@@ -105,6 +105,14 @@ public class Ticket {
 		this.assignee = assignee;
 	}
 
+	public void unassign() {
+		this.assignee = null;
+	}
+
+	public void changeStatus(TicketStatus status) {
+		this.status = status;
+	}
+
 	public void applyAutomaticClassification(
 			TicketCategory category,
 			TicketPriority priority,
