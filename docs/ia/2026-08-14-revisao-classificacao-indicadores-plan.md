@@ -479,6 +479,8 @@ Nao criar `TicketAiAuditRepository`. A escrita das tres colunas acontece na Task
 
 `V5` e a unica migration desta frente. Nao adicionar nada alem desta coluna — as colunas de `V4` sao da frente API.
 
+**Nao criar a `V5` antes de a `V4` estar em `dev`, e nao reordenar esta task por conveniencia.** Se um banco local aplicar a `V5` e a `V4` chegar depois, o Flyway aborta com "Detected resolved migration not applied to database: 4" e a saida e recriar o banco.
+
 - [ ] **Step 1: Criar a migration**
 
 ```sql
@@ -1015,6 +1017,9 @@ public class TicketClassificationReviewService {
 		String justification = resolveJustification(dto, origin);
 
 		ticketService.applyClassification(id, dto.category(), dto.priority(), origin, justification);
+		// O carimbo persiste por dirty checking: findEntityById e @Transactional(readOnly = true), mas
+		// com propagacao REQUIRED ele entra nesta transacao read-write e o hint readOnly do metodo
+		// interno e ignorado. Nao mover a leitura para fora da transacao — o carimbo se perderia.
 		ticket.markClassificationReviewed(LocalDateTime.now(clock));
 		publishIndicatorsUpdated(id);
 

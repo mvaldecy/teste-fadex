@@ -595,6 +595,11 @@ Nao ha reenvio de eventos perdidos: o cabecalho `Last-Event-ID` nao e tratado. A
 
 Secao escrita pela frente IA. Todos os endpoints desta secao exigem papel `ADMIN`.
 
+**Estado hoje:** so `GET /api/v1/ai/jobs` e `POST /api/v1/ai/jobs/{id}/retry` estao implementados e
+respondem. O restante desta secao e contrato publicado para o frontend trabalhar contra, e depende da
+`V4` da frente API. Cada endpoint abaixo declara o proprio estado logo no titulo — chamar um que
+ainda nao existe devolve `404`.
+
 ### Compatibilidade com o formato assumido pelo frontend
 
 O frontend comecou a trabalhar contra um formato assumido, achatado e com chaves em portugues. O
@@ -642,6 +647,8 @@ Mapeamento campo a campo, para o realinhamento ser mecanico:
 | — (nao assumido) | `workload.closureTimeByAssignee[]` — tempo de fechamento por responsavel |
 
 ### `GET /api/v1/indicators`
+
+**Contrato publicado, ainda nao implementado.** Depende da `V4`. Manter dados fixos no front ate esta linha mudar.
 
 Resposta `200`:
 
@@ -732,6 +739,8 @@ revisada pelo ADMIN.
 
 ### `PATCH /api/v1/tickets/{id}/classification`
 
+**Contrato publicado, ainda nao implementado.** Depende da `V4`.
+
 ADMIN aceita ou corrige a sugestao da IA. Confirmado igual ao que o frontend assumiu — **nao existe
 endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alteracao.
 
@@ -754,6 +763,8 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
 
 ### Campos novos no `TicketDto`
 
+**Contrato publicado, ainda nao implementado.** Depende da `V4`. Hoje o `TicketDto` nao traz estes campos.
+
 ```json
 {
   "classificationOrigin": "IA",
@@ -767,6 +778,8 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
 Os tres campos `ai*` sao `null` enquanto a IA nao respondeu. `aiConfidence` vai de `0.0` a `1.0`.
 
 ### `GET /api/v1/ai/jobs`
+
+**Disponivel.**
 
 Paginado, padrao 10, ordenado por `createdAt` desc. Filtros opcionais: `status`, `type`, `ticketId`.
 
@@ -795,6 +808,8 @@ Enums, confirmados: `type` e `CLASSIFICATION` ou `EMBEDDING`; `status` e `PENDIN
 
 ### `POST /api/v1/ai/jobs/{id}/retry`
 
+**Disponivel.**
+
 Sem corpo. Reagenda um job com falha: volta para `PENDING`, limpa `lastError`.
 
 - `200` com o `AiJobDto` atualizado (o front pode ignorar e recarregar a lista).
@@ -802,6 +817,8 @@ Sem corpo. Reagenda um job com falha: volta para `PENDING`, limpa `lastError`.
 - `404` quando o job nao existe.
 
 ### Eventos SSE disparados por esta frente
+
+**Ainda nao disparados.** Dependem da `V4`; os nomes abaixo ja sao definitivos.
 
 | Evento | Audiencia | Quando |
 | --- | --- | --- |
