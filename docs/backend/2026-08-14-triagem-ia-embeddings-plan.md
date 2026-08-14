@@ -133,6 +133,7 @@ app.ai.worker.enabled=${AI_WORKER_ENABLED:true}
 app.ai.worker.batch-size=${AI_WORKER_BATCH_SIZE:1}
 app.ai.worker.max-attempts=${AI_WORKER_MAX_ATTEMPTS:3}
 app.ai.worker.request-timeout-seconds=${AI_REQUEST_TIMEOUT_SECONDS:20}
+app.ai.worker.interval-millis=${AI_WORKER_INTERVAL_MILLIS:10000}
 
 spring.quartz.properties.org.quartz.threadPool.threadCount=${QUARTZ_THREAD_COUNT:1}
 
@@ -163,6 +164,7 @@ AI_WORKER_ENABLED=true
 AI_WORKER_BATCH_SIZE=1
 AI_WORKER_MAX_ATTEMPTS=3
 AI_REQUEST_TIMEOUT_SECONDS=20
+AI_WORKER_INTERVAL_MILLIS=10000
 AI_SIMILARITY_THRESHOLD=0.75
 AI_SIMILARITY_LIMIT=5
 QUARTZ_THREAD_COUNT=1
@@ -713,6 +715,7 @@ git commit -m "feat(backend): enfileira jobs de ia ao criar chamado"
 
 **Files:**
 - Create: `backend/src/main/java/br/org/fadex/helpdesk/ai/job/AiJobWorker.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/config/AiJobQuartzConfig.java`
 - Create: `backend/src/main/java/br/org/fadex/helpdesk/repository/TicketEmbeddingRepository.java`
 - Modify: `backend/src/main/java/br/org/fadex/helpdesk/repository/TicketRepository.java`
 - Test: `backend/src/test/java/br/org/fadex/helpdesk/ai/job/AiJobWorkerTest.java`
@@ -778,22 +781,30 @@ int updateEmbedding(
 
 For H2 tests, avoid invoking this native query directly. Unit-test worker with mocked `TicketEmbeddingRepository`.
 
-- [ ] **Step 4: Implement worker**
+- [ ] **Step 4: Implement Quartz worker**
 
-Annotate worker with `@Component`.
-
-Add scheduled method:
+Create `AiJobWorker` as a Quartz job:
 
 ```java
-@Scheduled(fixedDelayString = "${app.ai.worker.interval-millis:10000}")
-@Transactional
-public void processDueJobs() {
-	if (!workerEnabled) {
-		return;
+@Component
+@DisallowConcurrentExecution
+public class AiJobWorker implements Job {
+
+	@Override
+	@Transactional
+	public void execute(JobExecutionContext context) {
+		processDueJobs();
 	}
-	List<AiJob> jobs = aiJobService.findDueJobs(LocalDateTime.now(), batchSize);
-	for (AiJob job : jobs) {
-		process(job);
+
+	void processDueJobs() {
+		if (!workerEnabled) {
+			return;
+		}
+		LocalDateTime now = LocalDateTime.now();
+		List<AiJob> jobs = aiJobService.findDueJobs(now, batchSize);
+		for (AiJob job : jobs) {
+			process(job, now);
+		}
 	}
 }
 ```
@@ -804,9 +815,41 @@ For `EMBEDDING`, skip and mark failed with `"Triagem IA desabilitada para embedd
 
 On any unhandled failure, call `job.markFailed(message, LocalDateTime.now().plusMinutes(nextDelay))`, where `nextDelay` is `attempts + 1` minutes, until max attempts. At max attempts, keep status `FAILED`.
 
-- [ ] **Step 5: Enable scheduling**
+- [ ] **Step 5: Configure Quartz trigger**
 
-Add `@EnableScheduling` to `HelpdeskApplication` or create `SchedulingConfig` in `config`.
+Create `AiJobQuartzConfig` in `backend/src/main/java/br/org/fadex/helpdesk/config/AiJobQuartzConfig.java`:
+
+```java
+@Configuration
+public class AiJobQuartzConfig {
+
+	@Bean
+	public JobDetail aiJobWorkerDetail() {
+		return JobBuilder.newJob(AiJobWorker.class)
+				.withIdentity("aiJobWorker")
+				.storeDurably()
+				.build();
+	}
+
+	@Bean
+	public Trigger aiJobWorkerTrigger(
+			JobDetail aiJobWorkerDetail,
+			@Value("${app.ai.worker.interval-millis}") long intervalMillis
+	) {
+		SimpleScheduleBuilder schedule = SimpleScheduleBuilder.simpleSchedule()
+				.withIntervalInMilliseconds(intervalMillis)
+				.repeatForever();
+
+		return TriggerBuilder.newTrigger()
+				.forJob(aiJobWorkerDetail)
+				.withIdentity("aiJobWorkerTrigger")
+				.withSchedule(schedule)
+				.build();
+	}
+}
+```
+
+Use `app.ai.worker.interval-millis=${AI_WORKER_INTERVAL_MILLIS:10000}` from Task 1; do not hard-code the interval in the trigger.
 
 - [ ] **Step 6: Run worker tests**
 
@@ -817,7 +860,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/main/java/br/org/fadex/helpdesk/ai/job/AiJobWorker.java backend/src/main/java/br/org/fadex/helpdesk/repository/TicketEmbeddingRepository.java backend/src/main/java/br/org/fadex/helpdesk/HelpdeskApplication.java backend/src/test/java/br/org/fadex/helpdesk/ai/job/AiJobWorkerTest.java
+git add backend/src/main/java/br/org/fadex/helpdesk/ai/job/AiJobWorker.java backend/src/main/java/br/org/fadex/helpdesk/config/AiJobQuartzConfig.java backend/src/main/java/br/org/fadex/helpdesk/repository/TicketEmbeddingRepository.java backend/src/test/java/br/org/fadex/helpdesk/ai/job/AiJobWorkerTest.java
 git commit -m "feat(backend): processa fila de ia assincrona"
 ```
 
@@ -1102,7 +1145,7 @@ List<TicketSimilarityProjection> findSimilar(
 );
 ```
 
-If H2 cannot parse this native query during context startup, keep it in repository but only execute it in mocked service tests; Spring Data will not validate native SQL syntax until execution.
+Do not execute this native pgvector query in H2 tests. Cover `TicketSimilarityService` with a mocked `TicketEmbeddingRepository`; integration coverage for the native query belongs to the Docker/Postgres verification.
 
 - [ ] **Step 5: Implement service**
 
