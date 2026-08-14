@@ -5,6 +5,10 @@ export type AuthLoginRequest = {
   password: string;
 };
 
+export type AuthRefreshRequest = {
+  refreshToken: string;
+};
+
 export type AuthenticatedUser = {
   id: string;
   name: string;
@@ -12,8 +16,10 @@ export type AuthenticatedUser = {
 
 export type AuthLoginResponse = {
   accessToken: string;
+  refreshToken: string | null;
   tokenType: "Bearer";
   expiresIn: number;
+  mustChangePassword: boolean;
   role: RoleValue;
   user: AuthenticatedUser;
 };

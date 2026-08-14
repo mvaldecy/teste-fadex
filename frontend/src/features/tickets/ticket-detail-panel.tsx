@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle
 } from "@/src/components/ui/card";
-import { Separator } from "@/src/components/ui/separator";
 import {
   Tabs,
   TabsContent,
@@ -27,7 +26,9 @@ import { TicketCommentForm } from "./ticket-comment-form";
 import { TicketCommentsList } from "./ticket-comments-list";
 
 type TicketDetailPanelProps = {
+  actionsSlot?: React.ReactNode;
   choiceLabels: ChoiceLabelMap | null;
+  historySlot?: React.ReactNode;
   comments: TicketCommentSummary[];
   commentsError: string | null;
   isCreatingComment: boolean;
@@ -45,7 +46,9 @@ function formatDate(value: string) {
 }
 
 export function TicketDetailPanel({
+  actionsSlot,
   choiceLabels,
+  historySlot,
   comments,
   commentsError,
   isCreatingComment,
@@ -107,6 +110,8 @@ export function TicketDetailPanel({
           </TabsList>
 
           <TabsContent className="mt-5 grid gap-5" value="summary">
+            {actionsSlot}
+
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">
                 {resolveChoiceLabel(choiceLabels?.priorities, ticket.priority)}
@@ -171,21 +176,20 @@ export function TicketDetailPanel({
             />
           </TabsContent>
 
-          <TabsContent className="mt-5" value="history">
-            <div className="rounded-md border border-dashed border-slate-300 p-6 text-sm text-slate-600">
-              Historico de eventos sera conectado quando o contrato da API for
-              definido.
+          <TabsContent className="mt-5 grid gap-4" value="history">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">
+                Historico
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Mudancas de status, responsavel e classificacao do chamado.
+              </p>
             </div>
+
+            {historySlot}
           </TabsContent>
         </Tabs>
 
-        <div className="mt-5">
-          <Separator />
-          <p className="mt-4 text-xs text-slate-500">
-            Estrutura preparada para separar informacoes conforme o chamado
-            evoluir.
-          </p>
-        </div>
       </CardContent>
     </Card>
   );

@@ -1,4 +1,8 @@
-import type { AuthLoginRequest, AuthLoginResponse } from "@/src/types/api";
+import type {
+  AuthLoginRequest,
+  AuthLoginResponse,
+  AuthRefreshRequest
+} from "@/src/types/api";
 import { api } from "./api";
 
 async function login(payload: AuthLoginRequest) {
@@ -6,6 +10,12 @@ async function login(payload: AuthLoginRequest) {
   return response.data;
 }
 
+async function refresh(payload: AuthRefreshRequest) {
+  const response = await api.post<AuthLoginResponse>("/auth/refresh", payload);
+  return response.data;
+}
+
 export const authService = {
-  login
+  login,
+  refresh
 };

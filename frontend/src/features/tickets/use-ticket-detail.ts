@@ -44,15 +44,35 @@ export function useTicketDetail(ticketId: string | null) {
     }
   }, [ticketId]);
 
+  /**
+   * Recarga sem estado de carregamento, para atualizacao vinda de SSE ou de
+   * uma acao. Usar `loadTicket` aqui faria o painel piscar o skeleton a cada
+   * evento recebido.
+   */
+  const refreshTicket = useCallback(async () => {
+    if (!ticketId) {
+      return;
+    }
+
+    try {
+      const ticketResponse = await ticketsService.getById(ticketId);
+      setTicket(ticketResponse);
+    } catch (loadError) {
+      setError(toApiErrorMessage(loadError));
+    }
+  }, [ticketId]);
+
   useEffect(() => {
     void loadTicket();
   }, [loadTicket]);
 
   return {
+    choices,
     choiceLabels,
     ticket,
     isLoading,
     error,
-    loadTicket
+    loadTicket,
+    refreshTicket
   };
 }
