@@ -28,6 +28,14 @@ public class JwtTokenService {
 	}
 
 	public String generateToken(User user) {
+		return generateToken(user, false);
+	}
+
+	public String generatePasswordChangeToken(User user) {
+		return generateToken(user, true);
+	}
+
+	private String generateToken(User user, Boolean mustChangePassword) {
 		Instant issuedAt = Instant.now();
 		Instant expiresAt = issuedAt.plusSeconds(expirationSeconds);
 
@@ -38,6 +46,7 @@ public class JwtTokenService {
 				.expiresAt(expiresAt)
 				.claim("userId", user.getId().toString())
 				.claim("role", user.getRole().name())
+				.claim("mustChangePassword", mustChangePassword)
 				.build();
 
 		return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

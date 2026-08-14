@@ -31,7 +31,7 @@
 - Modify `backend/.env.example`: adicionar variaveis IA, worker e Quartz.
 - Modify `backend/src/main/resources/application.properties`: mapear propriedades IA, Quartz e Flyway placeholders.
 - Modify `backend/src/main/resources/application-test.properties`: definir placeholders H2 para coluna de embedding.
-- Create `backend/src/main/resources/db/migration/V2__add_ai_triage_embeddings.sql`: schema de IA, links e colunas novas.
+- Create `backend/src/main/resources/db/migration/V3__add_ai_triage_embeddings.sql`: schema de IA, links e colunas novas.
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/model/ticket/Ticket.java`: campos de justificativa e metodos de atualizacao.
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/model/ticket/TicketDto.java`: incluir `classificationJustification`.
 - Modify `backend/src/main/java/br/org/fadex/helpdesk/model/ticket/TicketMapper.java`: mapear justificativa.
@@ -82,7 +82,7 @@
 - Modify: `backend/.env.example`
 - Modify: `backend/src/main/resources/application.properties`
 - Modify: `backend/src/main/resources/application-test.properties`
-- Create: `backend/src/main/resources/db/migration/V2__add_ai_triage_embeddings.sql`
+- Create: `backend/src/main/resources/db/migration/V3__add_ai_triage_embeddings.sql`
 - Test: `backend/src/test/java/br/org/fadex/helpdesk/config/ApplicationPropertiesTest.java`
 
 **Interfaces:**
@@ -236,7 +236,7 @@ Add backend env:
 
 - [ ] **Step 7: Create migration**
 
-Create `backend/src/main/resources/db/migration/V2__add_ai_triage_embeddings.sql`:
+Create `backend/src/main/resources/db/migration/V3__add_ai_triage_embeddings.sql`:
 
 ```sql
 ${pgvector-extension};
@@ -297,7 +297,7 @@ Expected: PASS and no fixed `container_name` entries.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add backend/build.gradle docker-compose.yml .env.example backend/.env.example backend/src/main/resources/application.properties backend/src/main/resources/application-test.properties backend/src/main/resources/db/migration/V2__add_ai_triage_embeddings.sql backend/src/test/java/br/org/fadex/helpdesk/config/ApplicationPropertiesTest.java
+git add backend/build.gradle docker-compose.yml .env.example backend/.env.example backend/src/main/resources/application.properties backend/src/main/resources/application-test.properties backend/src/main/resources/db/migration/V3__add_ai_triage_embeddings.sql backend/src/test/java/br/org/fadex/helpdesk/config/ApplicationPropertiesTest.java
 git commit -m "chore(backend): configura ia local e pgvector"
 ```
 

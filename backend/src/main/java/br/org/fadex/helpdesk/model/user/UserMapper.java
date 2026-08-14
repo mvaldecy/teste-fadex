@@ -1,7 +1,5 @@
 package br.org.fadex.helpdesk.model.user;
 
-import br.org.fadex.helpdesk.model.enums.Role;
-
 public abstract class UserMapper {
 
 	private UserMapper() {
@@ -13,6 +11,7 @@ public abstract class UserMapper {
 				user.getName(),
 				user.getEmail(),
 				user.getRole(),
+				user.getMustChangePassword(),
 				user.getCreatedAt(),
 				user.getUpdatedAt()
 		);
@@ -25,16 +24,13 @@ public abstract class UserMapper {
 		);
 	}
 
-	public static User toEntity(UserCreationDto userCreationDto, String passwordHash) {
-		return toEntity(userCreationDto, passwordHash, userCreationDto.role());
-	}
-
-	public static User toEntity(UserCreationDto userCreationDto, String passwordHash, Role role) {
+	public static User toEntity(UserCreationDto userCreationDto, String passwordHash, Boolean mustChangePassword) {
 		return new User(
 				userCreationDto.name(),
 				userCreationDto.email(),
 				passwordHash,
-				role
+				userCreationDto.role(),
+				mustChangePassword
 		);
 	}
 }

@@ -4,11 +4,11 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record AuthRequestDto(
-		@NotBlank
-		@Email
+		@NotBlank(message = "E-mail e obrigatorio.")
+		@Email(message = "E-mail deve ter formato valido.")
 		String email,
 
-		@NotBlank
+		@NotBlank(message = "Senha e obrigatoria.")
 		String password
 ) {
 }

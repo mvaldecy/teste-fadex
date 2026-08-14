@@ -7,20 +7,16 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record UserCreationDto(
-		@NotBlank
-		@Size(max = 120)
+		@NotBlank(message = "Nome e obrigatorio.")
+		@Size(max = 120, message = "Nome deve ter no maximo 120 caracteres.")
 		String name,
 
-		@NotBlank
-		@Email
-		@Size(max = 180)
+		@NotBlank(message = "E-mail e obrigatorio.")
+		@Email(message = "E-mail deve ter formato valido.")
+		@Size(max = 180, message = "E-mail deve ter no maximo 180 caracteres.")
 		String email,
 
-		@NotBlank
-		@Size(min = 6, max = 72)
-		String password,
-
-		@NotNull
+		@NotNull(message = "Perfil e obrigatorio.")
 		Role role
 ) {
 }

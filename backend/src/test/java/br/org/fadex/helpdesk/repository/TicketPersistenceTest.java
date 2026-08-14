@@ -5,9 +5,12 @@ import br.org.fadex.helpdesk.model.comment.TicketComment;
 import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.enums.TicketCategory;
+import br.org.fadex.helpdesk.model.enums.TicketEventType;
 import br.org.fadex.helpdesk.model.enums.TicketPriority;
 import br.org.fadex.helpdesk.model.enums.TicketStatus;
+import br.org.fadex.helpdesk.model.event.TicketEvent;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
+import br.org.fadex.helpdesk.model.token.RefreshToken;
 import br.org.fadex.helpdesk.model.user.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +40,12 @@ class TicketPersistenceTest {
 
 	@Autowired
 	private TicketCommentRepository ticketCommentRepository;
+
+	@Autowired
+	private RefreshTokenRepository refreshTokenRepository;
+
+	@Autowired
+	private TicketEventRepository ticketEventRepository;
 
 	@Test
 	void devePersistirChamadoComSolicitanteResponsavelEnumsEComentarios() {
@@ -117,5 +126,45 @@ class TicketPersistenceTest {
 
 		assertThatThrownBy(() -> userRepository.saveAndFlush(duplicated))
 				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void devePersistirUsuarioComTrocaObrigatoriaRefreshTokenEEventoDeChamado() {
+		User requester = userRepository.save(new User(
+				"Maria Solicitante",
+				"maria.persistencia@fadex.org.br",
+				"hash",
+				Role.SOLICITANTE,
+				true
+		));
+		Ticket ticket = ticketRepository.save(new Ticket(
+				"Erro ao acessar sistema",
+				"Nao consigo acessar o sistema interno.",
+				TicketCategory.OUTROS,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		));
+		RefreshToken refreshToken = refreshTokenRepository.save(new RefreshToken(
+				requester,
+				"hash-token",
+				LocalDateTime.now().plusDays(7)
+		));
+		TicketEvent event = ticketEventRepository.save(new TicketEvent(
+				ticket,
+				requester,
+				TicketEventType.CHAMADO_CRIADO,
+				"Chamado criado.",
+				null
+		));
+
+		assertThat(requester.getMustChangePassword()).isTrue();
+		assertThat(refreshToken.getUser()).isEqualTo(requester);
+		assertThat(refreshToken.getTokenHash()).isEqualTo("hash-token");
+		assertThat(refreshToken.getRevokedAt()).isNull();
+		assertThat(event.getTicket()).isEqualTo(ticket);
+		assertThat(event.getActor()).isEqualTo(requester);
+		assertThat(event.getType()).isEqualTo(TicketEventType.CHAMADO_CRIADO);
+		assertThat(event.getCreatedAt()).isNotNull();
 	}
 }
