@@ -13,9 +13,9 @@
 ## Global Constraints
 
 - Indentação com tab, seguindo o restante do backend.
-- Pacotes sob `br.org.fadex.helpdesk`, em camadas: `controller`, `service`, `model`, `config`.
+- Todo o motor vive no módulo `br.org.fadex.helpdesk.sse`, com subpastas por camada: `sse/controller`, `sse/service`, `sse/model`, `sse/config`. Nada de SSE é adicionado aos pacotes globais `controller`, `service`, `model` ou `config`.
+- Testes espelham a mesma árvore em `backend/src/test/java/br/org/fadex/helpdesk/sse/...`.
 - Controllers retornam `ResponseEntity`, conforme `backend/AGENTS.md`.
-- DTOs e value objects do subdomínio ficam em `model/notification`.
 - Testes em `backend/src/test/java/br/org/fadex/helpdesk`, nomeados `*Test.java`, com métodos em português sem acento, como `deveRemoverConexaoEmErro`.
 - Comando de teste: `make backend-test` na raiz do repositório.
 - Commits em português com escopo, no formato `feat(backend):`, `test(backend):`, `docs(backend):`.
@@ -26,16 +26,16 @@
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `model/notification/NotificationAudience.java` | Decide se uma assinatura recebe a mensagem |
-| `model/notification/NotificationMessage.java` | Mensagem publicada por quem notifica |
-| `model/notification/SseSubscription.java` | Conexão aberta e identidade capturada |
-| `model/notification/NotificationConnectionDto.java` | Payload do evento inicial |
-| `service/NotificationEmitterRegistry.java` | Guarda e remove conexões abertas |
-| `service/NotificationService.java` | Assinatura, envio e fanout |
-| `service/NotificationDispatcher.java` | Barreira transacional `AFTER_COMMIT` |
-| `service/NotificationHeartbeatScheduler.java` | Keep-alive periódico |
-| `controller/NotificationController.java` | `GET /api/v1/notifications/stream` |
-| `config/SchedulingConfig.java` | Habilita `@Scheduled` |
+| `sse/model/NotificationAudience.java` | Decide se uma assinatura recebe a mensagem |
+| `sse/model/NotificationMessage.java` | Mensagem publicada por quem notifica |
+| `sse/model/SseSubscription.java` | Conexão aberta e identidade capturada |
+| `sse/model/NotificationConnectionDto.java` | Payload do evento inicial |
+| `sse/service/NotificationEmitterRegistry.java` | Guarda e remove conexões abertas |
+| `sse/service/NotificationService.java` | Assinatura, envio e fanout |
+| `sse/service/NotificationDispatcher.java` | Barreira transacional `AFTER_COMMIT` |
+| `sse/service/NotificationHeartbeatScheduler.java` | Keep-alive periódico |
+| `sse/controller/NotificationController.java` | `GET /api/v1/notifications/stream` |
+| `sse/config/SchedulingConfig.java` | Habilita `@Scheduled` |
 
 ---
 
@@ -44,10 +44,10 @@
 Value objects puros, sem dependência de Spring. É o vocabulário que todas as outras tasks usam.
 
 **Files:**
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/model/notification/NotificationAudience.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/model/notification/NotificationMessage.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/model/notification/NotificationConnectionDto.java`
-- Test: `backend/src/test/java/br/org/fadex/helpdesk/model/notification/NotificationAudienceTest.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/model/NotificationAudience.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/model/NotificationMessage.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/model/NotificationConnectionDto.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/sse/model/NotificationAudienceTest.java`
 
 **Interfaces:**
 - Consumes: `br.org.fadex.helpdesk.model.enums.Role`, que já existe.
@@ -58,7 +58,7 @@ Value objects puros, sem dependência de Spring. É o vocabulário que todas as 
 Crie `NotificationAudienceTest.java`:
 
 ```java
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import br.org.fadex.helpdesk.model.enums.Role;
 import org.junit.jupiter.api.Test;
@@ -116,7 +116,7 @@ Expected: falha de compilação, porque `NotificationAudience` e `NotificationMe
 - [ ] **Step 3: Implementar `NotificationAudience`**
 
 ```java
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import br.org.fadex.helpdesk.model.enums.Role;
 
@@ -168,7 +168,7 @@ public sealed interface NotificationAudience {
 `NotificationMessage.java`:
 
 ```java
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import java.util.UUID;
 
@@ -188,7 +188,7 @@ public record NotificationMessage(
 `NotificationConnectionDto.java`:
 
 ```java
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import java.time.LocalDateTime;
 
@@ -204,7 +204,7 @@ Expected: BUILD SUCCESSFUL, com os quatro testes novos passando.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/java/br/org/fadex/helpdesk/model/notification backend/src/test/java/br/org/fadex/helpdesk/model/notification
+git add backend/src/main/java/br/org/fadex/helpdesk/sse/model backend/src/test/java/br/org/fadex/helpdesk/sse/model
 git commit -m "feat(backend): adiciona modelo de mensagem e audiencia de notificacao"
 ```
 
@@ -215,12 +215,12 @@ git commit -m "feat(backend): adiciona modelo de mensagem e audiencia de notific
 O mapa `userId -> conexões abertas`. É a única estrutura mutável do motor e por isso a que mais exige cuidado com concorrência.
 
 **Files:**
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/model/notification/SseSubscription.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/service/NotificationEmitterRegistry.java`
-- Test: `backend/src/test/java/br/org/fadex/helpdesk/service/NotificationEmitterRegistryTest.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/model/SseSubscription.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationEmitterRegistry.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationEmitterRegistryTest.java`
 
 **Interfaces:**
-- Consumes: `Role` e o pacote `model/notification` da Task 1.
+- Consumes: `Role` e o pacote `sse/model` da Task 1.
 - Produces: `SseSubscription(String connectionId, UUID userId, Role role, SseEmitter emitter)` com fábrica `SseSubscription.create(UUID userId, Role role, SseEmitter emitter)`; `NotificationEmitterRegistry.add(SseSubscription)`, `.remove(SseSubscription)`, `.findAll() -> List<SseSubscription>` e `.countConnections() -> int`.
 
 - [ ] **Step 1: Escrever o teste que falha**
@@ -228,10 +228,10 @@ O mapa `userId -> conexões abertas`. É a única estrutura mutável do motor e 
 Crie `NotificationEmitterRegistryTest.java`:
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
 import br.org.fadex.helpdesk.model.enums.Role;
-import br.org.fadex.helpdesk.model.notification.SseSubscription;
+import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -303,7 +303,7 @@ Expected: falha de compilação, porque `SseSubscription` e `NotificationEmitter
 - [ ] **Step 3: Implementar `SseSubscription`**
 
 ```java
-package br.org.fadex.helpdesk.model.notification;
+package br.org.fadex.helpdesk.sse.model;
 
 import br.org.fadex.helpdesk.model.enums.Role;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -323,9 +323,9 @@ public record SseSubscription(String connectionId, UUID userId, Role role, SseEm
 - [ ] **Step 4: Implementar `NotificationEmitterRegistry`**
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
-import br.org.fadex.helpdesk.model.notification.SseSubscription;
+import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -382,7 +382,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/java/br/org/fadex/helpdesk/model/notification/SseSubscription.java backend/src/main/java/br/org/fadex/helpdesk/service/NotificationEmitterRegistry.java backend/src/test/java/br/org/fadex/helpdesk/service/NotificationEmitterRegistryTest.java
+git add backend/src/main/java/br/org/fadex/helpdesk/sse/model/SseSubscription.java backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationEmitterRegistry.java backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationEmitterRegistryTest.java
 git commit -m "feat(backend): adiciona registry de conexoes sse"
 ```
 
@@ -393,11 +393,11 @@ git commit -m "feat(backend): adiciona registry de conexoes sse"
 Ao final desta task o stream já funciona de verdade: dá para abrir com `curl -N` e ver o evento inicial e a conexão pendurada. Ainda não há fanout.
 
 **Files:**
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/service/NotificationService.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/controller/NotificationController.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationService.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/controller/NotificationController.java`
 - Modify: `backend/src/main/resources/application.properties`
-- Test: `backend/src/test/java/br/org/fadex/helpdesk/service/NotificationServiceTest.java`
-- Test: `backend/src/test/java/br/org/fadex/helpdesk/controller/NotificationControllerTest.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationServiceTest.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/sse/controller/NotificationControllerTest.java`
 
 **Interfaces:**
 - Consumes: `NotificationEmitterRegistry.add/remove/findAll` da Task 2; `SseSubscription.create`; `NotificationConnectionDto`; `AuthenticatedUserService.getUserId()` e `.getRole()`, que já existem.
@@ -408,10 +408,10 @@ Ao final desta task o stream já funciona de verdade: dá para abrir com `curl -
 Crie `NotificationServiceTest.java`:
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
 import br.org.fadex.helpdesk.model.enums.Role;
-import br.org.fadex.helpdesk.model.notification.SseSubscription;
+import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -488,11 +488,11 @@ Este passo vem **antes** de criar o service, e a ordem é obrigatória. `Notific
 - [ ] **Step 4: Implementar `NotificationService`**
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
 import br.org.fadex.helpdesk.model.enums.Role;
-import br.org.fadex.helpdesk.model.notification.NotificationConnectionDto;
-import br.org.fadex.helpdesk.model.notification.SseSubscription;
+import br.org.fadex.helpdesk.sse.model.NotificationConnectionDto;
+import br.org.fadex.helpdesk.sse.model.SseSubscription;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -580,9 +580,9 @@ Expected: BUILD SUCCESSFUL.
 Crie `NotificationControllerTest.java`:
 
 ```java
-package br.org.fadex.helpdesk.controller;
+package br.org.fadex.helpdesk.sse.controller;
 
-import br.org.fadex.helpdesk.service.NotificationEmitterRegistry;
+import br.org.fadex.helpdesk.sse.service.NotificationEmitterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -643,9 +643,9 @@ Expected: falha de compilação, porque `NotificationController` não existe.
 - [ ] **Step 8: Implementar `NotificationController`**
 
 ```java
-package br.org.fadex.helpdesk.controller;
+package br.org.fadex.helpdesk.sse.controller;
 
-import br.org.fadex.helpdesk.service.NotificationService;
+import br.org.fadex.helpdesk.sse.service.NotificationService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -715,7 +715,7 @@ O `-N` desliga o buffering do `curl`; sem ele a saída só apareceria em blocos.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add backend/src/main/java/br/org/fadex/helpdesk/service/NotificationService.java backend/src/main/java/br/org/fadex/helpdesk/controller/NotificationController.java backend/src/main/resources/application.properties backend/src/test/java/br/org/fadex/helpdesk/service/NotificationServiceTest.java backend/src/test/java/br/org/fadex/helpdesk/controller/NotificationControllerTest.java
+git add backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationService.java backend/src/main/java/br/org/fadex/helpdesk/sse/controller/NotificationController.java backend/src/main/resources/application.properties backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationServiceTest.java backend/src/test/java/br/org/fadex/helpdesk/sse/controller/NotificationControllerTest.java
 git commit -m "feat(backend): abre stream sse autenticado de notificacoes"
 ```
 
@@ -726,10 +726,10 @@ git commit -m "feat(backend): abre stream sse autenticado de notificacoes"
 O ponto de extensão do motor. Depois desta task, qualquer service publica uma notificação com uma linha, e a entrega só acontece depois do commit.
 
 **Files:**
-- Modify: `backend/src/main/java/br/org/fadex/helpdesk/service/NotificationService.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/service/NotificationDispatcher.java`
-- Modify: `backend/src/test/java/br/org/fadex/helpdesk/service/NotificationServiceTest.java`
-- Test: `backend/src/test/java/br/org/fadex/helpdesk/service/NotificationDispatcherTest.java`
+- Modify: `backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationService.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationDispatcher.java`
+- Modify: `backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationServiceTest.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationDispatcherTest.java`
 
 **Interfaces:**
 - Consumes: `NotificationService.subscribe()` e o método privado `send` da Task 3; `NotificationMessage` e `NotificationAudience` da Task 1.
@@ -742,8 +742,8 @@ Acrescente a `NotificationServiceTest.java` os imports e testes abaixo.
 Imports adicionais:
 
 ```java
-import br.org.fadex.helpdesk.model.notification.NotificationAudience;
-import br.org.fadex.helpdesk.model.notification.NotificationMessage;
+import br.org.fadex.helpdesk.sse.model.NotificationAudience;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 
 import java.io.IOException;
 import java.util.List;
@@ -849,7 +849,7 @@ Expected: falha de compilação, porque `NotificationService.dispatch` não exis
 
 - [ ] **Step 3: Implementar `dispatch` em `NotificationService`**
 
-Acrescente o import `br.org.fadex.helpdesk.model.notification.NotificationMessage;`, `java.util.List;` e o método público abaixo, logo após `subscribe()`:
+Acrescente o import `br.org.fadex.helpdesk.sse.model.NotificationMessage;`, `java.util.List;` e o método público abaixo, logo após `subscribe()`:
 
 ```java
 	public void dispatch(NotificationMessage message) {
@@ -875,10 +875,10 @@ Expected: BUILD SUCCESSFUL.
 Crie `NotificationDispatcherTest.java`:
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
-import br.org.fadex.helpdesk.model.notification.NotificationAudience;
-import br.org.fadex.helpdesk.model.notification.NotificationMessage;
+import br.org.fadex.helpdesk.sse.model.NotificationAudience;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -937,9 +937,9 @@ Expected: falha de compilação, porque `NotificationDispatcher` não existe.
 - [ ] **Step 7: Implementar `NotificationDispatcher`**
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
-import br.org.fadex.helpdesk.model.notification.NotificationMessage;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -972,7 +972,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add backend/src/main/java/br/org/fadex/helpdesk/service/NotificationService.java backend/src/main/java/br/org/fadex/helpdesk/service/NotificationDispatcher.java backend/src/test/java/br/org/fadex/helpdesk/service/NotificationServiceTest.java backend/src/test/java/br/org/fadex/helpdesk/service/NotificationDispatcherTest.java
+git add backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationService.java backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationDispatcher.java backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationServiceTest.java backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationDispatcherTest.java
 git commit -m "feat(backend): entrega notificacoes por audiencia apos commit"
 ```
 
@@ -983,11 +983,11 @@ git commit -m "feat(backend): entrega notificacoes por audiencia apos commit"
 Conexões ociosas são derrubadas por proxies e por timeouts intermediários. Um comentário periódico mantém o socket vivo e revela conexões mortas.
 
 **Files:**
-- Modify: `backend/src/main/java/br/org/fadex/helpdesk/service/NotificationService.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/service/NotificationHeartbeatScheduler.java`
-- Create: `backend/src/main/java/br/org/fadex/helpdesk/config/SchedulingConfig.java`
-- Modify: `backend/src/test/java/br/org/fadex/helpdesk/service/NotificationServiceTest.java`
-- Test: `backend/src/test/java/br/org/fadex/helpdesk/service/NotificationHeartbeatSchedulerTest.java`
+- Modify: `backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationService.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationHeartbeatScheduler.java`
+- Create: `backend/src/main/java/br/org/fadex/helpdesk/sse/config/SchedulingConfig.java`
+- Modify: `backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationServiceTest.java`
+- Test: `backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationHeartbeatSchedulerTest.java`
 
 **Interfaces:**
 - Consumes: `NotificationEmitterRegistry.findAll()`; `NotificationService` da Task 4.
@@ -1042,7 +1042,7 @@ Acrescente a `NotificationServiceTest.java`:
 Crie `NotificationHeartbeatSchedulerTest.java`:
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1126,7 +1126,7 @@ A escrita do heartbeat pode concorrer com a de um fanout no mesmo emitter. Não 
 `NotificationHeartbeatScheduler.java`:
 
 ```java
-package br.org.fadex.helpdesk.service;
+package br.org.fadex.helpdesk.sse.service;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -1150,7 +1150,7 @@ public class NotificationHeartbeatScheduler {
 `SchedulingConfig.java`:
 
 ```java
-package br.org.fadex.helpdesk.config;
+package br.org.fadex.helpdesk.sse.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -1182,7 +1182,7 @@ Expected: além do evento inicial, aparece uma linha `: ping` a cada vinte segun
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/main/java/br/org/fadex/helpdesk/service/NotificationService.java backend/src/main/java/br/org/fadex/helpdesk/service/NotificationHeartbeatScheduler.java backend/src/main/java/br/org/fadex/helpdesk/config/SchedulingConfig.java backend/src/test/java/br/org/fadex/helpdesk/service/NotificationServiceTest.java backend/src/test/java/br/org/fadex/helpdesk/service/NotificationHeartbeatSchedulerTest.java
+git add backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationService.java backend/src/main/java/br/org/fadex/helpdesk/sse/service/NotificationHeartbeatScheduler.java backend/src/main/java/br/org/fadex/helpdesk/sse/config/SchedulingConfig.java backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationServiceTest.java backend/src/test/java/br/org/fadex/helpdesk/sse/service/NotificationHeartbeatSchedulerTest.java
 git commit -m "feat(backend): mantem conexoes sse vivas com keep-alive"
 ```
 

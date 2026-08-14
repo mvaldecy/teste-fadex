@@ -61,18 +61,21 @@ A entrega acontece somente em `AFTER_COMMIT`. `TicketService.create` e `TicketCo
 
 ## Componentes
 
+Todo o motor vive em `br.org.fadex.helpdesk.sse`, com subpastas por camada. O módulo segue o precedente já estabelecido no backend por `mail` e pelo módulo `ai` da branch de triagem: uma capacidade técnica autocontida fica no próprio pacote em vez de se espalhar pelas camadas globais. As camadas internas mantêm o vocabulário de `backend/AGENTS.md`.
+
+
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `controller/NotificationController.java` | `GET /api/v1/notifications/stream`, `produces = text/event-stream`, retorna `SseEmitter` |
-| `service/NotificationService.java` | `subscribe` capturando identidade e `dispatch` resolvendo audiência |
-| `service/NotificationEmitterRegistry.java` | Guarda conexões abertas e remove nas três condições de término |
-| `service/NotificationDispatcher.java` | `@TransactionalEventListener(AFTER_COMMIT)` que aciona o fanout |
-| `service/NotificationHeartbeatScheduler.java` | `@Scheduled` enviando comentário de keep-alive |
-| `model/notification/SseSubscription.java` | Conexão e identidade capturada: `connectionId`, `userId`, `role`, `emitter` |
-| `model/notification/NotificationMessage.java` | `record(String eventId, String eventName, Object data, NotificationAudience audience)` |
-| `model/notification/NotificationAudience.java` | `sealed interface` com `Users`, `Roles` e `Everyone` |
-| `model/notification/NotificationConnectionDto.java` | Payload do evento inicial de conexão |
-| `config/SchedulingConfig.java` | `@EnableScheduling` |
+| `sse/controller/NotificationController.java` | `GET /api/v1/notifications/stream`, `produces = text/event-stream`, retorna `SseEmitter` |
+| `sse/service/NotificationService.java` | `subscribe` capturando identidade e `dispatch` resolvendo audiência |
+| `sse/service/NotificationEmitterRegistry.java` | Guarda conexões abertas e remove nas três condições de término |
+| `sse/service/NotificationDispatcher.java` | `@TransactionalEventListener(AFTER_COMMIT)` que aciona o fanout |
+| `sse/service/NotificationHeartbeatScheduler.java` | `@Scheduled` enviando comentário de keep-alive |
+| `sse/model/SseSubscription.java` | Conexão e identidade capturada: `connectionId`, `userId`, `role`, `emitter` |
+| `sse/model/NotificationMessage.java` | `record(String eventId, String eventName, Object data, NotificationAudience audience)` |
+| `sse/model/NotificationAudience.java` | `sealed interface` com `Users`, `Roles` e `Everyone` |
+| `sse/model/NotificationConnectionDto.java` | Payload do evento inicial de conexão |
+| `sse/config/SchedulingConfig.java` | `@EnableScheduling` |
 
 `NotificationAudience` é o que mantém o motor independente da branch de RBAC. O filtro por role usa o claim já capturado no JWT, sem depender de `AccessControlService`. Quando o histórico mergear, o service de domínio publica `new NotificationMessage(..., new Users(destinatários))` e nenhuma linha do motor muda.
 
