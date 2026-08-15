@@ -33,4 +33,31 @@ class FallbackTicketClassifierTest {
 		assertThat(classification.category()).isEqualTo(TicketCategory.FINANCEIRO);
 		assertThat(classification.priority()).isEqualTo(TicketPriority.MEDIA);
 	}
+
+	/**
+	 * O texto aqui esta escrito como uma pessoa escreveria, com acento. As palavras-chave da
+	 * heuristica estao sem, e o casamento e literal — antes da normalizacao este chamado caia
+	 * em OUTROS/MEDIA. Os chamados semeados sao todos sem acento, entao nenhuma medicao
+	 * anterior tocava neste caminho.
+	 */
+	@Test
+	void deveClassificarMesmoComAcentoNoTexto() {
+		TicketClassification classification = classifier.classify(
+				"Dúvida sobre férias",
+				"Preciso de orientação sobre o saldo de férias na folha."
+		);
+
+		assertThat(classification.category()).isEqualTo(TicketCategory.RH);
+		assertThat(classification.priority()).isEqualTo(TicketPriority.BAIXA);
+	}
+
+	@Test
+	void deveDetectarAltaPrioridadeComAcento() {
+		TicketClassification classification = classifier.classify(
+				"Sistema indisponível",
+				"A aplicação está parada e ninguém não consegue acessar."
+		);
+
+		assertThat(classification.priority()).isEqualTo(TicketPriority.ALTA);
+	}
 }

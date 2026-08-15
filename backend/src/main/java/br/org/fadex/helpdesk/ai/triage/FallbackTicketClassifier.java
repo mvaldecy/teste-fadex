@@ -5,6 +5,7 @@ import br.org.fadex.helpdesk.model.enums.TicketCategory;
 import br.org.fadex.helpdesk.model.enums.TicketPriority;
 import org.springframework.stereotype.Component;
 
+import java.text.Normalizer;
 import java.util.Locale;
 
 @Component
@@ -20,9 +21,20 @@ public class FallbackTicketClassifier {
 		);
 	}
 
+	/**
+	 * Alem de minusculas, remove os acentos.
+	 *
+	 * Metade das palavras-chave abaixo esta escrita sem acento — {@code ferias},
+	 * {@code indisponivel}, {@code duvida}, {@code orientacao}, {@code aplicacao} — e o
+	 * {@code contains} e literal. Sem esta normalizacao, quem escrevesse "ferias" do jeito
+	 * certo, com acento, nao casava com nada e o chamado caia em OUTROS/MEDIA. O defeito
+	 * passou despercebido porque os chamados semeados tambem estao sem acento: o seed
+	 * mascarava o caso real, que e uma pessoa digitando portugues normalmente.
+	 */
 	private String normalize(String title, String description) {
-		return ((title == null ? "" : title) + " " + (description == null ? "" : description))
+		String text = ((title == null ? "" : title) + " " + (description == null ? "" : description))
 				.toLowerCase(Locale.ROOT);
+		return Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
 	}
 
 	private TicketCategory resolveCategory(String normalizedText) {
