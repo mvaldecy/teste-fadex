@@ -105,7 +105,11 @@ qualquer pessoa consome a chave criando chamados.
    O caminho mais simples é `docker compose down -v` e deixar o seed recriar do zero; ele é
    idempotente por título. **Confirmar antes: isso apaga o volume.**
 3. **Mergear a revisão técnica e o cancelamento** quando a frente fechar.
-4. **Tornar o repositório público.** Item de checklist, custo zero, fácil de esquecer.
+4. **NÃO tornar o repositório público.** Decisão explícita do Marcos em 15/08, madrugada:
+   o repositório continua privado até que ele diga o contrário. É item da checklist de
+   submissão, mas **a virada é dele, na hora que ele escolher** — nenhum agente deve
+   executar, sugerir de novo, nem tratar como pendência a resolver. Isso também descarta a
+   rotina agendada na nuvem, que exigiria acesso ao repositório.
 5. **Aplicar o schema `enum` na triagem** — meia hora, e é o que faz a IA parecer competente
    na tela do avaliador.
 6. **Deploy**, se houver fôlego. É o único item grande que resta e o primeiro a cortar.
