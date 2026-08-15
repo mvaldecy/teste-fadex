@@ -21,6 +21,7 @@ concordância entre humano e modelo.
 - [Testes](#testes)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Documentação](#documentação)
+- [Como este projeto foi construído](#como-este-projeto-foi-construído)
 
 ## Stack
 
@@ -291,14 +292,17 @@ viés oposto. É exatamente por isso que a revisão pelo ADMIN faz parte do flux
 envio falhar, a operação de negócio permanece e a notificação se perde — registrada em log, não
 reenviada. A alternativa correta é uma tabela de outbox com reprocessamento.
 
-**Consultas.** A listagem de chamados tem N+1 no carregamento de solicitante e responsável: cerca
-de cinquenta consultas para cinquenta chamados de usuários distintos. Os indicadores são agregados
-em memória, o que é confortável na casa dos milhares de chamados e deve virar agregação no banco
-acima disso. A busca textual usa `like` sem índice.
+**Consultas.** Os indicadores são agregados em memória, o que é confortável na casa dos milhares de
+chamados e deve virar agregação no banco acima disso. A busca textual usa `like` sem índice. O N+1
+que existia na listagem foi corrigido com `EntityGraph` — medido no log do Postgres: duas consultas
+por página, nenhuma na tabela de usuários.
 
-**Autenticação.** Não há limite de tentativas de login, e o refresh token não é rotacionado dentro
-da validade. O `JWT_SECRET` tem valor padrão apenas para desenvolvimento e **precisa ser trocado**
-em qualquer uso real — o wizard de instalação gera um automaticamente.
+**Autenticação.** O limite de tentativas de login guarda o contador **em memória**: com mais de uma
+instância cada uma conta a sua, o que multiplica o limite efetivo pelo número de instâncias. Em uma
+instância, que é como o sistema roda hoje, a proteção vale integralmente; a versão correta usaria
+armazenamento compartilhado. O refresh token não é rotacionado dentro da validade. O `JWT_SECRET`
+tem valor padrão apenas para desenvolvimento e **precisa ser trocado** em qualquer uso real — o
+wizard de instalação gera um automaticamente.
 
 **Infraestrutura.** O despacho de e-mail e o de SSE compartilham o mesmo executor; há timeouts de
 SMTP configurados para que um servidor lento não trave as notificações em tempo real, mas separar
@@ -307,12 +311,47 @@ ambiente; o certo seria `Instant` com formatação no cliente.
 
 ## Documentação
 
-- [`docs/backend/api.md`](docs/backend/api.md) — contrato da API
-- [`docs/backend/`](docs/backend/) — decisões de design e planos de implementação do backend
-- [`docs/ia/`](docs/ia/) — revisão de classificação e indicadores
-- [`docs/frontend/`](docs/frontend/) — decisões da interface
-- [`docs/configuracao/`](docs/configuracao/) — ambiente e convenções de Git
-- [`docs/projeto/`](docs/projeto/) — acompanhamento dos requisitos e divisão do trabalho
+Três documentos cobrem o sistema. Comece por eles:
+
+| Documento | O que responde |
+| --- | --- |
+| [`docs/backend/api.md`](docs/backend/api.md) | **Contrato da API**: caminhos, corpos, códigos de resposta, filtros, eventos do stream |
+| [`docs/backend/arquitetura.md`](docs/backend/arquitetura.md) | Como o backend está organizado, o ciclo de vida do chamado, a triagem por IA, duplicados, SSE, e-mail e segurança |
+| [`docs/frontend/arquitetura.md`](docs/frontend/arquitetura.md) | Estrutura da interface, sessão, guardas de rota, tempo real, filtros e configuração pública |
+
+Complementares:
+
+- [`docs/infraestrutura/2026-08-15-deploy.md`](docs/infraestrutura/2026-08-15-deploy.md) — o que é
+  preciso para colocar em produção, e o que não foi validado por falta de plataforma.
+- [`docs/projeto/2026-08-15-revisao-tecnica.md`](docs/projeto/2026-08-15-revisao-tecnica.md) —
+  auditoria interna, com achados de desempenho, transação e segurança apontando arquivo e linha.
+- [`docs/configuracao/env.md`](docs/configuracao/env.md) — variáveis de ambiente em detalhe.
+
+O restante de `docs/` é **registro do desenvolvimento** — os documentos de design e os planos de
+implementação escritos antes de cada frente de trabalho. Ficaram no repositório porque mostram as
+decisões sendo tomadas e descartadas, mas não são a documentação do sistema: para saber como ele
+funciona hoje, os três de cima bastam.
+
+## Como este projeto foi construído
+
+Desenvolvido com **desenvolvimento assistido por agentes** — Claude e Codex —, com o trabalho
+dividido em frentes paralelas (backend, frontend, IA, infraestrutura) que rodaram em *worktrees* Git
+separadas e foram integradas por revisão.
+
+Isso muda o que vale a pena olhar aqui. O volume de código não é evidência de esforço; o que
+distingue o trabalho é onde ele foi **medido em vez de suposto**. Alguns exemplos que estão
+documentados com os números:
+
+- A qualidade da classificação foi medida contra um gabarito, e o resultado — **nenhuma abordagem
+  classifica prioridade de forma confiável** — está no README em vez de escondido.
+- O limiar de similaridade foi medido sobre os pares reais da base, não arbitrado, e o comentário no
+  código carrega a medição para que o próximo ajuste também seja medido.
+- O fim do N+1 na listagem foi verificado contando as consultas no log do Postgres.
+- A correção das variáveis públicas do frontend foi verificada construindo a imagem com um valor
+  falso e procurando por ele no bundle.
+
+As decisões que não deram certo também estão registradas — inclusive um limiar que subiu por
+argumento e teve de descer por medição.
 
 ## Ambiente
 

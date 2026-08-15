@@ -90,11 +90,14 @@ services:
         # Atalho para a caixa de e-mail da demonstracao. Cai junto com o Mailpit:
         # onde ele nao existe, a variavel fica vazia e o botao nao e renderizado.
         NEXT_PUBLIC_MAILPIT_URL: ${NEXT_PUBLIC_MAILPIT_URL:-http://localhost:${MAILPIT_UI_PORT:-8025}}
+        # Amarrado ao seed: sem ele as contas oferecidas na tela nao existem.
+        NEXT_PUBLIC_DEMO_LOGIN: ${APP_SEED_ENABLED:-true}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Fadex Helpdesk}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${BACKEND_PORT:-8080}/api/v1}
       NEXT_PUBLIC_MAILPIT_URL: ${NEXT_PUBLIC_MAILPIT_URL:-http://localhost:${MAILPIT_UI_PORT:-8025}}
+      NEXT_PUBLIC_DEMO_LOGIN: ${APP_SEED_ENABLED:-true}
       # O 'next start' escuta a porta de PORT. Fixando a mesma dos dois lados do
       # mapeamento, o endereco que o Next anuncia no log e o mesmo que funciona
       # no navegador — antes ele dizia sempre 3000, que era a porta de dentro do
