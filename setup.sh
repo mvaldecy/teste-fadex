@@ -595,7 +595,7 @@ write_env AI_TRIAGE_ENABLED true
 printf '\n'
 
 say "A triagem por IA fica ligada. Ela pode usar modelos locais do Ollama"
-say "(llama3.2:1b e all-minilm, mais de 1 GB de download) ou seguir sem eles."
+say "(llama3.2:3b e all-minilm, cerca de 2,1 GB de download) ou seguir sem eles."
 note "Sem os modelos a classificacao continua funcionando pela heuristica do"
 note "FallbackTicketClassifier — o download nao e obrigatorio."
 printf '\n'
@@ -654,9 +654,9 @@ stage "Modelos do Ollama"
 MODELOS_FALHARAM=false
 if [[ "$BAIXAR_MODELOS" == true ]]; then
   say "Baixando os modelos agora que o container do Ollama esta de pe."
-  warn "Sao mais de 1 GB; pode demorar bastante na primeira vez."
+  warn "Sao cerca de 2,1 GB; pode demorar bastante na primeira vez."
   # O download e opcional: se falhar, avisamos e seguimos para a verificacao.
-  if ! executar "Baixa llama3.2:1b e all-minilm no volume do Ollama." \
+  if ! executar "Baixa llama3.2:3b e all-minilm no volume do Ollama." \
        docker compose run --rm ollama-models; then
     warn "O download dos modelos falhou. A stack continua de pe."
     warn "A classificacao segue pela heuristica do FallbackTicketClassifier."

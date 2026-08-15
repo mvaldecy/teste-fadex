@@ -62,7 +62,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-no-reply@fadex.local}
       AI_TRIAGE_ENABLED: ${AI_TRIAGE_ENABLED:-true}
       AI_BASE_URL: http://ollama:11434
-      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:1b}
+      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:3b}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
       AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-384}
       AI_WORKER_ENABLED: ${AI_WORKER_ENABLED:-true}
@@ -114,7 +114,7 @@ services:
         condition: service_started
     environment:
       OLLAMA_HOST: http://ollama:11434
-      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:1b}
+      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:3b}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
     entrypoint: ["/bin/sh", "-c"]
     command: >
