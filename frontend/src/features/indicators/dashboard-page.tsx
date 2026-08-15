@@ -10,6 +10,8 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { IndicatorBreakdown } from "./indicator-breakdown";
 import { IndicatorCard } from "./indicator-card";
 import { IndicatorDurationCard } from "./indicator-duration-card";
+import { IndicatorDurationTable } from "./indicator-duration-table";
+import { IndicatorSlaCard } from "./indicator-sla-card";
 import { useIndicators } from "./use-indicators";
 
 function formatPercent(value: number) {
@@ -174,7 +176,7 @@ export function DashboardPage() {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           <IndicatorCard
             label="Backlog ate 1 dia"
             value={durations?.backlogAging.upToOneDay}
@@ -188,15 +190,35 @@ export function DashboardPage() {
             tone="alert"
             value={durations?.backlogAging.overThreeDays}
           />
-          <IndicatorCard
-            label="SLA em prioridade ALTA"
-            formatValue={formatPercent}
-            note={
-              durations?.sla.byPriority.ALTA
-                ? `${durations.sla.byPriority.ALTA.withinTarget} de ${durations.sla.byPriority.ALTA.evaluated} avaliados`
-                : "Sem chamado ALTA avaliado"
-            }
-            value={durations?.sla.byPriority.ALTA?.percentage}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <IndicatorSlaCard
+            byPriority={durations?.sla.byPriority}
+            labels={choiceLabels?.priorities}
+          />
+          <IndicatorDurationTable
+            groups={durations?.closure.byPriority}
+            labels={choiceLabels?.priorities}
+            title="Fechamento por prioridade"
+          />
+          <IndicatorDurationTable
+            groups={durations?.closure.byCategory}
+            labels={choiceLabels?.categories}
+            title="Fechamento por categoria"
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <IndicatorDurationTable
+            groups={durations?.firstResponse.byPriority}
+            labels={choiceLabels?.priorities}
+            title="Primeira resposta por prioridade"
+          />
+          <IndicatorDurationTable
+            groups={durations?.assignment.byPriority}
+            labels={choiceLabels?.priorities}
+            title="Atribuicao por prioridade"
           />
         </div>
       </section>
@@ -220,20 +242,6 @@ export function DashboardPage() {
             formatValue={(value) => formatPercent(value * 100)}
             value={ai?.averageConfidence}
           />
-          <IndicatorCard label="Jobs pendentes" value={ai?.jobQueue.pending} />
-          <IndicatorCard
-            label="Jobs com falha"
-            tone="alert"
-            value={ai?.jobQueue.failed}
-          />
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
-          <IndicatorBreakdown
-            data={ai?.originDistribution}
-            labels={choiceLabels?.classificationOrigins}
-            title="Origem da classificacao"
-          />
           <IndicatorCard
             label="Duplicados detectados"
             value={ai?.duplicatesDetected}
@@ -243,6 +251,28 @@ export function DashboardPage() {
             formatValue={(value) => `${value.toFixed(1)} s`}
             note="Espera na fila mais execucao do job"
             value={ai?.jobQueue.averageQueueToDoneSeconds}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <IndicatorCard label="Jobs pendentes" value={ai?.jobQueue.pending} />
+          <IndicatorCard
+            label="Jobs em processamento"
+            value={ai?.jobQueue.processing}
+          />
+          <IndicatorCard label="Jobs concluidos" value={ai?.jobQueue.done} />
+          <IndicatorCard
+            label="Jobs com falha"
+            tone="alert"
+            value={ai?.jobQueue.failed}
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <IndicatorBreakdown
+            data={ai?.originDistribution}
+            labels={choiceLabels?.classificationOrigins}
+            title="Origem da classificacao"
           />
         </div>
       </section>
