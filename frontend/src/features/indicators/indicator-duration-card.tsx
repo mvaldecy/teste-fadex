@@ -4,10 +4,10 @@ import {
   CardHeader,
   CardTitle
 } from "@/src/components/ui/card";
-import type { IndicatorDuration } from "@/src/types/api";
+import type { IndicatorDurationStats } from "@/src/types/api";
 
 type IndicatorDurationCardProps = {
-  duration?: IndicatorDuration;
+  duration?: IndicatorDurationStats;
   title: string;
 };
 
@@ -26,11 +26,17 @@ function formatHours(value?: number | null) {
 /**
  * Media e mediana sempre lado a lado. Com o volume de dados do projeto, media
  * isolada e enganosa — a nota esta no documento de frentes.
+ *
+ * O `sampleSize` aparece junto porque o contrato zera as horas quando a
+ * amostra e vazia: sem o tamanho da amostra, "--" e "0 h" seriam
+ * indistinguiveis de estatistica confiavel.
  */
 export function IndicatorDurationCard({
   duration,
   title
 }: IndicatorDurationCardProps) {
+  const sampleSize = duration?.sampleSize ?? 0;
+
   return (
     <Card>
       <CardHeader>
@@ -43,7 +49,7 @@ export function IndicatorDurationCard({
               Media
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-slate-950">
-              {formatHours(duration?.media)}
+              {formatHours(duration?.averageHours)}
             </dd>
           </div>
           <div>
@@ -51,7 +57,7 @@ export function IndicatorDurationCard({
               Mediana
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-slate-950">
-              {formatHours(duration?.mediana)}
+              {formatHours(duration?.medianHours)}
             </dd>
           </div>
           <div>
@@ -59,10 +65,16 @@ export function IndicatorDurationCard({
               p90
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-slate-950">
-              {formatHours(duration?.p90)}
+              {formatHours(duration?.p90Hours)}
             </dd>
           </div>
         </dl>
+
+        <p className="mt-3 text-xs text-slate-500">
+          {sampleSize === 1
+            ? "1 chamado na amostra"
+            : `${sampleSize} chamados na amostra`}
+        </p>
       </CardContent>
     </Card>
   );

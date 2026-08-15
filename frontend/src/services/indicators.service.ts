@@ -1,29 +1,15 @@
 import type { IndicatorsResponse } from "@/src/types/api";
 import { api } from "./api";
-import { toFixtureReason } from "./endpoint-fallback";
-import { indicatorsFixture } from "./indicators.fixture";
 
-export type IndicatorsResult = {
-  data: IndicatorsResponse;
-  isFixture: boolean;
-  fixtureReason: string | null;
-};
+/**
+ * `GET /api/v1/indicators` esta publicado e restrito a ADMIN. O fallback para
+ * dado fixo saiu junto com o ultimo endpoint pendente: com o contrato real no
+ * ar, um erro da API precisa aparecer como erro, e nao como tela de exemplo.
+ */
+async function get() {
+  const response = await api.get<IndicatorsResponse>("/indicators");
 
-const path = "/api/v1/indicators";
-
-async function get(): Promise<IndicatorsResult> {
-  try {
-    const response = await api.get<IndicatorsResponse>("/indicators");
-    return { data: response.data, isFixture: false, fixtureReason: null };
-  } catch (error) {
-    const fixtureReason = toFixtureReason(error, path);
-
-    if (fixtureReason) {
-      return { data: indicatorsFixture, isFixture: true, fixtureReason };
-    }
-
-    throw error;
-  }
+  return response.data;
 }
 
 export const indicatorsService = {

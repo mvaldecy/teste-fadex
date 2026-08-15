@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { useNotifications } from "@/src/features/notifications/use-notifications";
 import { buildChoiceLabelMap } from "@/src/features/tickets/choice-labels";
 import { toApiErrorMessage } from "@/src/services/api-error";
@@ -13,18 +12,26 @@ import type {
   NotificationEvent
 } from "@/src/types/api";
 
+/**
+ * `CONEXAO_ESTABELECIDA` entra na lista porque o stream nao faz replay: apos
+ * reconectar, a tela precisa recarregar para nao mostrar o estado anterior a
+ * queda.
+ *
+ * `CHAMADO_ALTA_PRIORIDADE` tambem recarrega, mas o **alerta** visivel nao
+ * mora aqui: fica no `HighPriorityAlerts`, montado no shell, para alcancar o
+ * operador em qualquer tela.
+ */
 const reloadEventNames = new Set([
   "CONEXAO_ESTABELECIDA",
   "INDICADORES_ATUALIZADOS",
   "CHAMADO_ATUALIZADO",
+  "CHAMADO_ALTA_PRIORIDADE",
   "CLASSIFICACAO_CONCLUIDA"
 ]);
 
 export function useIndicators() {
   const [choices, setChoices] = useState<ChoicesResponse | null>(null);
   const [indicators, setIndicators] = useState<IndicatorsResponse | null>(null);
-  const [isFixture, setIsFixture] = useState(false);
-  const [fixtureReason, setFixtureReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,10 +44,7 @@ export function useIndicators() {
     setError(null);
 
     try {
-      const result = await indicatorsService.get();
-      setIndicators(result.data);
-      setIsFixture(result.isFixture);
-      setFixtureReason(result.fixtureReason);
+      setIndicators(await indicatorsService.get());
     } catch (loadError) {
       setError(toApiErrorMessage(loadError));
     }
@@ -52,15 +56,13 @@ export function useIndicators() {
       setError(null);
 
       try {
-        const [choicesResponse, indicatorsResult] = await Promise.all([
+        const [choicesResponse, indicatorsResponse] = await Promise.all([
           choicesService.getChoices(),
           indicatorsService.get()
         ]);
 
         setChoices(choicesResponse);
-        setIndicators(indicatorsResult.data);
-        setIsFixture(indicatorsResult.isFixture);
-        setFixtureReason(indicatorsResult.fixtureReason);
+        setIndicators(indicatorsResponse);
       } catch (loadError) {
         setError(toApiErrorMessage(loadError));
       } finally {
@@ -73,14 +75,6 @@ export function useIndicators() {
 
   const handleEvent = useCallback(
     (event: NotificationEvent) => {
-      // Alerta de prioridade ALTA e requisito obrigatorio do desafio: alem de
-      // recarregar, precisa avisar o ADMIN na hora.
-      if (event.name === "CHAMADO_ALTA_PRIORIDADE") {
-        toast.warning("Chamado de prioridade ALTA registrado.");
-        void loadIndicators();
-        return;
-      }
-
       if (reloadEventNames.has(event.name)) {
         void loadIndicators();
       }
@@ -93,8 +87,6 @@ export function useIndicators() {
   return {
     choiceLabels,
     indicators,
-    isFixture,
-    fixtureReason,
     isLoading,
     error,
     loadIndicators

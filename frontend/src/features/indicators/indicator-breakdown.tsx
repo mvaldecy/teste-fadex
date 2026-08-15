@@ -6,7 +6,9 @@ import {
 } from "@/src/components/ui/card";
 
 type IndicatorBreakdownProps = {
-  data?: Record<string, number>;
+  // Os mapas do contrato omitem grupos sem ocorrencia, entao o valor por chave
+  // e opcional — `Record<string, number>` mentiria sobre o que chega.
+  data?: Partial<Record<string, number>>;
   labels?: Map<string, string>;
   title: string;
 };
@@ -20,7 +22,9 @@ export function IndicatorBreakdown({
   labels,
   title
 }: IndicatorBreakdownProps) {
-  const entries = Object.entries(data ?? {});
+  const entries = Object.entries(data ?? {}).map(
+    ([key, value]) => [key, value ?? 0] as const
+  );
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
 
   return (
