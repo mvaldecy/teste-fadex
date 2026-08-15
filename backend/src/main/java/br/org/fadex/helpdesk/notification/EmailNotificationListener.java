@@ -58,7 +58,44 @@ public class EmailNotificationListener {
 			return;
 		}
 
-		send(emailComposer.composeAiJobFailure(String.valueOf(message.data())));
+		send(emailComposer.composeAiJobFailure(describeFailure(message.data())));
+	}
+
+	/**
+	 * O formato do {@code data} de {@code JOB_IA_FALHOU} pertence a frente de IA e pode ser texto ou
+	 * DTO. Sem este tratamento, um record cairia no corpo do e-mail como {@code toString()} de Java.
+	 *
+	 * Texto entra direto; DTO entra pelo componente {@code lastError}; o resto cai numa frase fixa
+	 * com o link do painel, que e o que o ADMIN precisa para agir.
+	 */
+	private String describeFailure(Object data) {
+		if (data instanceof String text && !text.isBlank()) {
+			return text;
+		}
+
+		String lastError = readLastError(data);
+
+		if (lastError != null && !lastError.isBlank()) {
+			return lastError;
+		}
+
+		return "Um job da triagem por IA falhou. Abra o painel de jobs para ver o erro e reagendar.";
+	}
+
+	private String readLastError(Object data) {
+		if (data == null) {
+			return null;
+		}
+
+		try {
+			Object value = data.getClass().getMethod("lastError").invoke(data);
+
+			return value == null ? null : value.toString();
+		} catch (ReflectiveOperationException | RuntimeException exception) {
+			log.debug("Payload de {} sem componente lastError.", NotificationEventName.JOB_IA_FALHOU);
+
+			return null;
+		}
 	}
 
 	private void send(List<EmailMessage> messages) {

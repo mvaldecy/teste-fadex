@@ -90,6 +90,46 @@ class EmailNotificationListenerTest {
 	}
 
 	@Test
+	void deveUsarOCampoDeErroQuandoOPayloadForUmDto() {
+		record JobFalhaDto(UUID id, String lastError) {
+		}
+
+		NotificationMessage message = NotificationMessage.of(
+				NotificationEventName.JOB_IA_FALHOU,
+				new JobFalhaDto(UUID.randomUUID(), "modelo local indisponivel"),
+				new NotificationAudience.Roles(Set.of(Role.ADMIN))
+		);
+		EmailMessage email = new EmailMessage("ana@fadex.org.br", "Job de IA falhou", "Texto");
+
+		when(emailComposer.composeAiJobFailure("modelo local indisponivel")).thenReturn(List.of(email));
+
+		listener.onNotificationMessage(message);
+
+		verify(emailSender).send(email);
+	}
+
+	@Test
+	void deveUsarTextoPadraoQuandoOPayloadNaoDescreveAFalha() {
+		record PayloadDesconhecido(UUID id) {
+		}
+
+		NotificationMessage message = NotificationMessage.of(
+				NotificationEventName.JOB_IA_FALHOU,
+				new PayloadDesconhecido(UUID.randomUUID()),
+				new NotificationAudience.Roles(Set.of(Role.ADMIN))
+		);
+		EmailMessage email = new EmailMessage("ana@fadex.org.br", "Job de IA falhou", "Texto");
+
+		when(emailComposer.composeAiJobFailure(
+				"Um job da triagem por IA falhou. Abra o painel de jobs para ver o erro e reagendar."
+		)).thenReturn(List.of(email));
+
+		listener.onNotificationMessage(message);
+
+		verify(emailSender).send(email);
+	}
+
+	@Test
 	void naoDeveEnviarEmailParaOutrosEventosSse() {
 		NotificationMessage message = NotificationMessage.of(
 				NotificationEventName.CHAMADO_ATUALIZADO,

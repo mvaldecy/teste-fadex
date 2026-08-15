@@ -788,6 +788,11 @@ Duas regras valem sobre a tabela:
 2. **Criacao de chamado com prioridade normal nao gera e-mail** — apenas SSE. So o chamado `ALTA`
    alerta por e-mail.
 
+O e-mail de falha de job e derivado do evento SSE `JOB_IA_FALHOU`: a frequencia e o conteudo do
+corpo seguem o que a frente de IA publica nesse evento. Payload em texto entra direto no corpo;
+payload em DTO usa o campo `lastError`; qualquer outro formato cai numa frase fixa com o link do
+painel de jobs.
+
 Casos que **nao** geram e-mail, por decisao de escopo: remocao de responsavel; comentario do
 solicitante em chamado sem responsavel (nao ha contraparte a quem entregar).
 
