@@ -19,6 +19,8 @@ Este documento separa deliberadamente **o que foi medido** do **que foi lido no 
    usuários, fila `ai_jobs`, embeddings preenchidos.
 4. **Autorização de `GET /users` como SOLICITANTE**, via `curl`, para testar uma suspeita que
    acabou **refutada** (ver §4.6).
+5. **Triagem por IA de ponta a ponta**, criando dois chamados reais e acompanhando a classificação
+   por *polling* — o que revelou o achado mais grave desta auditoria (§4.0).
 
 **Inferido do código, não medido:** vazão do worker de IA sob carga, comportamento do executor sob
 saturação, e o efeito de SMTP lento. Onde infiro, digo que infiro e mostro o caminho no código.
@@ -49,7 +51,7 @@ diferente.
 | 1 | Autenticação com emissão de token | **Atendido** | `controller/AuthController.java:28-42`; `security/JwtConfig.java`; JWT HS256. **Ressalva:** não há endpoint público de *cadastro* — `POST /users` exige ADMIN (`service/UserService.java:70`). É uma decisão defensável (helpdesk interno) mas **precisa estar justificada no README**, porque o checklist tem a linha "Cadastro de usuário funcional com hash de senha". |
 | 2 | Autorização ADMIN × SOLICITANTE | **Atendido** | `security/AccessControlService.java:126-170`; filtro por papel na listagem em `service/TicketService.java:306` e `service/UserService.java:51`; verificado ao vivo (§4.6) |
 | 3 | CRUD completo: criar, listar com filtros, detalhe, atualizar status, **excluir/cancelar** | **PARCIAL — maior lacuna funcional** | Criar/listar/detalhe/status: `controller/TicketController.java:40-72`. **Não existe `DELETE /api/v1/tickets/{id}` nem status `CANCELADO`.** O único `@DeleteMapping` é `/{id}/assignee` (`:84`), que remove responsável, não o chamado. `model/enums/TicketStatus.java:4-7` tem apenas ABERTO/EM_ANDAMENTO/RESOLVIDO/FECHADO. |
-| 4 | Triagem automática por IA; ADMIN pode aceitar ou corrigir | **Atendido** | Assíncrono via `ai/job/AiJobWorker.java`; cliente real em `ai/client/LocalAiTriageClient.java` com fallback heurístico em `ai/triage/FallbackTicketClassifier.java`; correção pelo ADMIN em `ai/classification/TicketClassificationController.java:31-32`. §3.3 do PDF permite heurística explicitamente, então o fallback é **conforme** — falta apenas a justificativa no README. |
+| 4 | Triagem automática por IA; ADMIN pode aceitar ou corrigir | **Atendido — verificado ao vivo**, com ressalva importante | Assíncrono via `ai/job/AiJobWorker.java`; correção pelo ADMIN em `ai/classification/TicketClassificationController.java:31-32`. **Medido:** dois chamados criados pela API foram classificados em ~17 s e ~15 s. **Ressalva:** ambos vieram da heurística de fallback, não do modelo — o caminho do LLM falha em 100% dos casos, silenciosamente (**ver §4.0**). Continua **conforme** §3.3, que permite heurística, mas muda o que o README pode afirmar. |
 | 5 | Indicadores em tempo real + alerta de prioridade ALTA | **Atendido** | `ai/indicator/IndicatorController.java`; SSE em `sse/controller/NotificationController.java:21`; alerta ALTA em `notification/TicketSseNotificationListener.java:66-72` |
 | 6 | Comentários/histórico em chamado existente | **Atendido** | `controller/TicketCommentController.java:47`; `controller/TicketEventController.java:30` |
 | 7 | Validações de negócio (não reabrir fechado, campos obrigatórios, e-mail único) | **Atendido** | Não reabrir: `service/TicketService.java:218-221` lança `ConflictException`. Matriz de transições: `model/ticket/TicketStatusTransition.java:35-49` (FECHADO → conjunto vazio). Campos: `@NotBlank`/`@Size` nos DTOs. E-mail único: constraint `uk_users_email` + `service/UserService.java:97-103`. |
@@ -119,25 +121,120 @@ são investimento acima do necessário; não removê-los agora, mas também não
 
 ### Fracos
 
-1. **Não existe README.** É o ponto fraco mais caro do projeto e não é técnico. Ele aparece em
+1. **A integração com o LLM está morta e falha em silêncio** (§4.0). Descoberto medindo, não
+   lendo. É o achado que melhor resume o risco de acreditar em relatos de frente sem verificar.
+2. **Não existe README.** É o ponto fraco mais caro do projeto e não é técnico. Ele aparece em
    §3.1, em §4 (entregáveis) e em três linhas do checklist interno. Todo o resto desta auditoria
    vale menos que corrigir isto.
-2. **O CRUD obrigatório está incompleto** — sem excluir nem cancelar (§1.2 item 3). É a única
+3. **O CRUD obrigatório está incompleto** — sem excluir nem cancelar (§1.2 item 3). É a única
    funcionalidade obrigatória com lacuna real.
-3. **N+1 comprovado na listagem de chamados** (§4.3). Mede-se, existe, e a correção é de três
+4. **N+1 comprovado na listagem de chamados** (§4.3). Mede-se, existe, e a correção é de três
    linhas.
-4. **A vazão da triagem é de 1 chamado a cada 10 segundos** (§4.1). Para uma feature que vale 20%
+5. **A vazão da triagem é de 1 chamado a cada 10 segundos** (§4.1). Para uma feature que vale 20%
    da nota e que o avaliador vai testar criando chamados, isso é lento o bastante para parecer
    quebrado.
-5. **Assimetria de investimento.** Sete templates de e-mail e ~15 DTOs de indicadores convivem com
+6. **Assimetria de investimento.** Sete templates de e-mail e ~15 DTOs de indicadores convivem com
    a ausência de um `DELETE /tickets/{id}` de dez linhas que o enunciado pede explicitamente.
    Um avaliador percebe essa assimetria e ela custa em "funcionalidade".
-6. **`@Modifying` sem `flushAutomatically`/`clearAutomatically`** (§4.2) — e a frente de IA
+7. **`@Modifying` sem `flushAutomatically`/`clearAutomatically`** (§4.2) — e a frente de IA
    registrou tê-lo tratado. O relato não bate com o código.
 
 ---
 
 ## 4. Riscos técnicos
+
+### 4.0 O modelo de IA nunca é usado: toda classificação cai no fallback — **gravidade alta**
+
+Este achado foi encontrado **medindo**, não lendo, e é o mais importante do documento.
+
+#### O que foi medido
+
+Criei dois chamados reais pela API como SOLICITANTE e acompanhei a classificação:
+
+| Chamado | Tempo até classificar | Resultado | `classificationJustification` |
+|---|---|---|---|
+| "Servidor de folha de pagamento fora do ar… Urgente" | **~17 s** | `IA` / SISTEMAS / ALTA / conf. 0,6 | "Classificacao por **fallback deterministico** baseado em palavras-chave." |
+| "Impressora sem toner… **não é urgente**" | **~15 s** | `IA` / EQUIPAMENTOS / **ALTA** / conf. 0,6 | "Classificacao por **fallback deterministico**…" |
+
+A triagem **funciona** de ponta a ponta e o requisito obrigatório 4 está atendido. Mas em **nenhum**
+dos dois casos o modelo de linguagem foi usado: as duas classificações vieram da heurística de
+palavras-chave, sempre com confiança fixa 0,6. Note também que o segundo chamado diz
+explicitamente "não é urgente" e foi classificado como **ALTA** — a heurística erra onde o modelo
+acertaria.
+
+#### Não é falta de ambiente
+
+Descartei as explicações fáceis, uma a uma:
+
+- `docker exec fadex-helpdesk-backend-1 printenv` → **`AI_TRIAGE_ENABLED=true`**;
+- `docker exec fadex-helpdesk-ollama-1 ollama list` → **ambos os modelos baixados**
+  (`llama3.2:1b`, `all-minilm`);
+- `AI_BASE_URL=http://ollama:11434` — correto para a rede interna do compose;
+- Ollama responde **em 2,4 s** a partir de dentro do container do backend (testei com `wget`), bem
+  abaixo do timeout de 20 s;
+- não é *cold start*: o segundo chamado foi criado com o Ollama **já aquecido** e caiu no fallback
+  do mesmo jeito.
+
+#### Causa raiz — provada
+
+`ai/client/LocalAiTriageClient.java:24` define o prompt de sistema:
+
+> "Classifique o chamado e responda apenas um objeto JSON com category, priority, confidence e
+> justification. **category e priority devem usar os valores dos enums fornecidos.**"
+
+**Os valores dos enums nunca são fornecidos.** `formatTicket` (`:78-80`) envia apenas
+`"Titulo: … Descricao: …"`. Nenhum ponto da requisição lista `SISTEMAS`, `EQUIPAMENTOS`, `ALTA`,
+`MEDIA` etc. O modelo é instruído a usar uma lista que não recebeu.
+
+Reproduzi a chamada exata (mesmo modelo, mesmo prompt, `format: json`, `temperature: 0`) direto no
+Ollama. Resposta:
+
+```json
+{
+  "category": "Impressora",
+  "priority": "Médio",
+  "confidence": 0.8,
+  "justification": "A impressora da sala 12 parou de imprimir…"
+}
+```
+
+`"Impressora"` e `"Médio"` **não são valores válidos**. Em `parseClassification:97-98`,
+`TicketCategory.valueOf("Impressora")` lança `IllegalArgumentException`, capturada em `:73-74` e
+convertida em `AiIntegrationException`. Em `AiJobWorker.classifyWithFallback:196-202` essa exceção
+é capturada e **descartada sem uma única linha de log** — daí a queda para a heurística ser
+invisível. Confirmei nos logs do backend: nenhum registro de erro de IA.
+
+O JSON é sintaticamente válido (`format: json` garante isso), então a falha não é de parsing de
+JSON — é de **vocabulário**. E é **determinística**: acontece em toda classificação.
+
+#### Impacto concreto
+
+1. Atinge o critério de **20%** ("Triagem por IA e tempo real"). Nada está tecnicamente errado
+   perante §3.3 — heurística é permitida —, mas **o README não pode afirmar que a integração com
+   Ollama classifica os chamados**, porque hoje ela não classifica nenhum.
+2. `classificationOrigin = IA` com classificação vinda da heurística é **enganoso** para quem
+   avalia o banco ou a tela.
+3. A engolida silenciosa da exceção é um defeito de engenharia por si só: a integração inteira pode
+   estar morta sem nenhum sinal.
+
+#### Custo de correção — baixo, e o de melhor retorno da auditoria
+
+Incluir os valores permitidos no prompt. Uma alteração de poucas linhas em `LocalAiTriageClient`,
+enumerando `TicketCategory.values()` e `TicketPriority.values()` no prompt de sistema (idealmente
+derivados do enum, não escritos à mão). Somar `log.warn` no `catch` de `classifyWithFallback` para
+que a queda ao fallback deixe de ser silenciosa.
+
+**Alternativa de custo zero, se o tempo acabar:** manter como está e **descrever com precisão no
+README** — "a triagem usa heurística determinística de palavras-chave; a integração com Ollama está
+implementada e é selecionável por configuração". Isso é 100% conforme §3.3. O que **não** pode
+acontecer é o README descrever uma classificação por LLM que não ocorre.
+
+**Nota de ambiente relacionada (gravidade média):** o serviço que baixa os modelos está atrás de um
+profile — `docker-compose.yml:103` (`profiles: ["modelos"]`). Um avaliador que rode
+`docker compose up` puro **não** baixa os modelos, e cairia no fallback mesmo com o prompt
+corrigido. O `setup.sh` trata disso e avisa (`:597-603`, `:714`), mas o README precisa dizer
+explicitamente qual comando baixa os modelos. (Detalhe menor: o comentário em `setup.sh:637` afirma
+que "o serviço ollama-models não tem 'profiles' no compose" — hoje tem; comentário desatualizado.)
 
 ### 4.1 Concorrência: vazão da triagem e executor compartilhado
 
@@ -147,11 +244,14 @@ são investimento acima do necessário; não removê-los agora, mas também não
 `:14` (`QUARTZ_THREAD_COUNT=1`); `ai/job/AiJobWorker.java:35` (`@DisallowConcurrentExecution`),
 `:99` (`findDueJobs(now, batchSize)` — pega **um** job por ciclo).
 
-**Cálculo (inferido do código, não medido sob carga):** o worker processa **1 job por disparo, a
-cada 10 s**. E `AiJobService.enqueueTicketJobs:31-38` enfileira **dois** jobs por chamado
-(CLASSIFICATION + EMBEDDING). Logo:
+**Medido, para um chamado:** criei dois chamados reais e a classificação levou **~17 s** e **~15 s**
+(§4.0). Isso confirma o modelo de vazão abaixo.
 
-- 1 chamado → 2 jobs → **~20 s** até a triagem e o embedding concluírem.
+**Extrapolação para carga (calculada a partir do código, não medida sob carga):** o worker processa
+**1 job por disparo, a cada 10 s**. E `AiJobService.enqueueTicketJobs:31-38` enfileira **dois** jobs
+por chamado (CLASSIFICATION + EMBEDDING). Logo:
+
+- 1 chamado → 2 jobs → **~20 s** — batendo com os ~15–17 s medidos.
 - **50 chamados criados de uma vez → 100 jobs → ~1000 s ≈ 16 minutos** para drenar a fila.
 
 Nada quebra — a fila é persistente (`ai_jobs`), `@DisallowConcurrentExecution` evita sobreposição,
@@ -333,6 +433,16 @@ Page<Ticket> findAll(Specification<Ticket> spec, Pageable pageable);
 em `TicketRepository`. É código de produção e mexe no caminho mais quente da API; com testes
 verdes, é seguro. Ainda assim, **dívida consciente** frente ao README (ver §5).
 
+**Aviso importante para quem aplicar: não confie na correção sem reconferir.** Não cheguei a
+compilar essa alteração. `@EntityGraph` sobre a sobrescrita de
+`JpaSpecificationExecutor.findAll(Specification, Pageable)` tem histórico de ser **silenciosamente
+ignorado** em algumas versões, e a variante paginada ainda pode tropeçar na *count query*. Ou seja,
+existe o risco real de a correção "entrar" e não mudar nada. Depois de aplicar, **conte as consultas
+de novo** (mesmo método usado aqui: `hibernate.generate_statistics=true` +
+`Statistics.getEntityFetchCount()`); o número esperado cai de ~1 por usuário distinto para **0**. Se
+o `@EntityGraph` for ignorado, o plano B é um `@Query` explícito com `join fetch ticket.requester
+left join fetch ticket.assignee` — mais verboso, mas sem ambiguidade.
+
 #### B) `GET /indicators` agrega em Java — **gravidade baixa**
 
 **Evidência:** `IndicatorRepository.findAllProjections()` carrega **todos** os chamados sem
@@ -509,7 +619,7 @@ filtro intacto para ADMIN e o restringe ao próprio id caso contrário — o mes
 
 ---
 
-## 4.7 Conferência do `acompanhamento-desenvolvimento.md` contra o código
+### 4.7 Conferência do `acompanhamento-desenvolvimento.md` contra o código
 
 O documento de acompanhamento foi conferido linha a linha contra o código, e **não deve ser usado
 como fonte de verdade**. Onde diverge:
@@ -536,11 +646,14 @@ Ordenado por nota ganha por hora gasta.
 |---|---|---|---|
 | **1** | **Escrever o `README.md`** | Requisito obrigatório §3.1 **ausente**, citado em §4 (entregáveis) e em 3 linhas do checklist. Precisa conter: descrição, tecnologias, passo a passo de instalação, **credenciais de teste** (`admin@fadex.org.br`/`admin123`, `solicitante@fadex.org.br`/`solicitante123`), exemplos `curl` ou coleção, e a **justificativa da abordagem de IA** (Ollama local + fallback heurístico — que §3.3 permite explicitamente). | 2–3 h. **Prioridade absoluta.** |
 | **2** | Timeouts de SMTP (§4.1-B) | Impede que SMTP travado mate o SSE — o item de 20% da nota. | 3 linhas de properties, ~5 min |
-| **3** | `AI_WORKER_BATCH_SIZE=5` e `AI_WORKER_INTERVAL_MILLIS=2000` no `.env.example` (§4.1-A) | Triagem deixa de levar 20 s por chamado; o avaliador vê a IA funcionando. Só configuração. Lote ≤ 5 por causa de §4.2-C. | ~5 min |
-| **4** | `@Modifying(flushAutomatically=true, clearAutomatically=true)` (§4.2-B) | Desarma a mina e alinha o código ao que a frente de IA relatou. | 1 linha + rodar a suíte |
-| **5** | **Decidir sobre excluir/cancelar** (§1.2 item 3) | Única funcionalidade **obrigatória** com lacuna real (25% da nota). Caminho mais barato: `DELETE /api/v1/tickets/{id}` restrito a ADMIN, com evento no histórico. Se não der tempo, **declarar no README** como limitação — é bem melhor que silêncio. | 1–2 h para implementar; 5 min para declarar |
+| **3** | **`AI_WORKER_INTERVAL_MILLIS=2000`**, mantendo `AI_WORKER_BATCH_SIZE=1` (§4.1-A) | Sobe a vazão para 30 jobs/min — de sobra para a demonstração — **sem alongar a transação**, evitando por completo o problema de §4.2-C. Subir o lote para 5 é opcional e só vale se houver necessidade de carga; a mudança de intervalo sozinha entrega quase todo o benefício. | ~5 min |
+| **4** | Corrigir o prompt da IA **ou** descrever a heurística com precisão no README (§4.0) | Hoje o LLM nunca é usado e ninguém sabe. Enumerar os valores dos enums no prompt + um `log.warn` no `catch` faz a integração passar a funcionar de verdade. Se o tempo apertar, a opção de custo zero é o README dizer a verdade sobre a heurística — §3.3 permite. | 20–30 min para corrigir; 5 min para documentar |
+| **5** | `@Modifying(flushAutomatically=true, clearAutomatically=true)` (§4.2-B) | Desarma a mina e alinha o código ao que a frente de IA relatou. | 1 linha + rodar a suíte |
+| **6** | **Decidir sobre excluir/cancelar** (§1.2 item 3) | Única funcionalidade **obrigatória** com lacuna real (25% da nota). Caminho mais barato: `DELETE /api/v1/tickets/{id}` restrito a ADMIN, com evento no histórico. Se não der tempo, **declarar no README** como limitação — é bem melhor que silêncio. | 1–2 h para implementar; 5 min para declarar |
 
-Itens 2, 3 e 4 somam **menos de 15 minutos** e não competem com o README.
+Os itens 2, 3 e 5 somam **menos de 15 minutos** de configuração e não competem com o README. O
+item 4 é o de maior retorno técnico depois do README — e tem uma saída de 5 minutos caso o tempo
+acabe.
 
 ### 5.2 Dívida consciente — registrar no README e citar como "sei que existe"
 
@@ -550,7 +663,9 @@ tê-las visto.
 - **N+1 na listagem de chamados** (§4.3-A) — *medido*: 50 linhas/50 usuários = 52 consultas.
   Correção conhecida: `@EntityGraph` em `TicketRepository` (3 linhas). Não feito por ser o caminho
   mais quente da API e o tempo estar melhor aplicado no README. **Se sobrar meia hora depois do
-  README, este é o primeiro da fila** — é a correção de melhor relação impacto/risco da lista.
+  README, este é o primeiro da fila** — mas só vale aplicar **com a recontagem de consultas
+  descrita em §4.3-A**, porque o `@EntityGraph` pode ser silenciosamente ignorado nessa assinatura.
+  Aplicar sem medir é pior que não aplicar: dá a sensação de resolvido sem resolver.
 - **Notificação sem outbox** (§4.2-A) — falha após o commit é logada, não reenviada.
 - **Sem limite de tentativas de login** (§4.4-B).
 - **Refresh token sem rotação** (§4.4-C) — reuso possível dentro dos 7 dias.
@@ -587,5 +702,12 @@ matriz de transições e ~50 classes de teste são trabalho de bom nível. Nada 
 avaliador não conseguir rodar o projeto — e o único artefato que ele vai abrir primeiro, o
 `README.md`, não existe.
 
-As horas restantes deveriam ir, nesta ordem: **README**, os três ajustes de configuração de 15
-minutos, e a decisão sobre excluir/cancelar.
+O segundo achado mais caro é de outra natureza: **a integração com o LLM não funciona e ninguém
+sabia** (§4.0). Toda classificação cai na heurística, por um prompt que promete "os valores dos
+enums fornecidos" sem fornecê-los, e a exceção resultante é engolida sem log. Isso não viola o
+enunciado — §3.3 permite heurística —, mas define o que o README pode honestamente afirmar. É um
+bom lembrete de que auditar código lendo não basta: as duas frentes envolvidas achavam que a
+integração estava de pé, e bastou criar um chamado para descobrir que não.
+
+As horas restantes deveriam ir, nesta ordem: **README**, os ajustes de configuração de 15 minutos,
+a decisão sobre o prompt da IA, e a decisão sobre excluir/cancelar.
