@@ -18,7 +18,7 @@ Todos os requisitos obrigatórios do desafio estão implementados, com uma ressa
 
 | Item | Onde | Situação |
 | --- | --- | --- |
-| Cancelamento de chamado | `feature(backend)/cancelamento-de-chamado` | Agente rodando; 6 commits na branch |
+| Cancelamento de chamado | `feature(backend)/cancelamento-de-chamado` | **Concluída e empurrada** — 10 commits, 323 testes verdes, aguardando merge |
 | Revisão técnica | `docs(projeto)/revisao-tecnica` | **Pronta e não mergeada** — 4 commits, contém `2026-08-15-revisao-tecnica.md` |
 
 A revisão técnica vale a leitura antes de qualquer decisão: ela lista os achados de
@@ -100,11 +100,19 @@ qualquer pessoa consome a chave criando chamados.
    ponta a ponta com a stack final, e é a parte visualmente mais forte. Abrir
    `localhost:3001`, logar, confirmar uma requisição pendente em `notifications/stream`,
    mexer num chamado em outra aba e ver a tela reagir.
-2. **Limpar o resíduo do banco.** São **31 chamados e 9 usuários** contra 24 e 6 do seed —
+2. **Limpar o resíduo do banco.** São **34 chamados e 9 usuários** contra 24 e 6 do seed —
+   e agora há **dois chamados em `CANCELADO`**, um deles cancelado por acidente durante a
+   verificação (`bbeebf48-3230-492d-9c55-d9d4b252d7d4`). `CANCELADO` é terminal e não há
+   caminho de volta pela API, o que reforça a ressemeadura —
    inclui um par de chamados quase idênticos criado para provar a detecção de duplicados.
    O caminho mais simples é `docker compose down -v` e deixar o seed recriar do zero; ele é
    idempotente por título. **Confirmar antes: isso apaga o volume.**
-3. **Mergear a revisão técnica e o cancelamento** quando a frente fechar.
+3. **Mergear a revisão técnica e o cancelamento.** As duas branches estão prontas e
+   empurradas. O cancelamento saiu por status (`DELETE` devolve `200` com o chamado em
+   `CANCELADO`), ADMIN cancela `ABERTO`/`EM_ANDAMENTO`, solicitante só o próprio e só
+   `ABERTO`. Ele também **encontrou e corrigiu um bug real de indicador**: sem
+   `resolvedAt`/`closedAt`, todo cancelado virava violação de SLA permanente, piorando com
+   o tempo. Mede 323 testes.
 4. **NÃO tornar o repositório público.** Decisão explícita do Marcos em 15/08, madrugada:
    o repositório continua privado até que ele diga o contrário. É item da checklist de
    submissão, mas **a virada é dele, na hora que ele escolher** — nenhum agente deve
