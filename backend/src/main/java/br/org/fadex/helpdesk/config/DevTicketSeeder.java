@@ -399,6 +399,48 @@ public class DevTicketSeeder {
 						"Reclassificado manualmente como demanda administrativa, nao incidente tecnico.",
 						500, 168, 72, "Treinamento realizado com a equipe e material compartilhado.",
 						TicketCategory.SISTEMAS, TicketPriority.MEDIA, 0.52
+				),
+
+				// Cobaias de triagem: recem-abertas, sem classificacao, sem sugestao da IA e sem
+				// responsavel. Existem para o avaliador clicar em "solicitar triagem" e ver a IA
+				// classificar ao vivo. Ficam com `ai_suggested_*` nulos de proposito — assim nao
+				// entram no denominador da concordancia e nao mexem nas metricas que os 20 chamados
+				// anteriores sustentam.
+				new TicketSeed(
+						"Impressora do setor financeiro parou de responder",
+						"A impressora da sala do financeiro nao aparece mais na lista de dispositivos desde hoje de manha.",
+						TicketCategory.OUTROS, TicketPriority.MEDIA, TicketStatus.ABERTO,
+						"solicitante@fadex.org.br", null,
+						ClassificationOrigin.PENDENTE, null,
+						2, null, null, null,
+						null, null, null
+				),
+				new TicketSeed(
+						"Esqueci a senha do portal de prestacao de contas",
+						"Tentei redefinir pelo proprio portal mas o e-mail de recuperacao nao chega.",
+						TicketCategory.OUTROS, TicketPriority.MEDIA, TicketStatus.ABERTO,
+						"ana.ribeiro@fadex.org.br", null,
+						ClassificationOrigin.PENDENTE, null,
+						1, null, null, null,
+						null, null, null
+				),
+				new TicketSeed(
+						"Internet do terceiro andar oscilando desde cedo",
+						"A conexao cai por alguns segundos a cada poucos minutos e derruba as reunioes.",
+						TicketCategory.OUTROS, TicketPriority.MEDIA, TicketStatus.ABERTO,
+						"bruno.carvalho@fadex.org.br", null,
+						ClassificationOrigin.PENDENTE, null,
+						3, null, null, null,
+						null, null, null
+				),
+				new TicketSeed(
+						"Duvida sobre o periodo aquisitivo de ferias",
+						"Preciso saber a partir de quando posso agendar minhas ferias deste ciclo.",
+						TicketCategory.OUTROS, TicketPriority.MEDIA, TicketStatus.ABERTO,
+						"solicitante@fadex.org.br", null,
+						ClassificationOrigin.PENDENTE, null,
+						5, null, null, null,
+						null, null, null
 				)
 		);
 	}
