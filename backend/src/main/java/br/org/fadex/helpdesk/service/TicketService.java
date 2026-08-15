@@ -111,6 +111,50 @@ public class TicketService {
 
 		assertTransitionAllowed(currentStatus, newStatus);
 
+		String description = "Status alterado de " + currentStatus.getLabel()
+				+ " para " + newStatus.getLabel() + ".";
+
+		return applyStatusChange(ticket, newStatus, TicketEventType.STATUS_ALTERADO, description);
+	}
+
+	/**
+	 * Cancelamento de chamado: exclusao logica.
+	 *
+	 * O chamado sai do fluxo e continua na base — historico, comentarios e o que a IA classificou
+	 * ficam. Nao ha remocao fisica em lugar nenhum: o valor deste sistema e o rastro.
+	 *
+	 * ADMIN cancela qualquer chamado; SOLICITANTE cancela o proprio e apenas enquanto ABERTO, porque
+	 * a partir de EM_ANDAMENTO existe trabalho de outra pessoa em curso. Papel indevido e 403;
+	 * estado que nao aceita cancelamento e 409, e quem decide isso e a matriz.
+	 */
+	@Transactional
+	public TicketDto cancel(UUID id) {
+		Ticket ticket = findEntityById(id);
+
+		assertCanCancel(ticket);
+		assertTransitionAllowed(ticket.getStatus(), TicketStatus.CANCELADO);
+
+		return applyStatusChange(
+				ticket,
+				TicketStatus.CANCELADO,
+				TicketEventType.CHAMADO_CANCELADO,
+				"Chamado cancelado."
+		);
+	}
+
+	/**
+	 * Caminho unico de mudanca de status: carimbo, gravacao, evento de historico e notificacao.
+	 *
+	 * Cancelamento nao carimba nada de proposito. {@code resolvedAt} e {@code closedAt} nulos sao o
+	 * que mantem o chamado cancelado fora da media de fechamento e dos contadores de chamado
+	 * fechado, sem nenhum tratamento defensivo nos indicadores.
+	 */
+	private TicketDto applyStatusChange(
+			Ticket ticket,
+			TicketStatus newStatus,
+			TicketEventType eventType,
+			String description
+	) {
 		LocalDateTime now = LocalDateTime.now();
 
 		ticket.changeStatus(newStatus);
@@ -129,10 +173,8 @@ public class TicketService {
 
 		Ticket savedTicket = ticketRepository.save(ticket);
 		User actor = resolveActor();
-		String description = "Status alterado de " + currentStatus.getLabel()
-				+ " para " + newStatus.getLabel() + ".";
 
-		ticketEventService.record(savedTicket, actor, TicketEventType.STATUS_ALTERADO, description);
+		ticketEventService.record(savedTicket, actor, eventType, description);
 		publishTicketNotification(
 				savedTicket, TicketNotificationType.STATUS_ALTERADO, savedTicket.getPriority(), description
 		);
@@ -140,6 +182,20 @@ public class TicketService {
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
 		return response;
+	}
+
+	private void assertCanCancel(Ticket ticket) {
+		if (accessControlService.isAdmin()) {
+			return;
+		}
+
+		accessControlService.assertCanAccessTicket(ticket);
+
+		if (ticket.getStatus() != TicketStatus.ABERTO) {
+			throw new ConflictException(
+					"Chamado ja em atendimento so pode ser cancelado por um administrador."
+			);
+		}
 	}
 
 	@Transactional
@@ -231,9 +287,17 @@ public class TicketService {
 		}
 	}
 
+	/**
+	 * Estado terminal nao aceita mais mexer em responsavel.
+	 *
+	 * Deriva da matriz em vez de listar FECHADO e CANCELADO: um terceiro estado terminal futuro ja
+	 * entra coberto, e a regra continua morando num lugar so.
+	 */
 	private void assertTicketIsNotClosed(Ticket ticket) {
-		if (ticket.getStatus() == TicketStatus.FECHADO) {
-			throw new ConflictException("Chamado fechado nao pode ser alterado.");
+		if (TicketStatusTransition.allowedFrom(ticket.getStatus()).isEmpty()) {
+			throw new ConflictException(
+					"Chamado " + ticket.getStatus().getLabel().toLowerCase() + " nao pode ser alterado."
+			);
 		}
 	}
 

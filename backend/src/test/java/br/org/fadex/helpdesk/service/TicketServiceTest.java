@@ -581,6 +581,180 @@ class TicketServiceTest {
 	}
 
 	@Test
+	void cancelDeveCancelarChamadoAbertoQuandoAdmin() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User admin = newAdmin();
+		stubAdminUpdate(ticket, admin);
+
+		TicketDto response = ticketService.cancel(ticket.getId());
+
+		assertThat(response.status()).isEqualTo(TicketStatus.CANCELADO);
+		assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CANCELADO);
+		verify(ticketEventService).record(
+				eq(ticket), eq(admin), eq(TicketEventType.CHAMADO_CANCELADO), anyString()
+		);
+	}
+
+	@Test
+	void cancelDeveCancelarChamadoEmAndamentoQuandoAdmin() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.EM_ANDAMENTO);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.cancel(ticket.getId());
+
+		assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CANCELADO);
+	}
+
+	/**
+	 * Carimbo nenhum: e o que mantem o cancelado fora da media de fechamento e dos contadores de
+	 * chamado fechado, sem nenhum codigo defensivo nos indicadores.
+	 */
+	@Test
+	void cancelDeveManterResolvedAtEClosedAtNulos() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.cancel(ticket.getId());
+
+		assertThat(ticket.getResolvedAt()).isNull();
+		assertThat(ticket.getClosedAt()).isNull();
+	}
+
+	@Test
+	void cancelDevePublicarNotificacaoDeMudancaDeStatus() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		stubAdminUpdate(ticket, newAdmin());
+		ArgumentCaptor<TicketNotificationEvent> eventCaptor =
+				ArgumentCaptor.forClass(TicketNotificationEvent.class);
+
+		ticketService.cancel(ticket.getId());
+
+		verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+		assertThat(eventCaptor.getValue().type()).isEqualTo(TicketNotificationType.STATUS_ALTERADO);
+		assertThat(eventCaptor.getValue().ticket().status()).isEqualTo(TicketStatus.CANCELADO);
+	}
+
+	@Test
+	void cancelDevePermitirQueSolicitanteCanceleOProprioChamadoAberto() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User requester = ticket.getRequester();
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+		when(authenticatedUserService.getUserId()).thenReturn(requester.getId());
+		when(userService.findEntityById(requester.getId())).thenReturn(requester);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+		when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+		ticketService.cancel(ticket.getId());
+
+		assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CANCELADO);
+		verify(ticketEventService).record(
+				eq(ticket), eq(requester), eq(TicketEventType.CHAMADO_CANCELADO), anyString()
+		);
+	}
+
+	@Test
+	void cancelDeveNegarChamadoDeOutroSolicitante() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+		when(authenticatedUserService.getUserId()).thenReturn(UUID.randomUUID());
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.cancel(ticket.getId()))
+				.isInstanceOf(ForbiddenException.class);
+
+		verify(ticketRepository, never()).save(any(Ticket.class));
+	}
+
+	/**
+	 * A partir de EM_ANDAMENTO existe trabalho de outra pessoa em curso: quem pede o cancelamento
+	 * comenta, e o ADMIN cancela.
+	 */
+	@Test
+	void cancelDeveRecusarSolicitanteEmChamadoJaEmAtendimento() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.EM_ANDAMENTO);
+		User requester = ticket.getRequester();
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+		when(authenticatedUserService.getUserId()).thenReturn(requester.getId());
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.cancel(ticket.getId()))
+				.isInstanceOf(ConflictException.class);
+
+		verify(ticketRepository, never()).save(any(Ticket.class));
+	}
+
+	@Test
+	void cancelDeveRecusarChamadoJaCancelado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.CANCELADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.cancel(ticket.getId()))
+				.isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void cancelDeveRecusarChamadoResolvidoOuFechado() {
+		Ticket resolvido = newTicket(TicketPriority.MEDIA);
+		resolvido.changeStatus(TicketStatus.RESOLVIDO);
+		Ticket fechado = newTicket(TicketPriority.MEDIA);
+		fechado.changeStatus(TicketStatus.FECHADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(resolvido.getId())).thenReturn(Optional.of(resolvido));
+		when(ticketRepository.findById(fechado.getId())).thenReturn(Optional.of(fechado));
+
+		assertThatThrownBy(() -> ticketService.cancel(resolvido.getId()))
+				.isInstanceOf(ConflictException.class);
+		assertThatThrownBy(() -> ticketService.cancel(fechado.getId()))
+				.isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void updateStatusDeveCancelarChamadoQuandoAdminUsaAMatriz() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		stubAdminUpdate(ticket, newAdmin());
+
+		ticketService.updateStatus(ticket.getId(), new TicketStatusUpdateDto(TicketStatus.CANCELADO));
+
+		assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CANCELADO);
+		assertThat(ticket.getClosedAt()).isNull();
+	}
+
+	@Test
+	void updateAssigneeDeveRecusarChamadoCancelado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.CANCELADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.updateAssignee(
+				ticket.getId(), new TicketAssigneeUpdateDto(UUID.randomUUID())
+		)).isInstanceOf(ConflictException.class);
+	}
+
+	@Test
+	void removeAssigneeDeveRecusarChamadoCancelado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.assignTo(newAdmin());
+		ticket.changeStatus(TicketStatus.CANCELADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.removeAssignee(ticket.getId()))
+				.isInstanceOf(ConflictException.class);
+	}
+
+	@Test
 	void updateAssigneeDeveExigirAdmin() {
 		Ticket ticket = newTicket(TicketPriority.MEDIA);
 
