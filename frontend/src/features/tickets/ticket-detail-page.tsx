@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/src/components/ui/button";
+import { cn } from "@/src/lib/utils";
 import { routes } from "@/src/routes/routes";
 import { indicatorsService } from "@/src/services/indicators.service";
 import { usersService } from "@/src/services/users.service";
 import { useSessionStore } from "@/src/stores/session.store";
 
+import { RealtimeBadge } from "./realtime-badge";
 import { TicketCancelAction } from "./ticket-cancel-action";
 import { TicketClassificationCard } from "./ticket-classification-card";
 import { TicketDetailPanel } from "./ticket-detail-panel";
@@ -22,6 +25,8 @@ import {
   canCancelFrom,
   useTicketStatusTransitions
 } from "./ticket-status-transitions";
+import type { TicketEventSignal } from "./ticket-event-signal";
+import { useRealtimeFeedback } from "./use-realtime-feedback";
 import { useTicketActions } from "./use-ticket-actions";
 import { useTicketComments } from "./use-ticket-comments";
 import { useTicketDetail } from "./use-ticket-detail";
@@ -37,6 +42,7 @@ export function TicketDetailPage() {
   const userId = useSessionStore((state) => state.user?.id ?? null);
   const isAdmin = role === "ADMIN";
   const transitions = useTicketStatusTransitions();
+  const realtime = useRealtimeFeedback();
 
   const detail = useTicketDetail(ticketId);
   const comments = useTicketComments(ticketId);
@@ -59,17 +65,64 @@ export function TicketDetailPage() {
   const reloadSimilar = similar.loadSimilar;
   const reloadTriageJobs = triage.loadActiveJobs;
 
-  useTicketEvents({
-    enabled: true,
-    onTicketChanged: () => {
+  const registerUpdate = realtime.registerUpdate;
+  const reloadComments = comments.loadComments;
+
+  /**
+   * Reage apenas ao chamado aberto. Um evento de **outro** chamado nao muda
+   * nada nesta tela: recarregar por ele so gastaria requisicao e, pior,
+   * anunciaria uma atualizacao que o usuario nao veria acontecer.
+   *
+   * `CONEXAO_ESTABELECIDA` nao traz id e recarrega mesmo assim — e a
+   * resincronizacao apos reconexao, e ali o silencio e correto.
+   */
+  const handleTicketEvent = useCallback(
+    (signal: TicketEventSignal) => {
+      const isReconnect = signal.name === "CONEXAO_ESTABELECIDA";
+
+      if (!isReconnect && signal.ticketId !== ticketId) {
+        return;
+      }
+
       reloadTicket();
       // A deteccao de duplicados e a fila de jobs andam junto da
       // classificacao: sem recarregar aqui, a aba de semelhantes e o botao de
       // triagem ficariam mostrando o estado anterior ao evento.
       void reloadSimilar();
       void reloadTriageJobs();
+      void reloadComments();
+
+      if (isReconnect) {
+        return;
+      }
+
+      registerUpdate(signal.ticketId);
+
+      toast.info("Este chamado acabou de ser atualizado", {
+        description:
+          signal.name === "CLASSIFICACAO_CONCLUIDA"
+            ? "A triagem por IA concluiu a classificacao."
+            : "Os dados na tela ja refletem a mudanca.",
+        id: `detalhe-${ticketId}`,
+        duration: 6000
+      });
     },
-    onCommentChanged: () => void comments.loadComments()
+    [
+      registerUpdate,
+      reloadComments,
+      reloadSimilar,
+      reloadTicket,
+      reloadTriageJobs,
+      ticketId
+    ]
+  );
+
+  useTicketEvents({
+    enabled: true,
+    onTicketChanged: handleTicketEvent,
+    // O evento e o mesmo para chamado e comentario; `handleTicketEvent` ja
+    // recarrega os dois.
+    onCommentChanged: () => undefined
   });
 
   // Responsaveis possiveis sao os ADMIN. So carrega para quem pode atribuir.
@@ -201,6 +254,7 @@ export function TicketDetailPage() {
           <h1 className="mt-2 text-3xl font-semibold tracking-normal">
             Detalhes do chamado
           </h1>
+          <RealtimeBadge className="mt-3" updatedAt={realtime.updatedAt} />
         </div>
 
         <Button asChild variant="outline">
@@ -214,34 +268,43 @@ export function TicketDetailPage() {
         </p>
       ) : null}
 
-      <TicketDetailPanel
-        actionsSlot={actionsSlot}
-        choiceLabels={detail.choiceLabels}
-        comments={comments.comments}
-        commentsError={comments.error}
-        historySlot={
-          <TicketHistoryList
-            error={history.error}
-            events={history.events}
-            isLoading={history.isLoading}
-          />
-        }
-        isCreatingComment={comments.isCreating}
-        isLoading={detail.isLoading}
-        isLoadingComments={comments.isLoading}
-        similarSlot={
-          isAdmin ? (
-            <TicketSimilarList
-              choiceLabels={detail.choiceLabels}
-              error={similar.error}
-              isLoading={similar.isLoading}
-              similarTickets={similar.similarTickets}
+      <div
+        className={cn(
+          "rounded-lg transition-shadow",
+          ticketId && realtime.highlightedIds.has(ticketId)
+            ? "shadow-[0_0_0_3px_rgb(16_185_129_/_0.45)]"
+            : "shadow-none"
+        )}
+      >
+        <TicketDetailPanel
+          actionsSlot={actionsSlot}
+          choiceLabels={detail.choiceLabels}
+          comments={comments.comments}
+          commentsError={comments.error}
+          historySlot={
+            <TicketHistoryList
+              error={history.error}
+              events={history.events}
+              isLoading={history.isLoading}
             />
-          ) : undefined
-        }
-        ticket={detail.ticket}
-        onCreateComment={comments.createComment}
-      />
+          }
+          isCreatingComment={comments.isCreating}
+          isLoading={detail.isLoading}
+          isLoadingComments={comments.isLoading}
+          similarSlot={
+            isAdmin ? (
+              <TicketSimilarList
+                choiceLabels={detail.choiceLabels}
+                error={similar.error}
+                isLoading={similar.isLoading}
+                similarTickets={similar.similarTickets}
+              />
+            ) : undefined
+          }
+          ticket={detail.ticket}
+          onCreateComment={comments.createComment}
+        />
+      </div>
     </div>
   );
 }

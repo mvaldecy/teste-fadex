@@ -3,11 +3,15 @@
 import { useCallback } from "react";
 import { useNotifications } from "@/src/features/notifications/use-notifications";
 import type { NotificationEvent } from "@/src/types/api";
+import {
+  type TicketEventSignal,
+  toTicketEventSignal
+} from "./ticket-event-signal";
 
 type UseTicketEventsOptions = {
   enabled: boolean;
-  onTicketChanged: () => void;
-  onCommentChanged: () => void;
+  onTicketChanged: (signal: TicketEventSignal) => void;
+  onCommentChanged: (signal: TicketEventSignal) => void;
 };
 
 /**
@@ -33,8 +37,13 @@ export function useTicketEvents({
         return;
       }
 
-      onTicketChanged();
-      onCommentChanged();
+      // O sinal segue para a tela: sem o id do chamado no callback, a
+      // atualizacao acontece em silencio e o usuario nao percebe que a tela
+      // reagiu — que era exatamente o problema relatado.
+      const signal = toTicketEventSignal(event);
+
+      onTicketChanged(signal);
+      onCommentChanged(signal);
     },
     [onCommentChanged, onTicketChanged]
   );
