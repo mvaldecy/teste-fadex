@@ -105,7 +105,7 @@ Criadas automaticamente pelo seed de desenvolvimento:
 | --- | --- | --- | --- |
 | **ADMIN** | Administrador | `admin@fadex.org.br` | `admin123` |
 | ADMIN | Carla Menezes | `carla.menezes@fadex.org.br` | `admin123` |
-| ADMIN | Marcos Valdecy | `mvaldecy11@gmail.com` | `dev123` |
+| ADMIN | Marcos Valdecy | `marcos.valdecy@fadex.org.br` | `dev123` |
 | **SOLICITANTE** | Solicitante | `solicitante@fadex.org.br` | `solicitante123` |
 | SOLICITANTE | Ana Ribeiro | `ana.ribeiro@fadex.org.br` | `solicitante123` |
 | SOLICITANTE | Bruno Carvalho | `bruno.carvalho@fadex.org.br` | `solicitante123` |

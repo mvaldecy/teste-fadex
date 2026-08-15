@@ -40,7 +40,7 @@ public class DevDataSeeder {
 					userRepository,
 					passwordEncoder,
 					"Marcos Valdecy",
-					"mvaldecy11@gmail.com",
+					"marcos.valdecy@fadex.org.br",
 					"dev123",
 					Role.ADMIN
 			);

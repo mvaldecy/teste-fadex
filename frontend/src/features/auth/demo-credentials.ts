@@ -35,7 +35,7 @@ export const demoCredentials: DemoCredential[] = [
     label: "Marcos Valdecy",
     role: "ADMIN",
     description: "Conta de desenvolvimento",
-    email: "mvaldecy11@gmail.com",
+    email: "marcos.valdecy@fadex.org.br",
     password: "dev123"
   },
   {
