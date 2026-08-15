@@ -34,6 +34,12 @@ type TicketListProps = {
   highlightedTicketIds?: ReadonlySet<string>;
   isLoading: boolean;
   tickets: TicketSummary[];
+  /**
+   * Total de chamados do filtro, nao da pagina. Sem isso o cabecalho dizia
+   * "10 chamados encontrados" enquanto a paginacao logo abaixo dizia "26
+   * registros" — o mesmo resultado descrito por dois numeros diferentes.
+   */
+  totalElements?: number;
 };
 
 const highlightRowClass = "bg-emerald-50/80";
@@ -49,7 +55,8 @@ export function TicketList({
   choiceLabels,
   highlightedTicketIds,
   isLoading,
-  tickets
+  tickets,
+  totalElements
 }: TicketListProps) {
   function isHighlighted(ticketId: string) {
     return highlightedTicketIds?.has(ticketId) ?? false;
@@ -76,7 +83,7 @@ export function TicketList({
         <div>
           <CardTitle>Fila de chamados</CardTitle>
           <CardDescription className="mt-1">
-            {tickets.length} chamados encontrados.
+            {totalElements ?? tickets.length} chamados encontrados.
           </CardDescription>
         </div>
 

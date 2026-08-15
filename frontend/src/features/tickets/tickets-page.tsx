@@ -98,6 +98,7 @@ export function TicketsPage() {
           highlightedTicketIds={realtime.highlightedIds}
           isLoading={tickets.isLoading}
           tickets={tickets.tickets}
+          totalElements={tickets.totalElements}
         />
 
         <PaginationBar
