@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { paginationParamsSchema } from "./pagination.schema";
 
-const statusValues = ["ABERTO", "EM_ANDAMENTO", "RESOLVIDO", "FECHADO"] as const;
+const statusValues = [
+  "ABERTO",
+  "EM_ANDAMENTO",
+  "RESOLVIDO",
+  "FECHADO",
+  "CANCELADO"
+] as const;
 const priorityValues = ["BAIXA", "MEDIA", "ALTA"] as const;
 const categoryValues = [
   "ACESSO",

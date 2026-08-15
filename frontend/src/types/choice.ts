@@ -4,7 +4,8 @@ export type TicketStatusValue =
   | "ABERTO"
   | "EM_ANDAMENTO"
   | "RESOLVIDO"
-  | "FECHADO";
+  | "FECHADO"
+  | "CANCELADO";
 
 export type TicketPriorityValue = "BAIXA" | "MEDIA" | "ALTA";
 
