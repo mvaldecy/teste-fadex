@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{email/layout :: base(~{::section})}" lang="pt-br">
+<body>
+<section>
+	<h2 th:replace="~{email/componentes :: titulo(${titulo})}">Titulo</h2>
+	<p style="margin:0;">
+		Ola, <span th:text="${destinatarioNome}">Solicitante</span>. <span th:text="${detalhe}">O
+		status do seu chamado mudou.</span>
+	</p>
+	<table th:replace="~{email/componentes :: chamado}"></table>
+	<table th:replace="~{email/componentes :: acao}"></table>
+</section>
+</body>
+</html>

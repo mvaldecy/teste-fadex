@@ -2,10 +2,9 @@ package br.org.fadex.helpdesk.service;
 
 import br.org.fadex.helpdesk.exception.ConflictException;
 import br.org.fadex.helpdesk.exception.ForbiddenException;
-import br.org.fadex.helpdesk.mail.EmailMessage;
-import br.org.fadex.helpdesk.mail.EmailSender;
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.user.User;
+import br.org.fadex.helpdesk.notification.event.UserCreatedNotificationEvent;
 import br.org.fadex.helpdesk.model.user.UserCreationDto;
 import br.org.fadex.helpdesk.model.user.UserDto;
 import br.org.fadex.helpdesk.model.user.UserFields;
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -54,7 +54,7 @@ class UserServiceTest {
 	private TemporaryPasswordGenerator temporaryPasswordGenerator;
 
 	@Mock
-	private EmailSender emailSender;
+	private ApplicationEventPublisher applicationEventPublisher;
 
 	@Mock
 	private AuthenticatedUserService authenticatedUserService;
@@ -70,13 +70,13 @@ class UserServiceTest {
 				userRepository,
 				passwordEncoder,
 				temporaryPasswordGenerator,
-				emailSender,
-				accessControlService
+				accessControlService,
+				applicationEventPublisher
 		);
 	}
 
 	@Test
-	void deveCriarUsuarioComSenhaProvisoriaEEnviarEmail() {
+	void deveCriarUsuarioComSenhaProvisoriaEPublicarEventoDeNotificacao() {
 		UserCreationDto userCreationDto = new UserCreationDto(
 				"Maria Solicitante",
 				"maria@fadex.org.br",
@@ -90,7 +90,8 @@ class UserServiceTest {
 				true
 		);
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-		ArgumentCaptor<EmailMessage> emailCaptor = ArgumentCaptor.forClass(EmailMessage.class);
+		ArgumentCaptor<UserCreatedNotificationEvent> eventCaptor =
+				ArgumentCaptor.forClass(UserCreatedNotificationEvent.class);
 
 		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
 		when(userRepository.existsByEmail("maria@fadex.org.br")).thenReturn(false);
@@ -101,18 +102,18 @@ class UserServiceTest {
 		UserDto response = userService.create(userCreationDto);
 
 		verify(userRepository).save(userCaptor.capture());
-		verify(emailSender).send(emailCaptor.capture());
+		verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
 		User userToSave = userCaptor.getValue();
-		EmailMessage email = emailCaptor.getValue();
+		UserCreatedNotificationEvent event = eventCaptor.getValue();
 
 		assertThat(userToSave.getName()).isEqualTo("Maria Solicitante");
 		assertThat(userToSave.getEmail()).isEqualTo("maria@fadex.org.br");
 		assertThat(userToSave.getPasswordHash()).isEqualTo("hash-gerado");
 		assertThat(userToSave.getRole()).isEqualTo(Role.SOLICITANTE);
 		assertThat(userToSave.getMustChangePassword()).isTrue();
-		assertThat(email.to()).isEqualTo("maria@fadex.org.br");
-		assertThat(email.subject()).isEqualTo("Acesso provisorio ao Fadex Helpdesk");
-		assertThat(email.text()).contains("SenhaProvisoria123");
+		assertThat(event.email()).isEqualTo("maria@fadex.org.br");
+		assertThat(event.name()).isEqualTo("Maria Solicitante");
+		assertThat(event.temporaryPassword()).isEqualTo("SenhaProvisoria123");
 		assertThat(response.name()).isEqualTo("Maria Solicitante");
 		assertThat(response.email()).isEqualTo("maria@fadex.org.br");
 		assertThat(response.role()).isEqualTo(Role.SOLICITANTE);
@@ -120,7 +121,7 @@ class UserServiceTest {
 	}
 
 	@Test
-	void deveNegarCriacaoDeUsuarioParaSolicitanteSemGerarSenhaSalvarOuEnviarEmail() {
+	void deveNegarCriacaoDeUsuarioParaSolicitanteSemGerarSenhaSalvarOuNotificar() {
 		UserCreationDto userCreationDto = new UserCreationDto(
 				"Maria Solicitante",
 				"maria@fadex.org.br",
@@ -137,7 +138,7 @@ class UserServiceTest {
 		verify(temporaryPasswordGenerator, never()).generate();
 		verify(passwordEncoder, never()).encode(any(String.class));
 		verify(userRepository, never()).save(any(User.class));
-		verify(emailSender, never()).send(any(EmailMessage.class));
+		verify(applicationEventPublisher, never()).publishEvent(any(UserCreatedNotificationEvent.class));
 	}
 
 	@Test
@@ -156,7 +157,7 @@ class UserServiceTest {
 				.hasMessage("E-mail já cadastrado.");
 
 		verify(temporaryPasswordGenerator, never()).generate();
-		verify(emailSender, never()).send(any(EmailMessage.class));
+		verify(applicationEventPublisher, never()).publishEvent(any(UserCreatedNotificationEvent.class));
 		verify(userRepository, never()).save(any(User.class));
 	}
 

@@ -33,6 +33,26 @@ public sealed interface NotificationAudience {
 		}
 	}
 
+	/**
+	 * Uniao de destinatarios explicitos com papeis inteiros.
+	 *
+	 * Existe para a criacao de chamado: o solicitante precisa receber, e todo ADMIN enxerga todos
+	 * os chamados na listagem. Publicar duas mensagens entregaria frame duplicado ao ADMIN que
+	 * tambem e o solicitante.
+	 */
+	record UsersAndRoles(Set<UUID> userIds, Set<Role> roles) implements NotificationAudience {
+
+		public UsersAndRoles {
+			userIds = Set.copyOf(userIds);
+			roles = Set.copyOf(roles);
+		}
+
+		@Override
+		public boolean includes(UUID userId, Role role) {
+			return userIds.contains(userId) || roles.contains(role);
+		}
+	}
+
 	record Everyone() implements NotificationAudience {
 
 		@Override

@@ -2,9 +2,8 @@ package br.org.fadex.helpdesk.service;
 
 import br.org.fadex.helpdesk.exception.ConflictException;
 import br.org.fadex.helpdesk.exception.NotFoundException;
-import br.org.fadex.helpdesk.mail.EmailMessage;
-import br.org.fadex.helpdesk.mail.EmailSender;
 import br.org.fadex.helpdesk.model.user.User;
+import br.org.fadex.helpdesk.notification.event.UserCreatedNotificationEvent;
 import br.org.fadex.helpdesk.model.user.UserCreationDto;
 import br.org.fadex.helpdesk.model.user.UserDto;
 import br.org.fadex.helpdesk.model.user.UserFilter;
@@ -14,6 +13,7 @@ import br.org.fadex.helpdesk.repository.UserRepository;
 import br.org.fadex.helpdesk.repository.UserSpecification;
 import br.org.fadex.helpdesk.security.AccessControlService;
 import br.org.fadex.helpdesk.security.TemporaryPasswordGenerator;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,21 +29,21 @@ public class UserService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final TemporaryPasswordGenerator temporaryPasswordGenerator;
-	private final EmailSender emailSender;
 	private final AccessControlService accessControlService;
+	private final ApplicationEventPublisher applicationEventPublisher;
 
 	public UserService(
 			UserRepository userRepository,
 			PasswordEncoder passwordEncoder,
 			TemporaryPasswordGenerator temporaryPasswordGenerator,
-			EmailSender emailSender,
-			AccessControlService accessControlService
+			AccessControlService accessControlService,
+			ApplicationEventPublisher applicationEventPublisher
 	) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.temporaryPasswordGenerator = temporaryPasswordGenerator;
-		this.emailSender = emailSender;
 		this.accessControlService = accessControlService;
+		this.applicationEventPublisher = applicationEventPublisher;
 	}
 
 	@Transactional(readOnly = true)
@@ -74,12 +74,16 @@ public class UserService {
 		String passwordHash = passwordEncoder.encode(temporaryPassword);
 		User user = UserMapper.toEntity(userCreationDto, passwordHash, true);
 		User savedUser = userRepository.save(user);
-		EmailMessage message = new EmailMessage(
+
+		// O envio sai da transacao de proposito: e-mail que nao entrega nao pode desfazer a criacao
+		// do usuario nem devolver erro para quem chamou a API.
+		applicationEventPublisher.publishEvent(new UserCreatedNotificationEvent(
+				savedUser.getId(),
+				savedUser.getName(),
 				savedUser.getEmail(),
-				"Acesso provisorio ao Fadex Helpdesk",
-				"Ola, " + savedUser.getName() + ". Sua senha provisoria e: " + temporaryPassword
-		);
-		emailSender.send(message);
+				temporaryPassword
+		));
+
 		UserDto response = UserMapper.toResponseDto(savedUser);
 
 		return response;

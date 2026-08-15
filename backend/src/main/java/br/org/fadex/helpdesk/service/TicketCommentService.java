@@ -9,10 +9,15 @@ import br.org.fadex.helpdesk.model.comment.TicketCommentMinDto;
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.enums.TicketEventType;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
+import br.org.fadex.helpdesk.model.ticket.TicketMapper;
 import br.org.fadex.helpdesk.model.user.User;
+import br.org.fadex.helpdesk.notification.event.NotificationRecipient;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationEvent;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationType;
 import br.org.fadex.helpdesk.repository.TicketCommentRepository;
 import br.org.fadex.helpdesk.repository.TicketCommentSpecification;
 import br.org.fadex.helpdesk.security.AccessControlService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,19 +35,22 @@ public class TicketCommentService {
 	private final UserService userService;
 	private final AccessControlService accessControlService;
 	private final TicketEventService ticketEventService;
+	private final ApplicationEventPublisher applicationEventPublisher;
 
 	public TicketCommentService(
 			TicketCommentRepository ticketCommentRepository,
 			TicketService ticketService,
 			UserService userService,
 			AccessControlService accessControlService,
-			TicketEventService ticketEventService
+			TicketEventService ticketEventService,
+			ApplicationEventPublisher applicationEventPublisher
 	) {
 		this.ticketCommentRepository = ticketCommentRepository;
 		this.ticketService = ticketService;
 		this.userService = userService;
 		this.accessControlService = accessControlService;
 		this.ticketEventService = ticketEventService;
+		this.applicationEventPublisher = applicationEventPublisher;
 	}
 
 	@Transactional(readOnly = true)
@@ -76,8 +84,27 @@ public class TicketCommentService {
 		}
 
 		ticketEventService.record(ticket, author, TicketEventType.COMENTARIO_ADICIONADO, "Comentario adicionado.");
+		publishCommentNotification(ticket, author, savedComment.getText());
 		TicketCommentDto response = TicketCommentMapper.toResponseDto(savedComment);
 
 		return response;
+	}
+
+	/**
+	 * O e-mail do comentario vai para a contraparte, e quem escreveu nunca recebe copia. A escolha
+	 * do destinatario fica no listener, que e quem conhece a matriz de notificacao.
+	 */
+	private void publishCommentNotification(Ticket ticket, User author, String text) {
+		TicketNotificationEvent event = new TicketNotificationEvent(
+				TicketNotificationType.COMENTARIO_ADICIONADO,
+				TicketMapper.toMinDto(ticket),
+				NotificationRecipient.of(ticket.getRequester()),
+				NotificationRecipient.of(ticket.getAssignee()),
+				author.getId(),
+				ticket.getPriority(),
+				text
+		);
+
+		applicationEventPublisher.publishEvent(event);
 	}
 }

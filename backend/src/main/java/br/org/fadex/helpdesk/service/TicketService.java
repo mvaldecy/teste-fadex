@@ -22,9 +22,9 @@ import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.repository.TicketRepository;
 import br.org.fadex.helpdesk.repository.TicketSpecification;
 import br.org.fadex.helpdesk.security.AccessControlService;
-import br.org.fadex.helpdesk.sse.model.NotificationAudience;
-import br.org.fadex.helpdesk.sse.model.NotificationEventName;
-import br.org.fadex.helpdesk.sse.model.NotificationMessage;
+import br.org.fadex.helpdesk.notification.event.NotificationRecipient;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationEvent;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationType;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,9 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -97,6 +95,7 @@ public class TicketService {
 		Ticket savedTicket = ticketRepository.save(ticket);
 		ticketEventService.record(savedTicket, requester, TicketEventType.CHAMADO_CRIADO, "Chamado criado.");
 		aiJobService.enqueueTicketJobs(savedTicket);
+		publishTicketNotification(savedTicket, TicketNotificationType.CHAMADO_CRIADO, null, "Chamado criado.");
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
 		return response;
@@ -134,7 +133,9 @@ public class TicketService {
 				+ " para " + newStatus.getLabel() + ".";
 
 		ticketEventService.record(savedTicket, actor, TicketEventType.STATUS_ALTERADO, description);
-		publishTicketUpdated(savedTicket);
+		publishTicketNotification(
+				savedTicket, TicketNotificationType.STATUS_ALTERADO, savedTicket.getPriority(), description
+		);
 
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
@@ -173,7 +174,9 @@ public class TicketService {
 		ticketEventService.record(
 				savedTicket, assignee, TicketEventType.RESPONSAVEL_ATRIBUIDO, description
 		);
-		publishTicketUpdated(savedTicket);
+		publishTicketNotification(
+				savedTicket, TicketNotificationType.RESPONSAVEL_ATRIBUIDO, savedTicket.getPriority(), description
+		);
 
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
@@ -202,7 +205,9 @@ public class TicketService {
 		ticketEventService.record(
 				savedTicket, previousAssignee, TicketEventType.RESPONSAVEL_REMOVIDO, description
 		);
-		publishTicketUpdated(savedTicket);
+		publishTicketNotification(
+				savedTicket, TicketNotificationType.RESPONSAVEL_REMOVIDO, savedTicket.getPriority(), description
+		);
 
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
@@ -258,8 +263,9 @@ public class TicketService {
 				+ " / " + priority.getLabel() + " (" + origin.getLabel() + ").";
 
 		ticketEventService.record(savedTicket, actor, TicketEventType.CLASSIFICACAO_ATUALIZADA, description);
-		publishTicketUpdated(savedTicket);
-		publishHighPriorityAlertIfNeeded(savedTicket, previousPriority);
+		publishTicketNotification(
+				savedTicket, TicketNotificationType.CLASSIFICACAO_ATUALIZADA, previousPriority, description
+		);
 	}
 
 	private User resolveActor() {
@@ -268,40 +274,33 @@ public class TicketService {
 		return authenticatedUserId.map(userService::findEntityById).orElse(null);
 	}
 
-	private void publishTicketUpdated(Ticket ticket) {
-		Set<UUID> userIds = new HashSet<>();
-		userIds.add(ticket.getRequester().getId());
-
-		User assignee = ticket.getAssignee();
-
-		if (assignee != null) {
-			userIds.add(assignee.getId());
-		}
-
-		NotificationMessage message = NotificationMessage.of(
-				NotificationEventName.CHAMADO_ATUALIZADO,
+	/**
+	 * Unico ponto de notificacao do chamado: e-mail e SSE sao derivados deste evento por listeners
+	 * pos-commit, em vez de cada mutacao falar com os dois transportes.
+	 *
+	 * O retrato vai pronto no evento porque os listeners rodam depois do commit, em outra thread e
+	 * sem sessao JPA aberta.
+	 *
+	 * {@code previousPriority} nulo significa chamado recem-criado: chamado que ja nasce ALTA conta
+	 * como chamado que passou a ser ALTA e dispara o alerta.
+	 */
+	private void publishTicketNotification(
+			Ticket ticket,
+			TicketNotificationType type,
+			TicketPriority previousPriority,
+			String detail
+	) {
+		TicketNotificationEvent event = new TicketNotificationEvent(
+				type,
 				TicketMapper.toMinDto(ticket),
-				new NotificationAudience.Users(userIds)
+				NotificationRecipient.of(ticket.getRequester()),
+				NotificationRecipient.of(ticket.getAssignee()),
+				accessControlService.findAuthenticatedUserId().orElse(null),
+				previousPriority,
+				detail
 		);
 
-		applicationEventPublisher.publishEvent(message);
-	}
-
-	private void publishHighPriorityAlertIfNeeded(Ticket ticket, TicketPriority previousPriority) {
-		boolean becameHighPriority = ticket.getPriority() == TicketPriority.ALTA
-				&& previousPriority != TicketPriority.ALTA;
-
-		if (!becameHighPriority) {
-			return;
-		}
-
-		NotificationMessage message = NotificationMessage.of(
-				NotificationEventName.CHAMADO_ALTA_PRIORIDADE,
-				TicketMapper.toMinDto(ticket),
-				new NotificationAudience.Roles(Set.of(Role.ADMIN))
-		);
-
-		applicationEventPublisher.publishEvent(message);
+		applicationEventPublisher.publishEvent(event);
 	}
 
 	private TicketFilter resolveFilterByRole(TicketFilter filter) {
