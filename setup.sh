@@ -279,6 +279,15 @@ porta_em_uso() {
   return 1
 }
 
+# sonda_disponivel — o bash sabe abrir sockets? Alguns pacotes compilam o bash
+# sem /dev/tcp, e ai "porta livre" na verdade significa "nao consegui sondar".
+# Vale a pena dizer isso ao usuario em vez de prometer o que nao foi checado.
+sonda_disponivel() {
+  local erro
+  erro=$( (exec 3<>"/dev/tcp/127.0.0.1/1") 2>&1 || true )
+  [[ "$erro" != *"No such file"* && "$erro" != *"nao existe"* && "$erro" != *"existe"* ]]
+}
+
 # quem_ocupa NUMERO — enfeite opcional: tenta descobrir o processo dono da
 # porta. So funciona onde ss ou lsof existem; o wizard nunca depende disso.
 quem_ocupa() {
@@ -292,6 +301,11 @@ quem_ocupa() {
   fi
   printf '%s' "$dono"
 }
+
+# true quando o ENV_FILE ja existia antes desta execucao. So nesse caso as
+# portas gravadas nele valem como "escolha anterior" — um .env recem-copiado do
+# .env.example carrega apenas os padroes, que precisam ser testados de verdade.
+ENV_PREEXISTIA=false
 
 PORTAS_RESERVADAS=()   # portas ja atribuidas nesta execucao
 CHAVES_PORTA=()        # nomes das variaveis, na ordem da tabela
@@ -320,6 +334,7 @@ resolver_porta() {
   local atual candidato pretendida motivo="" tentativas=0 dono=""
   atual=$(_existing "$chave" || true)
   porta_valida "${atual:-0}" || atual=""
+  [[ "$ENV_PREEXISTIA" == true ]] || atual=""
   candidato="${atual:-$padrao}"
   pretendida="$candidato"
 
@@ -336,6 +351,11 @@ resolver_porta() {
         fi
       fi
     else
+      # porta ocupada mas identica a que ja estava gravada: numa reexecucao
+      # quem escuta nela e a propria stack, entao mantemos e avisamos.
+      if [[ -z "$motivo" && "$candidato" == "$atual" ]] && porta_em_uso "$candidato"; then
+        motivo="mantida (${candidato} ocupada, provavelmente pela propria stack)"
+      fi
       break
     fi
     candidato=$((candidato + 1))
@@ -486,9 +506,17 @@ say "Daemon do Docker respondendo."
 
 [[ -f docker-compose.yml ]] \
   || abortar "Rode este script na raiz do repositorio (docker-compose.yml nao encontrado)."
-if [[ ! -f "$ENV_FILE" && -f .env.example ]]; then
+if [[ -f "$ENV_FILE" ]]; then
+  ENV_PREEXISTIA=true
+  note "Encontrei ${ENV_FILE}: vou reaproveitar o que ja estiver la."
+elif [[ -f .env.example ]]; then
   cp .env.example "$ENV_FILE"
   note "Criei ${ENV_FILE} a partir de .env.example."
+fi
+
+if ! sonda_disponivel; then
+  warn "Este bash foi compilado sem /dev/tcp: nao consigo testar portas."
+  warn "Vou propor as portas padrao; ajuste manualmente se alguma estiver ocupada."
 fi
 printf '\n'
 pause "Tudo certo. Enter para escolher as portas."
