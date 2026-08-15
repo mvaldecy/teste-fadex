@@ -1,0 +1,178 @@
+# Stack de producao do Fadex Helpdesk.
+#
+# NAO substitui o `docker-compose.yml`, que continua sendo o ambiente de desenvolvimento.
+# Use sempre com um arquivo de ambiente proprio:
+#
+#   cp .env.producao.example .env.producao
+#   # edite .env.producao
+#   docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --build
+#
+# Diferencas deliberadas em relacao ao compose de desenvolvimento:
+#
+# 1. Variaveis criticas usam `${VAR:?mensagem}`. Sem valor, o Compose ABORTA antes de subir
+#    qualquer container. E o mecanismo que impede um deploy com JWT_SECRET publico.
+# 2. Nao ha Mailpit. Producao exige SMTP real (ou notificacoes por e-mail falhando em silencio,
+#    com timeout de 5s ja configurado no backend).
+# 3. O Postgres NAO publica porta no host. O banco so e alcancavel pela rede interna.
+# 4. A IA e opcional, no profile `ia`. Sem `--profile ia` nao ha Ollama, e o backend precisa subir
+#    com AI_TRIAGE_ENABLED=false. Veja `docs/infraestrutura/2026-08-15-deploy.md`.
+# 5. `restart: always` no lugar de `unless-stopped`: apos reboot do host a stack volta sozinha.
+
+name: ${COMPOSE_PROJECT_NAME:-fadex-helpdesk-prod}
+
+services:
+  postgres:
+    # pgvector/pgvector:pg17, e nao postgres:17, porque a V3 cria `CREATE EXTENSION vector` e a
+    # coluna `tickets.embedding` do tipo vector(384). Rodar em Postgres sem a extensao exige
+    # sobrescrever os placeholders do Flyway — documentado no doc de deploy.
+    image: pgvector/pgvector:pg17
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fadex_helpdesk}
+      POSTGRES_USER: ${POSTGRES_USER:-fadex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo de ambiente de producao}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+    image: ${BACKEND_IMAGE:-fadex-helpdesk-backend:prod}
+    restart: always
+    environment:
+      # Sem TZ o container roda em UTC. As entidades usam LocalDateTime, que nao carrega fuso, e os
+      # carimbos aparecem adiantados na tela. Host em UTC (o caso normal em nuvem) reintroduz o bug.
+      TZ: ${TZ:-America/Fortaleza}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: 8080
+      # As variaveis DB_URL/DB_USERNAME/DB_PASSWORD do compose de desenvolvimento NAO funcionam
+      # aqui: elas so sao lidas por `application-dev.properties`, e nao existe
+      # `application-prod.properties` no projeto. Com SPRING_PROFILES_ACTIVE=prod o backend sobe sem
+      # nenhuma configuracao de datasource e morre com "Failed to determine a suitable driver class"
+      # — verificado. A ligacao direta em SPRING_DATASOURCE_* vem do proprio Spring Boot, nao
+      # depende de profile, e foi validada subindo a stack. O driver e deduzido da URL.
+      SPRING_DATASOURCE_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fadex_helpdesk}}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fadex}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo de ambiente de producao}
+      # Guarda principal deste arquivo. O default do codigo em application.properties e um texto
+      # publico versionado: quem assinar um JWT com ele consegue se passar por qualquer usuario.
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET com no minimo 32 caracteres - gere com openssl rand -base64 48}
+      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-3600}
+      REFRESH_TOKEN_EXPIRATION_SECONDS: ${REFRESH_TOKEN_EXPIRATION_SECONDS:-604800}
+      # Dominio real do frontend. Sem isso o navegador bloqueia toda chamada da aplicacao.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?defina CORS_ALLOWED_ORIGINS com o dominio real do frontend}
+      # Base dos links dentro dos e-mails. E variavel separada de CORS_ALLOWED_ORIGINS e e facil
+      # configurar uma e esquecer a outra: o sistema funciona e os e-mails apontam para localhost.
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:?defina FRONTEND_BASE_URL com a URL publica do frontend}
+      SSE_TIMEOUT_MS: ${SSE_TIMEOUT_MS:-1800000}
+      SSE_HEARTBEAT_INTERVAL_MS: ${SSE_HEARTBEAT_INTERVAL_MS:-20000}
+      SSE_RECONNECT_TIME_MS: ${SSE_RECONNECT_TIME_MS:-5000}
+      # Mantido ligado de proposito nesta entrega: e uma instancia de demonstracao e sem seed o
+      # avaliador abre a tela de login sem nenhuma credencial valida. O preco esta documentado.
+      APP_SEED_ENABLED: ${APP_SEED_ENABLED:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS_ENABLE:-true}
+      SMTP_CONNECTION_TIMEOUT_MS: ${SMTP_CONNECTION_TIMEOUT_MS:-5000}
+      SMTP_READ_TIMEOUT_MS: ${SMTP_READ_TIMEOUT_MS:-5000}
+      SMTP_WRITE_TIMEOUT_MS: ${SMTP_WRITE_TIMEOUT_MS:-5000}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@fadex.local}
+      # Nasce DESLIGADA em producao, ao contrario do desenvolvimento. Ligar exige `--profile ia` e
+      # um host com RAM para o Ollama. Com false, o FallbackTicketClassifier assume a classificacao
+      # e a deteccao de duplicados nao acontece.
+      AI_TRIAGE_ENABLED: ${AI_TRIAGE_ENABLED:-false}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ollama:11434}
+      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:3b}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-384}
+      AI_WORKER_ENABLED: ${AI_WORKER_ENABLED:-true}
+      AI_WORKER_BATCH_SIZE: ${AI_WORKER_BATCH_SIZE:-1}
+      AI_WORKER_MAX_ATTEMPTS: ${AI_WORKER_MAX_ATTEMPTS:-3}
+      AI_WORKER_INTERVAL_MILLIS: ${AI_WORKER_INTERVAL_MILLIS:-10000}
+      # 20s e suficiente com GPU e apertado em CPU: medido em 12s por classificacao curta com
+      # llama3.2:3b em 12 vCPU. Num VPS de 2 vCPU o estouro e provavel, e o efeito e queda
+      # silenciosa para a heuristica (registrada em WARN no log).
+      AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-20}
+      AI_SIMILARITY_THRESHOLD: ${AI_SIMILARITY_THRESHOLD:-0.80}
+      AI_SIMILARITY_LIMIT: ${AI_SIMILARITY_LIMIT:-3}
+      QUARTZ_THREAD_COUNT: ${QUARTZ_THREAD_COUNT:-1}
+      # 50%, e nao 75%: a JVM dimensiona contra a RAM do HOST, nao do container (nao ha mem_limit
+      # aqui). Numa maquina de 2 GB, 75% dariam um teto de heap de 1,5 GB disputando memoria com o
+      # Postgres e o Next.js no mesmo host. O backend mediu 423 MiB de RSS ocioso.
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=50}
+      # Escape para Postgres SEM a extensao pgvector. Sobrescreve os tres placeholders do Flyway e
+      # so e valido com AI_TRIAGE_ENABLED=false. Valor pronto no .env.producao.example.
+      SPRING_APPLICATION_JSON: ${SPRING_APPLICATION_JSON:-}
+    ports:
+      - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # /api/v1/choices e endpoint publico (SecurityConfig.PUBLIC_ENDPOINTS) e toca o contexto
+      # inteiro do Spring. O projeto nao tem Actuator, entao nao existe /actuator/health.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/v1/choices || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Fadex Helpdesk}
+        # ATENCAO: entra na imagem em TEMPO DE BUILD. O Next.js substitui NEXT_PUBLIC_* no bundle
+        # durante `npm run build`; mudar esta variavel depois nao tem efeito nenhum sem
+        # `--build` do servico frontend. Verificado empiricamente: veja o doc de deploy.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?defina NEXT_PUBLIC_API_BASE_URL com a URL publica da API - ela entra na imagem em tempo de build}
+    image: ${FRONTEND_IMAGE:-fadex-helpdesk-frontend:prod}
+    restart: always
+    environment:
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Fadex Helpdesk}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    ports:
+      - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_started
+
+  # --- IA opcional -------------------------------------------------------------------------
+  # So sobe com `--profile ia`. Sem o profile, os dois servicos abaixo nem sao criados.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ia"]
+    restart: always
+    volumes:
+      - ollama-data:/root/.ollama
+    # Sem porta publicada: quem fala com o Ollama e o backend, pela rede interna. Expor o Ollama
+    # na internet e entregar inferencia gratuita para qualquer um.
+
+  ollama-models:
+    image: ollama/ollama:latest
+    profiles: ["ia"]
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_started
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      AI_CLASSIFICATION_MODEL: ${AI_CLASSIFICATION_MODEL:-llama3.2:3b}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-all-minilm}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama pull $$AI_CLASSIFICATION_MODEL &&
+       ollama pull $$AI_EMBEDDING_MODEL"
+
+volumes:
+  postgres-data:
+  ollama-data:
