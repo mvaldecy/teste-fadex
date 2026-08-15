@@ -83,14 +83,24 @@ public class DevTicketSeeder {
 				: createdAt.plusHours(seed.firstReplyAfterHours());
 		LocalDateTime closedAt = seed.status() == TicketStatus.FECHADO ? resolvedAt : null;
 
+		// Carimbo de revisao da classificacao, que e o denominador da concordancia admin x IA.
+		// Regra do seed: chamado MANUAL foi necessariamente revisado (alguem corrigiu a sugestao);
+		// chamado com origem IA so conta como revisado se tem responsavel, ou seja, alguem trabalhou
+		// nele e manteve a classificacao sugerida. Chamado PENDENTE fica nulo — a IA nao respondeu e
+		// nao ha o que aceitar. Sem esse carimbo a taxa sairia com denominador zero.
+		boolean reviewed = seed.aiSuggestedCategory() != null
+				&& (seed.classificationOrigin() == ClassificationOrigin.MANUAL || assigneeId != null);
+		LocalDateTime classificationReviewedAt = reviewed ? createdAt.plusHours(2) : null;
+
 		jdbcTemplate.update(
 				"""
 				insert into tickets (
 					id, title, description, category, priority, status, requester_id, assignee_id,
 					classification_origin, classification_justification, created_at, updated_at,
 					assigned_at, first_response_at, resolved_at, closed_at,
-					ai_suggested_category, ai_suggested_priority, ai_confidence
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					ai_suggested_category, ai_suggested_priority, ai_confidence,
+					classification_reviewed_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				ticketId,
 				seed.title(),
@@ -110,7 +120,8 @@ public class DevTicketSeeder {
 				closedAt == null ? null : Timestamp.valueOf(closedAt),
 				seed.aiSuggestedCategory() == null ? null : seed.aiSuggestedCategory().name(),
 				seed.aiSuggestedPriority() == null ? null : seed.aiSuggestedPriority().name(),
-				seed.aiConfidence()
+				seed.aiConfidence(),
+				classificationReviewedAt == null ? null : Timestamp.valueOf(classificationReviewedAt)
 		);
 
 		insertEvent(
