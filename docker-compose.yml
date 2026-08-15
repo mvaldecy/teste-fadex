@@ -95,8 +95,13 @@ services:
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Fadex Helpdesk}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${BACKEND_PORT:-8080}/api/v1}
       NEXT_PUBLIC_MAILPIT_URL: ${NEXT_PUBLIC_MAILPIT_URL:-http://localhost:${MAILPIT_UI_PORT:-8025}}
+      # O 'next start' escuta a porta de PORT. Fixando a mesma dos dois lados do
+      # mapeamento, o endereco que o Next anuncia no log e o mesmo que funciona
+      # no navegador — antes ele dizia sempre 3000, que era a porta de dentro do
+      # container, e quem escolhia outra no assistente via o log discordar da URL.
+      PORT: ${FRONTEND_PORT:-3000}
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
     depends_on:
       backend:
         condition: service_started

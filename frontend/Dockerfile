@@ -37,5 +37,7 @@ COPY --from=build /app/package-lock.json package-lock.json
 COPY --from=build /app/.next .next
 COPY --from=build /app/node_modules node_modules
 
+# Valor informativo. A porta real vem de PORT em tempo de execucao: o compose
+# define PORT igual a porta publicada para o log do Next nao discordar da URL.
 EXPOSE 3000
 CMD ["npm", "run", "start"]
