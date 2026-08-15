@@ -212,6 +212,14 @@ public class IndicatorService {
 		long withinTarget = 0;
 
 		for (TicketIndicatorProjection projection : projections) {
+			// Chamado cancelado sai do numerador e do denominador: nao foi resolvido, mas tambem nao
+			// esta pendente de ninguem. Sem este corte ele cairia no ramo de chamado em aberto, com
+			// settledAt nulo, e viraria violacao permanente de SLA — piorando sozinho com o tempo,
+			// que e o mesmo erro que a regra do chamado recem-criado ja evita.
+			if (projection.isCanceled()) {
+				continue;
+			}
+
 			// Encerrado inclui RESOLVIDO, nao so FECHADO: o cronometro do atendimento para quando o
 			// trabalho termina, nao quando alguem lembra de fechar o chamado.
 			LocalDateTime settledAt = projection.settledAt();
