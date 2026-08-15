@@ -761,6 +761,54 @@ data: {"id":"00000000-0000-0000-0000-000000000000","title":"Erro ao acessar sist
 
 Os tres eventos da frente de IA tem nome e audiencia fixados aqui; o formato do `data` e definido
 por aquela frente.
+## Notificacoes por E-mail
+
+Os e-mails saem do **mesmo evento de dominio** que alimenta o SSE: cada mutacao publica um evento e
+dois listeners pos-commit derivam os transportes. Nao ha endpoint para disparar e-mail — o front nao
+precisa fazer nada para que a notificacao aconteca.
+
+### Quem recebe o que
+
+| Gatilho | Destinatario | Assunto |
+| --- | --- | --- |
+| Chamado com prioridade `ALTA` aberto (ou reclassificado para `ALTA`) | todos os `ADMIN` | `[ALTA] Chamado com prioridade alta: <titulo>` |
+| Responsavel atribuido | o responsavel | `Voce e o responsavel pelo chamado: <titulo>` |
+| Status alterado | solicitante | `O status do seu chamado mudou: <titulo>` |
+| Chamado resolvido | solicitante | `Seu chamado foi resolvido: <titulo>` |
+| Chamado fechado | solicitante | `Seu chamado foi fechado: <titulo>` |
+| Comentario adicionado | a contraparte: solicitante quando quem comentou foi `ADMIN`, responsavel quando foi o solicitante | `Novo comentario no chamado: <titulo>` |
+| Job de IA falhou | todos os `ADMIN` | `Job de IA falhou` |
+| Usuario criado | o usuario criado | `Acesso provisorio ao Fadex Helpdesk` |
+
+Duas regras valem sobre a tabela:
+
+1. **Quem causou a acao nunca recebe o proprio e-mail.** ADMIN que comenta nao recebe copia; ADMIN
+   que se auto-atribui nao recebe aviso de atribuicao. A regra e so do e-mail: no SSE o solicitante
+   continua recebendo `CHAMADO_ATUALIZADO` do proprio chamado.
+2. **Criacao de chamado com prioridade normal nao gera e-mail** — apenas SSE. So o chamado `ALTA`
+   alerta por e-mail.
+
+Casos que **nao** geram e-mail, por decisao de escopo: remocao de responsavel; comentario do
+solicitante em chamado sem responsavel (nao ha contraparte a quem entregar).
+
+### Formato
+
+Todas as mensagens saem em `multipart/alternative` com versao HTML e versao em texto puro. O HTML e
+renderizado por Thymeleaf com layout unico (cabecalho, bloco de conteudo, rodape), CSS inline, sem
+imagem externa e sem fonte remota. Conteudo vindo do banco — titulo de chamado, texto de comentario,
+nome de usuario — e escapado.
+
+O botao de acao aponta para `${app.frontend.base-url}/tickets/{id}` (jobs de IA:
+`/admin/jobs`; senha provisoria: `/login`). A base e configuravel por `FRONTEND_BASE_URL` e o padrao
+e `http://localhost:3000`.
+
+### Falha de entrega
+
+O envio acontece **depois do commit** e fora da thread da requisicao. SMTP fora do ar nao desfaz a
+operacao nem muda o status HTTP: `POST /api/v1/users` continua respondendo `201` e o usuario e
+criado, com a falha registrada no log do backend. Consequencia pratica: se o SMTP estiver fora, a
+senha provisoria nao chega e o ADMIN precisa recriar o usuario.
+
 ## Frente IA — Classificacao, Indicadores e Jobs
 
 Secao escrita pela frente IA. Todos os endpoints desta secao exigem papel `ADMIN`.
@@ -1007,6 +1055,7 @@ Ja implementado e disponivel (nao reimplementar):
   classificador de fallback. Chamados criados pela API entram na fila de classificacao.
 - Motor de notificacoes em tempo real por SSE, em `GET /api/v1/notifications/stream`, com
   audiencia por usuario, por papel ou para todos.
+- Notificacoes por e-mail em HTML com alternativa em texto (ver "Notificacoes por E-mail").
 - Historico de eventos do chamado, em `GET /api/v1/tickets/{ticketId}/events`.
 - Atualizacao de status, atribuicao e remocao de responsavel do chamado.
 - Jobs de IA para o ADMIN, em `GET /api/v1/ai/jobs` e `POST /api/v1/ai/jobs/{id}/retry`.
