@@ -19,24 +19,24 @@ export type PriorityTone = {
 };
 
 const neutralTone: PriorityTone = {
-  bar: "border-slate-300",
+  bar: "border-l-slate-300",
   dot: "bg-slate-400",
   surface: ""
 };
 
 const priorityTones: Record<string, PriorityTone> = {
   ALTA: {
-    bar: "border-red-500",
+    bar: "border-l-red-500",
     dot: "bg-red-500",
     surface: "bg-red-50/50"
   },
   MEDIA: {
-    bar: "border-amber-500",
+    bar: "border-l-amber-500",
     dot: "bg-amber-500",
     surface: "bg-amber-50/40"
   },
   BAIXA: {
-    bar: "border-sky-500",
+    bar: "border-l-sky-500",
     dot: "bg-sky-500",
     surface: ""
   }
