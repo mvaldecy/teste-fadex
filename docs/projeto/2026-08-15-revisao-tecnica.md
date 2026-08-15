@@ -21,11 +21,27 @@ Este documento separa deliberadamente **o que foi medido** do **que foi lido no 
    acabou **refutada** (ver §4.6).
 5. **Triagem por IA de ponta a ponta**, criando dois chamados reais e acompanhando a classificação
    por *polling* — o que revelou o achado mais grave desta auditoria (§4.0).
+6. **Suíte de testes completa.** `./gradlew test` → **BUILD SUCCESSFUL**: **289 testes em 55
+   classes, 0 falhas, 0 erros, 0 ignorados**. Roda em H2 na memória, sem tocar a stack de pé. É a
+   base que sustenta a afirmação de "testes automatizados" como diferencial entregue (§1.5) e o
+   pressuposto de suíte verde nas correções recomendadas em §5.1.
 
 **Inferido do código, não medido:** vazão do worker de IA sob carga, comportamento do executor sob
 saturação, e o efeito de SMTP lento. Onde infiro, digo que infiro e mostro o caminho no código.
 
 Nenhum serviço foi derrubado ou reconstruído. Nada em `frontend/**` foi tocado.
+
+**Resíduo desta auditoria, a limpar antes de qualquer demonstração.** Os dois chamados criados para
+medir a triagem **continuam no banco de desenvolvimento** — não os removi porque outra frente está
+usando o banco e, ironicamente, **não existe endpoint de exclusão** (§1.2 item 3) para fazer isso
+pela API. São eles:
+
+- `3db84964-3e89-417d-932e-3408ff530b0b` — "Revisao tecnica - teste de triagem"
+- `93b64baf-841f-43f7-be25-9de489fbb196` — "Impressora do setor financeiro sem toner"
+
+O primeiro título denuncia a origem. Quando a stack estiver livre, apagar nesta ordem (chaves
+estrangeiras): `ai_jobs` → `ticket_events` → `ticket_links` → `tickets`. Alternativa mais limpa:
+recriar o banco com o seed, já que é ambiente de desenvolvimento.
 
 ---
 
@@ -223,6 +239,17 @@ Incluir os valores permitidos no prompt. Uma alteração de poucas linhas em `Lo
 enumerando `TicketCategory.values()` e `TicketPriority.values()` no prompt de sistema (idealmente
 derivados do enum, não escritos à mão). Somar `log.warn` no `catch` de `classifyWithFallback` para
 que a queda ao fallback deixe de ser silenciosa.
+
+**Das duas metades, o `log.warn` é a mais durável** — é o que torna visível a *próxima* falha
+silenciosa, independentemente de o ajuste de prompt se sustentar. Faça as duas, mas se só couber
+uma, faça o log.
+
+**E verifique depois de aplicar, como em §4.3-A:** enumerar os enums no prompt **não garante** que
+um modelo de 1 bilhão de parâmetros passe a respeitá-los — ele pode continuar respondendo `"Alta"`
+em vez de `ALTA`, ou traduzir os rótulos. O teste é de 30 segundos: criar um chamado e conferir se
+`classificationJustification` **deixa** de dizer "fallback deterministico". Se continuar caindo no
+fallback, o caminho robusto é normalizar a resposta (maiúsculas, sem acento, com um mapa de
+sinônimos) antes do `valueOf`, em vez de confiar na obediência do modelo.
 
 **Alternativa de custo zero, se o tempo acabar:** manter como está e **descrever com precisão no
 README** — "a triagem usa heurística determinística de palavras-chave; a integração com Ollama está
