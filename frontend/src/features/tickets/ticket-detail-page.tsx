@@ -98,11 +98,11 @@ export function TicketDetailPage() {
 
       registerUpdate(signal.ticketId);
 
-      toast.info("Este chamado acabou de ser atualizado", {
+      toast.info("Este chamado acabou de mudar", {
         description:
           signal.name === "CLASSIFICACAO_CONCLUIDA"
-            ? "A triagem por IA concluiu a classificacao."
-            : "Os dados na tela ja refletem a mudanca.",
+            ? "A triagem por IA terminou e já sugeriu categoria e prioridade."
+            : "A tela já está mostrando o estado novo.",
         id: `detalhe-${ticketId}`,
         duration: 6000
       });

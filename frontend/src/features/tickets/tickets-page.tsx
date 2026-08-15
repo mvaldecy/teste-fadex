@@ -36,8 +36,11 @@ export function TicketsPage() {
 
       registerUpdate(signal.ticketId);
 
-      toast.info("Listagem atualizada em tempo real", {
-        description: signal.title ?? "Um chamado da fila mudou agora.",
+      // O assunto do chamado vem primeiro: quem esta olhando a fila quer saber
+      // *qual* chamado mudou. "Listagem atualizada em tempo real" descrevia o
+      // mecanismo — informacao sobre o sistema, nao sobre o trabalho.
+      toast.info(signal.title ?? "Um chamado da fila mudou", {
+        description: "Atualizado agora na listagem.",
         // `id` por chamado: uma rajada de eventos do mesmo chamado substitui o
         // proprio aviso em vez de empilhar.
         id: signal.ticketId

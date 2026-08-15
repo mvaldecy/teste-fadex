@@ -49,8 +49,8 @@ export function HighPriorityAlerts() {
 
       const { id, title } = readPayload(event.payload);
 
-      toast.warning("Chamado de prioridade ALTA", {
-        description: title ?? "Um chamado passou para prioridade alta.",
+      toast.warning(title ?? "Um chamado passou para prioridade ALTA", {
+        description: "Prioridade ALTA — precisa de atendimento imediato.",
         // Sem expiracao: o alerta de ALTA e requisito do desafio e some antes
         // de o operador notar quando tem duracao. Ele fica na tela ate a
         // dispensa por clique no "x".
