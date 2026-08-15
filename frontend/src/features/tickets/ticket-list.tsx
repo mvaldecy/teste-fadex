@@ -15,18 +15,28 @@ import {
   TableHeader,
   TableRow
 } from "@/src/components/ui/table";
+import { cn } from "@/src/lib/utils";
 import type { TicketSummary } from "@/src/types/api";
 import {
   type ChoiceLabelMap,
   resolveChoiceLabel
 } from "./choice-labels";
+import { PriorityLegend } from "./priority-legend";
+import { resolvePriorityTone } from "./priority-tone";
 import { TicketActions } from "./ticket-actions";
 
 type TicketListProps = {
   choiceLabels: ChoiceLabelMap | null;
+  /**
+   * Chamados que o stream acabou de mudar. O destaque e temporario e vive no
+   * `useRealtimeFeedback`: aqui a lista so pinta o que recebe.
+   */
+  highlightedTicketIds?: ReadonlySet<string>;
   isLoading: boolean;
   tickets: TicketSummary[];
 };
+
+const highlightRowClass = "bg-emerald-50/80";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -37,9 +47,13 @@ function formatDate(value: string) {
 
 export function TicketList({
   choiceLabels,
+  highlightedTicketIds,
   isLoading,
   tickets
 }: TicketListProps) {
+  function isHighlighted(ticketId: string) {
+    return highlightedTicketIds?.has(ticketId) ?? false;
+  }
   if (isLoading) {
     return (
       <Card>
@@ -58,9 +72,16 @@ export function TicketList({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Fila de chamados</CardTitle>
-        <CardDescription>{tickets.length} chamados encontrados.</CardDescription>
+      <CardHeader className="gap-3">
+        <div>
+          <CardTitle>Fila de chamados</CardTitle>
+          <CardDescription className="mt-1">
+            {tickets.length} chamados encontrados.
+          </CardDescription>
+        </div>
+
+        {/* A cor da linha so informa quem tem a legenda a vista. */}
+        <PriorityLegend priorities={choiceLabels?.priorities} />
       </CardHeader>
       <CardContent>
         {tickets.length === 0 ? (
@@ -83,15 +104,32 @@ export function TicketList({
                 </TableHeader>
                 <TableBody>
                   {tickets.map((ticket) => (
-                    <TableRow key={ticket.id}>
+                    <TableRow
+                      className={cn(
+                        "transition-colors",
+                        resolvePriorityTone(ticket.priority).surface,
+                        isHighlighted(ticket.id) && highlightRowClass
+                      )}
+                      key={ticket.id}
+                    >
                       <TableCell>
-                        <div>
+                        <div
+                          className={cn(
+                            "border-l-4 pl-3",
+                            resolvePriorityTone(ticket.priority).bar
+                          )}
+                        >
                           <p className="font-medium text-slate-950">
                             {ticket.title}
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
                             Solicitante: {ticket.requester.name}
                           </p>
+                          {isHighlighted(ticket.id) ? (
+                            <p className="mt-1 text-xs font-semibold text-emerald-700">
+                              Atualizado agora
+                            </p>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -133,7 +171,12 @@ export function TicketList({
             <div className="grid gap-3 md:hidden">
               {tickets.map((ticket) => (
                 <article
-                  className="grid gap-3 rounded-md border border-slate-200 bg-white p-4"
+                  className={cn(
+                    "grid gap-3 rounded-md border border-l-4 border-slate-200 bg-white p-4 transition-colors",
+                    resolvePriorityTone(ticket.priority).bar,
+                    resolvePriorityTone(ticket.priority).surface,
+                    isHighlighted(ticket.id) && highlightRowClass
+                  )}
                   key={ticket.id}
                 >
                   <div className="flex flex-col gap-2">
@@ -147,6 +190,11 @@ export function TicketList({
                     </div>
                     <span className="text-xs text-slate-500">
                       {formatDate(ticket.createdAt)}
+                      {isHighlighted(ticket.id) ? (
+                        <span className="ml-2 font-semibold text-emerald-700">
+                          Atualizado agora
+                        </span>
+                      ) : null}
                     </span>
                   </div>
 

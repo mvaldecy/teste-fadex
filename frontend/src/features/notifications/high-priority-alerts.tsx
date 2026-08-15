@@ -51,7 +51,14 @@ export function HighPriorityAlerts() {
 
       toast.warning("Chamado de prioridade ALTA", {
         description: title ?? "Um chamado passou para prioridade alta.",
-        duration: 15000,
+        // Sem expiracao: o alerta de ALTA e requisito do desafio e some antes
+        // de o operador notar quando tem duracao. Ele fica na tela ate a
+        // dispensa por clique no "x".
+        duration: Infinity,
+        closeButton: true,
+        // `id` estavel por chamado: um chamado que oscila de prioridade
+        // substitui o proprio alerta em vez de empilhar copias.
+        id: id ? `chamado-alta-${id}` : undefined,
         action: id
           ? {
               label: "Abrir",

@@ -17,11 +17,26 @@ import type { UserSummary } from "./user";
  * e toda estatistica de duracao vem com horas `null` quando `sampleSize` e 0.
  * Por isso o tipo mantem `null` explicito em vez de numero garantido.
  */
+/**
+ * Faixa do histograma de duracao. A ultima faixa e aberta a direita e vem com
+ * `toHours` nulo — "96 horas ou mais".
+ */
+export type IndicatorHistogramBin = {
+  fromHours: number;
+  toHours: number | null;
+  count: number;
+};
+
 export type IndicatorDurationStats = {
   sampleSize: number;
   averageHours: number | null;
   medianHours: number | null;
   p90Hours: number | null;
+  /**
+   * Opcional no contrato: o painel mantem o resumo numerico e simplesmente nao
+   * desenha o grafico quando o campo nao vem.
+   */
+  histogram?: IndicatorHistogramBin[] | null;
 };
 
 export type IndicatorDurationGroup = {

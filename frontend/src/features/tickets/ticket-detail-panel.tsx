@@ -1,4 +1,3 @@
-import { Badge } from "@/src/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -24,6 +23,7 @@ import {
 } from "./choice-labels";
 import { TicketCommentForm } from "./ticket-comment-form";
 import { TicketCommentsList } from "./ticket-comments-list";
+import { TicketDetailFields } from "./ticket-detail-fields";
 
 type TicketDetailPanelProps = {
   actionsSlot?: React.ReactNode;
@@ -102,9 +102,14 @@ export function TicketDetailPanel({
               Criado por {ticket.requester.name} em {formatDate(ticket.createdAt)}
             </CardDescription>
           </div>
-          <Badge variant="secondary">
-            {resolveChoiceLabel(choiceLabels?.statuses, ticket.status)}
-          </Badge>
+          <div className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2">
+            <p className="text-xs font-medium uppercase tracking-[0.06em] text-emerald-700">
+              Status
+            </p>
+            <p className="mt-0.5 text-sm font-semibold text-emerald-900">
+              {resolveChoiceLabel(choiceLabels?.statuses, ticket.status)}
+            </p>
+          </div>
         </div>
       </CardHeader>
 
@@ -125,49 +130,27 @@ export function TicketDetailPanel({
             ) : null}
           </TabsList>
 
-          <TabsContent className="mt-5 grid gap-5" value="summary">
+          {/*
+            A descricao vem primeiro de proposito: e o texto do solicitante, a
+            informacao central da tela. Antes ela ficava depois das acoes e da
+            faixa de badges, e quem abria o chamado precisava rolar para ler o
+            problema.
+          */}
+          <TabsContent className="mt-5 grid gap-6" value="summary">
+            <section className="grid gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">
+                Descricao do chamado
+              </h2>
+              <div className="rounded-md border-l-4 border-emerald-600 bg-slate-50 px-5 py-4">
+                <p className="max-w-3xl whitespace-pre-wrap text-base leading-7 text-slate-800">
+                  {ticket.description}
+                </p>
+              </div>
+            </section>
+
+            <TicketDetailFields choiceLabels={choiceLabels} ticket={ticket} />
+
             {actionsSlot}
-
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">
-                {resolveChoiceLabel(choiceLabels?.priorities, ticket.priority)}
-              </Badge>
-              <Badge variant="outline">
-                {resolveChoiceLabel(choiceLabels?.categories, ticket.category)}
-              </Badge>
-              <Badge variant="outline">
-                {resolveChoiceLabel(
-                  choiceLabels?.classificationOrigins,
-                  ticket.classificationOrigin
-                )}
-              </Badge>
-            </div>
-
-            <div className="grid gap-2 rounded-md bg-slate-50 p-4">
-              <h2 className="text-sm font-semibold text-slate-950">Descricao</h2>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                {ticket.description}
-              </p>
-            </div>
-
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="font-medium text-slate-500">Solicitante</dt>
-                <dd className="mt-1 text-slate-950">{ticket.requester.name}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-slate-500">Responsavel</dt>
-                <dd className="mt-1 text-slate-950">
-                  {ticket.assignee?.name ?? "Sem responsavel"}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium text-slate-500">Atualizado em</dt>
-                <dd className="mt-1 text-slate-950">
-                  {formatDate(ticket.updatedAt)}
-                </dd>
-              </div>
-            </dl>
           </TabsContent>
 
           <TabsContent className="mt-5 grid gap-4" value="comments">

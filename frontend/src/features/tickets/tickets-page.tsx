@@ -1,18 +1,59 @@
 "use client";
 
+import { useCallback } from "react";
+import { toast } from "sonner";
+import { RealtimeBadge } from "./realtime-badge";
 import { TicketCreateDialog } from "./ticket-create-dialog";
 import { TicketFilterBar } from "./ticket-filter-bar";
 import { TicketList } from "./ticket-list";
+import type { TicketEventSignal } from "./ticket-event-signal";
+import { useRealtimeFeedback } from "./use-realtime-feedback";
 import { useTicketEvents } from "./use-ticket-events";
 import { useTicketList } from "./use-ticket-list";
 
 export function TicketsPage() {
   const tickets = useTicketList();
+  const realtime = useRealtimeFeedback();
+
+  const loadTickets = tickets.loadTickets;
+  const registerUpdate = realtime.registerUpdate;
+
+  /**
+   * Recarrega e **avisa**. O aviso e a parte que faltava: a listagem ja
+   * recarregava ao receber o evento, so que em silencio.
+   *
+   * `CONEXAO_ESTABELECIDA` recarrega sem aviso — e resincronizacao de
+   * reconexao, nao mudanca de chamado.
+   */
+  const handleTicketEvent = useCallback(
+    (signal: TicketEventSignal) => {
+      void loadTickets();
+
+      if (signal.name === "CONEXAO_ESTABELECIDA") {
+        return;
+      }
+
+      registerUpdate(signal.ticketId);
+
+      toast.info("Listagem atualizada em tempo real", {
+        description: signal.title ?? "Um chamado da fila mudou agora.",
+        // `id` por chamado: uma rajada de eventos do mesmo chamado substitui o
+        // proprio aviso em vez de empilhar.
+        id: signal.ticketId
+          ? `listagem-${signal.ticketId}`
+          : "listagem-atualizada",
+        duration: 6000
+      });
+    },
+    [loadTickets, registerUpdate]
+  );
 
   useTicketEvents({
     enabled: true,
-    onTicketChanged: () => void tickets.loadTickets(),
-    onCommentChanged: () => void tickets.loadTickets()
+    onTicketChanged: handleTicketEvent,
+    // A recarga da listagem ja cobre comentario: `TicketSummary` nao expoe
+    // contagem de comentarios, entao nao ha segunda chamada a fazer.
+    onCommentChanged: () => undefined
   });
 
   return (
@@ -28,6 +69,7 @@ export function TicketsPage() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             Consulte, filtre e acompanhe os chamados registrados.
           </p>
+          <RealtimeBadge className="mt-3" updatedAt={realtime.updatedAt} />
         </div>
 
         <TicketCreateDialog
@@ -51,6 +93,7 @@ export function TicketsPage() {
 
       <TicketList
         choiceLabels={tickets.choiceLabels}
+        highlightedTicketIds={realtime.highlightedIds}
         isLoading={tickets.isLoading}
         tickets={tickets.tickets}
       />

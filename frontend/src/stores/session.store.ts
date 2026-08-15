@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { LoginFormData } from "@/src/schemas/auth.schema";
+import type {
+  ChangePasswordFormData,
+  LoginFormData
+} from "@/src/schemas/auth.schema";
 import { toApiErrorMessage } from "@/src/services/api-error";
 import {
   setApiAccessToken,
@@ -29,6 +32,7 @@ type SessionState = {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginFormData) => Promise<boolean>;
+  changePassword: (payload: ChangePasswordFormData) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
   markHydrated: () => void;
@@ -47,6 +51,30 @@ const clearedSession = {
 
 const sessionStorageKey = "fadex-helpdesk-session";
 
+type SessionSetter = (partial: Partial<SessionState>) => void;
+
+/**
+ * Aplica uma resposta de autenticacao a store.
+ *
+ * Login e troca de senha devolvem exatamente o mesmo payload, e o passo que
+ * nao pode ser esquecido em nenhum dos dois e o `setApiAccessToken`: o token
+ * vive em memoria no cliente HTTP, nao na store.
+ */
+function applySession(set: SessionSetter, session: AuthLoginResponse) {
+  setApiAccessToken(session.accessToken);
+  set({
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+    tokenType: session.tokenType,
+    expiresIn: session.expiresIn,
+    mustChangePassword: session.mustChangePassword,
+    role: session.role,
+    user: session.user,
+    isAuthenticated: true,
+    isLoading: false
+  });
+}
+
 export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
@@ -58,26 +86,40 @@ export const useSessionStore = create<SessionState>()(
         set({ error: null, isLoading: true });
 
         try {
-          const session = await authService.login(credentials);
-
-          setApiAccessToken(session.accessToken);
-          set({
-            accessToken: session.accessToken,
-            refreshToken: session.refreshToken,
-            tokenType: session.tokenType,
-            expiresIn: session.expiresIn,
-            mustChangePassword: session.mustChangePassword,
-            role: session.role,
-            user: session.user,
-            isAuthenticated: true,
-            isLoading: false
-          });
+          applySession(set, await authService.login(credentials));
 
           return true;
         } catch (error) {
           setApiAccessToken(null);
           set({
             ...clearedSession,
+            error: toApiErrorMessage(error),
+            isLoading: false
+          });
+
+          return false;
+        }
+      },
+      /**
+       * Troca de senha obrigatoria.
+       *
+       * A resposta e uma sessao nova e completa — inclusive com o
+       * `refreshToken`, que o login com `mustChangePassword` devolve nulo.
+       * Aplicar a sessao inteira aqui e o que troca o token limitado pelo
+       * token normal; sem isso todo endpoint seguinte responderia `403`.
+       *
+       * O erro nao limpa a sessao: senha atual errada nao pode expulsar o
+       * usuario da tela em que ele precisa continuar.
+       */
+      changePassword: async (payload) => {
+        set({ error: null, isLoading: true });
+
+        try {
+          applySession(set, await authService.changePassword(payload));
+
+          return true;
+        } catch (error) {
+          set({
             error: toApiErrorMessage(error),
             isLoading: false
           });

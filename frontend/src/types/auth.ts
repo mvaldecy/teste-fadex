@@ -5,6 +5,12 @@ export type AuthLoginRequest = {
   password: string;
 };
 
+export type AuthChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
 export type AuthRefreshRequest = {
   refreshToken: string;
 };

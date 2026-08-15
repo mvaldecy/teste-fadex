@@ -40,6 +40,12 @@ export type AssigneeOption = UserSummary & {
 
 type TicketLifecycleActionsProps = {
   assignees: AssigneeOption[];
+  /**
+   * Usuario autenticado. Desde a mudanca do contrato, `DELETE
+   * /tickets/{id}/assignee` responde `403` para quem nao e o responsavel
+   * atual — entao a acao so existe para ele.
+   */
+  currentUserId: string | null;
   choices: ChoicesResponse | null;
   isSubmitting: boolean;
   ticket: TicketDto;
@@ -51,6 +57,7 @@ type TicketLifecycleActionsProps = {
 
 export function TicketLifecycleActions({
   assignees,
+  currentUserId,
   choices,
   isSubmitting,
   ticket,
@@ -146,16 +153,21 @@ export function TicketLifecycleActions({
               <p className="text-sm text-slate-950" id="ticket-assignee">
                 {ticket.assignee.name}
               </p>
-              <Button
-                disabled={isClosed || isSubmitting}
-                size="sm"
-                type="button"
-                variant="outline"
-                onClick={() => onUnassign()}
-              >
-                <UserMinus className="h-4 w-4" />
-                Recusar atribuicao
-              </Button>
+              {/* Permissao, nao estado: um ADMIN que nao e o responsavel
+                  nunca vai poder recusar este chamado, entao o controle nao
+                  aparece para ele em vez de aparecer desabilitado. */}
+              {ticket.assignee.id === currentUserId ? (
+                <Button
+                  disabled={isClosed || isSubmitting}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => onUnassign()}
+                >
+                  <UserMinus className="h-4 w-4" />
+                  Recusar atribuicao
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="flex gap-2">
