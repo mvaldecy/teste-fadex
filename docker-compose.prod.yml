@@ -51,9 +51,15 @@ services:
       TZ: ${TZ:-America/Fortaleza}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SERVER_PORT: 8080
-      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fadex_helpdesk}}
-      DB_USERNAME: ${POSTGRES_USER:-fadex}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo de ambiente de producao}
+      # As variaveis DB_URL/DB_USERNAME/DB_PASSWORD do compose de desenvolvimento NAO funcionam
+      # aqui: elas so sao lidas por `application-dev.properties`, e nao existe
+      # `application-prod.properties` no projeto. Com SPRING_PROFILES_ACTIVE=prod o backend sobe sem
+      # nenhuma configuracao de datasource e morre com "Failed to determine a suitable driver class"
+      # — verificado. A ligacao direta em SPRING_DATASOURCE_* vem do proprio Spring Boot, nao
+      # depende de profile, e foi validada subindo a stack. O driver e deduzido da URL.
+      SPRING_DATASOURCE_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fadex_helpdesk}}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fadex}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo de ambiente de producao}
       # Guarda principal deste arquivo. O default do codigo em application.properties e um texto
       # publico versionado: quem assinar um JWT com ele consegue se passar por qualquer usuario.
       JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET com no minimo 32 caracteres - gere com openssl rand -base64 48}
@@ -100,6 +106,9 @@ services:
       AI_SIMILARITY_LIMIT: ${AI_SIMILARITY_LIMIT:-3}
       QUARTZ_THREAD_COUNT: ${QUARTZ_THREAD_COUNT:-1}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+      # Escape para Postgres SEM a extensao pgvector. Sobrescreve os tres placeholders do Flyway e
+      # so e valido com AI_TRIAGE_ENABLED=false. Valor pronto no .env.producao.example.
+      SPRING_APPLICATION_JSON: ${SPRING_APPLICATION_JSON:-}
     ports:
       - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:${BACKEND_PORT:-8080}:8080"
     depends_on:
