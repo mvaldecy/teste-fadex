@@ -76,7 +76,13 @@ export function IndicatorDurationHistogram({
 
   return (
     <figure className="mt-6 grid gap-2">
-      <div className="relative h-28">
+      {/*
+        O espaco no topo e reservado para os rotulos dos marcadores. Eles ficam
+        em alturas diferentes porque mediana e p90 podem cair quase no mesmo
+        ponto — no tempo de atribuicao os dois dao 1h — e, empilhados na mesma
+        linha, um texto escrevia por cima do outro.
+      */}
+      <div className="relative mt-8 h-28">
         <div className="flex h-full items-end gap-1">
           {bins.map((bin) => (
             <div
@@ -97,18 +103,31 @@ export function IndicatorDurationHistogram({
           ))}
         </div>
 
-        {markers.map((marker) => (
-          <div
-            className="pointer-events-none absolute inset-y-0"
-            key={marker.label}
-            style={{ left: `${toOffsetPercent(marker.value ?? 0, bins)}%` }}
-          >
-            <div className={cn("h-full w-px", marker.tone)} />
-            <span className="absolute -top-4 left-1 whitespace-nowrap text-[10px] font-medium text-slate-600">
-              {marker.label} {formatHours(marker.value ?? 0)}
-            </span>
-          </div>
-        ))}
+        {markers.map((marker, index) => {
+          const offset = toOffsetPercent(marker.value ?? 0, bins);
+          // Perto da borda direita o rotulo sairia do grafico: ancora pela
+          // direita da linha em vez de pela esquerda.
+          const isNearRightEdge = offset > 70;
+
+          return (
+            <div
+              className="pointer-events-none absolute inset-y-0"
+              key={marker.label}
+              style={{ left: `${offset}%` }}
+            >
+              <div className={cn("h-full w-px", marker.tone)} />
+              <span
+                className={cn(
+                  "absolute whitespace-nowrap text-[10px] font-medium text-slate-600",
+                  index === 0 ? "-top-8" : "-top-4",
+                  isNearRightEdge ? "right-1" : "left-1"
+                )}
+              >
+                {marker.label} {formatHours(marker.value ?? 0)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex gap-1">

@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { PaginationBar } from "@/src/components/layout/pagination-bar";
 import { RealtimeBadge } from "./realtime-badge";
 import { TicketCreateDialog } from "./ticket-create-dialog";
 import { TicketFilterBar } from "./ticket-filter-bar";
@@ -91,12 +92,22 @@ export function TicketsPage() {
         </p>
       ) : null}
 
-      <TicketList
-        choiceLabels={tickets.choiceLabels}
-        highlightedTicketIds={realtime.highlightedIds}
-        isLoading={tickets.isLoading}
-        tickets={tickets.tickets}
-      />
+      <div>
+        <TicketList
+          choiceLabels={tickets.choiceLabels}
+          highlightedTicketIds={realtime.highlightedIds}
+          isLoading={tickets.isLoading}
+          tickets={tickets.tickets}
+        />
+
+        <PaginationBar
+          isDisabled={tickets.isRefreshing}
+          page={tickets.filters.page ?? 0}
+          totalElements={tickets.totalElements}
+          totalPages={tickets.totalPages}
+          onPageChange={tickets.changePage}
+        />
+      </div>
     </div>
   );
 }

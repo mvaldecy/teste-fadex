@@ -58,5 +58,7 @@ export type TicketFilters = PageParams & {
   category?: TicketCategoryValue;
   requesterId?: string;
   assigneeId?: string;
+  /** `true` traz so os chamados sem responsavel. Tem precedencia sobre `assigneeId` na API. */
+  unassigned?: boolean;
   search?: string;
 };

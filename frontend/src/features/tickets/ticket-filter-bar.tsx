@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/src/components/ui/select";
+import { useSessionStore } from "@/src/stores/session.store";
 import type {
   ChoicesResponse,
   TicketCategoryValue,
@@ -20,6 +21,16 @@ import type {
 } from "@/src/types/api";
 
 const allValue = "ALL";
+
+/**
+ * Filtro por atribuicao. As tres opcoes sao excludentes de proposito: "sem
+ * responsavel" e "meus chamados" descrevem conjuntos que nao se cruzam, entao
+ * um unico select diz mais do que duas caixas que podem ser marcadas juntas
+ * para nao devolver nada.
+ */
+const assignmentAll = "ALL";
+const assignmentUnassigned = "SEM_RESPONSAVEL";
+const assignmentMine = "MEUS";
 
 /**
  * Espera antes de buscar pelo texto digitado.
@@ -55,20 +66,30 @@ export function TicketFilterBar({
   const [category, setCategory] = useState<string>(
     filters.category ?? allValue
   );
+  const [assignment, setAssignment] = useState<string>(assignmentAll);
+  const currentUserId = useSessionStore((state) => state.user?.id);
 
   const appliedSearch = filters.search ?? "";
   const hasActiveFilters =
     appliedSearch !== "" ||
     status !== allValue ||
     priority !== allValue ||
-    category !== allValue;
+    category !== allValue ||
+    assignment !== assignmentAll;
 
   const applyFilters = useCallback(
-    (overrides: Partial<Record<"search" | "status" | "priority" | "category", string>>) => {
-      const next = { search, status, priority, category, ...overrides };
+    (
+      overrides: Partial<
+        Record<"search" | "status" | "priority" | "category" | "assignment", string>
+      >
+    ) => {
+      const next = { search, status, priority, category, assignment, ...overrides };
 
       onChangeFilters({
         search: next.search.trim() || undefined,
+        unassigned: next.assignment === assignmentUnassigned ? true : undefined,
+        assigneeId:
+          next.assignment === assignmentMine ? currentUserId : undefined,
         status: toOptionalValue(next.status) as TicketStatusValue | undefined,
         priority: toOptionalValue(next.priority) as
           | TicketPriorityValue
@@ -78,7 +99,7 @@ export function TicketFilterBar({
           | undefined
       });
     },
-    [category, onChangeFilters, priority, search, status]
+    [assignment, category, currentUserId, onChangeFilters, priority, search, status]
   );
 
   /**
@@ -87,7 +108,7 @@ export function TicketFilterBar({
    */
   function handleSelect(
     setValue: (value: string) => void,
-    field: "status" | "priority" | "category"
+    field: "status" | "priority" | "category" | "assignment"
   ) {
     return (value: string) => {
       setValue(value);
@@ -120,12 +141,13 @@ export function TicketFilterBar({
     setStatus(allValue);
     setPriority(allValue);
     setCategory(allValue);
+    setAssignment(assignmentAll);
     onChangeFilters({});
   }
 
   return (
     <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_170px_170px_190px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(200px,1fr)_160px_160px_180px_190px]">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
@@ -182,6 +204,24 @@ export function TicketFilterBar({
                 {choice.label}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={assignment}
+          onValueChange={handleSelect(setAssignment, "assignment")}
+        >
+          <SelectTrigger aria-label="Atribuicao">
+            <SelectValue placeholder="Atribuicao" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={assignmentAll}>Qualquer atribuicao</SelectItem>
+            <SelectItem value={assignmentUnassigned}>
+              Sem responsavel
+            </SelectItem>
+            <SelectItem disabled={!currentUserId} value={assignmentMine}>
+              Meus chamados
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -17,6 +17,8 @@ import { initialTicketFilters } from "./use-ticket-workspace";
 export function useTicketList() {
   const [choices, setChoices] = useState<ChoicesResponse | null>(null);
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [filters, setFilters] = useState<TicketFilters>(initialTicketFilters);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -53,6 +55,8 @@ export function useTicketList() {
         }
 
         setTickets(response.content);
+        setTotalPages(response.totalPages);
+        setTotalElements(response.totalElements);
       } catch (loadError) {
         if (requestId !== requestIdRef.current) {
           return;
@@ -81,6 +85,23 @@ export function useTicketList() {
       void loadTickets(normalizedFilters);
     },
     [loadTickets]
+  );
+
+  /**
+   * Troca de pagina preserva os filtros — so a pagina muda.
+   *
+   * E o oposto de `updateFilters`, que zera a pagina de proposito: filtrar com
+   * a pagina 3 herdada de outra consulta cai numa faixa que o novo resultado
+   * pode nem ter.
+   */
+  const changePage = useCallback(
+    (nextPage: number) => {
+      const nextFilters = { ...filters, page: nextPage };
+
+      setFilters(nextFilters);
+      void loadTickets(nextFilters);
+    },
+    [filters, loadTickets]
   );
 
   const createTicket = useCallback(
@@ -127,6 +148,8 @@ export function useTicketList() {
         }
 
         setTickets(ticketsResponse.content);
+        setTotalPages(ticketsResponse.totalPages);
+        setTotalElements(ticketsResponse.totalElements);
       } catch (loadError) {
         setError(toApiErrorMessage(loadError));
       } finally {
@@ -141,12 +164,15 @@ export function useTicketList() {
     choices,
     choiceLabels,
     tickets,
+    totalPages,
+    totalElements,
     filters,
     isLoading,
     isRefreshing,
     isCreating,
     error,
     loadTickets,
+    changePage,
     updateFilters,
     createTicket
   };
