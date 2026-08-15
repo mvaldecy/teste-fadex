@@ -24,8 +24,23 @@ export type PublicEnv = {
   apiBaseUrl: string;
 };
 
+/**
+ * Acessos **literais** a `process.env.NEXT_PUBLIC_*`.
+ *
+ * O Next so substitui no bundle do navegador a expressao literal
+ * `process.env.NEXT_PUBLIC_X`. Uma referencia solta a `process.env` some no
+ * empacotamento: o `safeParse` nao encontrava nada e o `.default` assumia,
+ * fazendo o navegador chamar `localhost:8080` mesmo com outra URL
+ * configurada. Verificado com build: o valor configurado nao aparecia em
+ * `.next/static`.
+ */
+const inlinedPublicEnv = {
+  NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
+  NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL
+};
+
 export function getPublicEnv(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = inlinedPublicEnv
 ): PublicEnv {
   const parsed = publicEnvSchema.safeParse(env);
 
