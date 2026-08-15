@@ -135,6 +135,12 @@ A fatia web nao carrega os `@Component` de seguranca (`RestAuthenticationEntryPo
 reconstruir a cadeia inteira, os testes usam `SecurityMockMvcRequestPostProcessors.jwt()`, que
 dispensa `JwtDecoder` real. `@MockBean` nao existe mais no Boot 4: usar `@MockitoBean`.
 
+### D10 — Os dois transportes dividem o executor do SSE
+
+Nenhum pool novo: o e-mail roda no `sseNotificationExecutor` (2–4 threads, fila de 500). Um SMTP
+lento atrasa o despacho SSE que estiver na fila. Aceito no escopo do desafio, com pool proprio para
+e-mail como primeiro ajuste se a latencia aparecer.
+
 ## Escopo negativo
 
 - Nao tocar em `ai/**`, `frontend/**`.
