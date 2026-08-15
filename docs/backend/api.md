@@ -1070,9 +1070,15 @@ Regras de leitura:
   - Amostra vazia devolve as seis faixas com `count: 0`, e nao `histogram: null` — o grafico
     continua com os mesmos eixos, mostrando que nao ha dado em vez de sumir da tela.
   - A largura das faixas cresce porque a distribuicao e assimetrica: parede em zero, massa nas
-    primeiras horas e cauda longa a direita. E por isso que o painel mostra histograma e nao curva:
-    com mediana em 7h e media em 17,1h, uma curva simetrica comunicaria o oposto do que os dados
-    dizem. Mediana e p90 continuam vindo ao lado para serem marcados sobre as barras.
+    primeiras horas e cauda longa a direita. E por isso que o painel mostra histograma e nao curva.
+    Medido na base semeada, o bloco `firstResponse` sai com mediana 7,0h e media 17,1h — media quase
+    tres vezes a mediana e a assinatura da cauda longa, e uma curva simetrica comunicaria o oposto.
+    Mediana e p90 continuam vindo ao lado para serem marcados sobre as barras.
+  - Ao marcar mediana e p90 sobre as barras, lembre que esses dois valores vem arredondados para uma
+    casa decimal e as faixas sao contadas sobre o valor cheio. Uma amostra de 3,96h e publicada como
+    `4.0` e contada na faixa `0–4`: o marcador cai exatamente na fronteira da faixa seguinte. E
+    diferenca de arredondamento, nao de calculo — a soma das faixas continua fechando com o
+    `sampleSize`.
 - Mapas por status/prioridade/categoria **omitem grupos sem ocorrencia** em vez de traze-los zerados.
 - `backlogAging` conta apenas chamados em `ABERTO` e `EM_ANDAMENTO`, por idade desde `createdAt`,
   nos cortes 0–1d / 1–3d / >3d.
