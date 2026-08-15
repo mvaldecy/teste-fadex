@@ -19,6 +19,7 @@ concordância entre humano e modelo.
 - [Arquitetura](#arquitetura)
 - [API](#api)
 - [Testes](#testes)
+- [Limitações conhecidas](#limitações-conhecidas)
 - [Documentação](#documentação)
 
 ## Stack
@@ -162,9 +163,11 @@ sobrescreveria a sugestão e a taxa de concordância daria 100% para sempre — 
 separação que permite dizer quanto o modelo acerta.
 
 **Duplicados por similaridade semântica.** Cada chamado gera um embedding (`all-minilm`, 384
-dimensões) guardado em pgvector. Pares acima de 0,90 de similaridade de cosseno viram vínculo
-persistido, visível na aba "Semelhantes". O limiar é alto de propósito: falso positivo aqui vira
-vínculo que alguém precisa desfazer à mão.
+dimensões) guardado em pgvector. Pares acima de **0,80** de similaridade de cosseno viram vínculo
+persistido, visível na aba "Semelhantes". O limiar foi medido, não arbitrado: com este modelo e
+textos em português, uma duplicata real escrita com outras palavras marca 0,857, enquanto chamados
+de mesmo tema porém distintos ficam em 0,43. 0,80 fica acima do ruído com folga e ainda pega a
+paráfrase — um limiar mais alto só pegaria cópia quase literal.
 
 ## Arquitetura
 
