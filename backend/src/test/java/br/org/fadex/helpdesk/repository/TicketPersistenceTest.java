@@ -233,4 +233,42 @@ class TicketPersistenceTest {
 
 		assertThat(event.getType()).isEqualTo(TicketEventType.RESPONSAVEL_REMOVIDO);
 	}
+
+	/**
+	 * O status e o tipo de evento novos passam por {@code check} no banco — {@code ck_tickets_status}
+	 * e {@code ck_ticket_events_type}. Sem a V7 este teste falha na gravacao, que e exatamente onde
+	 * o cancelamento falharia em producao: em runtime, nao no build.
+	 */
+	@Test
+	void devePersistirChamadoCanceladoComEventoDeCancelamento() {
+		User requester = userRepository.save(new User(
+				"Solicitante Cancelamento",
+				"cancelamento@fadex.org.br",
+				"hash",
+				Role.SOLICITANTE
+		));
+		Ticket ticket = new Ticket(
+				"Chamado aberto por engano",
+				"Abri o chamado no lugar errado e quero cancelar.",
+				TicketCategory.OUTROS,
+				TicketPriority.BAIXA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		);
+
+		ticket.changeStatus(TicketStatus.CANCELADO);
+
+		Ticket savedTicket = ticketRepository.saveAndFlush(ticket);
+		TicketEvent event = ticketEventRepository.saveAndFlush(new TicketEvent(
+				savedTicket,
+				requester,
+				TicketEventType.CHAMADO_CANCELADO,
+				"Chamado cancelado.",
+				null
+		));
+
+		assertThat(ticketRepository.findById(savedTicket.getId()).orElseThrow().getStatus())
+				.isEqualTo(TicketStatus.CANCELADO);
+		assertThat(event.getType()).isEqualTo(TicketEventType.CHAMADO_CANCELADO);
+	}
 }

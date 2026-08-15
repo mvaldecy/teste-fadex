@@ -4,7 +4,8 @@ public enum TicketStatus implements LabeledEnum {
 	ABERTO("Aberto"),
 	EM_ANDAMENTO("Em andamento"),
 	RESOLVIDO("Resolvido"),
-	FECHADO("Fechado");
+	FECHADO("Fechado"),
+	CANCELADO("Cancelado");
 
 	private final String label;
 

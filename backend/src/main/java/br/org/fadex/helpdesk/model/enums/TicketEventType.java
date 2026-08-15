@@ -8,7 +8,8 @@ public enum TicketEventType implements LabeledEnum {
 	RESPONSAVEL_REMOVIDO("Responsavel removido"),
 	PRIORIDADE_ALTERADA("Prioridade alterada"),
 	CATEGORIA_ALTERADA("Categoria alterada"),
-	CLASSIFICACAO_ATUALIZADA("Classificacao atualizada");
+	CLASSIFICACAO_ATUALIZADA("Classificacao atualizada"),
+	CHAMADO_CANCELADO("Chamado cancelado");
 
 	private final String label;
 

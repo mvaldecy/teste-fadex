@@ -12,7 +12,12 @@ import java.util.Set;
  * Fica em estrutura de dados consultavel, e nao espalhada em ifs no service, porque a regra e lida
  * por mais de uma frente: os indicadores usam a matriz para aging e o front para habilitar botoes.
  *
- * {@code FECHADO} mapeia para conjunto vazio: o estado terminal e um dado, nao um caso especial.
+ * {@code FECHADO} e {@code CANCELADO} mapeiam para conjunto vazio: o estado terminal e um dado, nao
+ * um caso especial. Quem precisa saber se um chamado acabou pergunta a matriz, em vez de listar
+ * status.
+ *
+ * {@code RESOLVIDO} nao vai para {@code CANCELADO} de proposito: o trabalho ja foi feito, e tirar o
+ * chamado do denominador de SLA depois de concluido seria maquiar indicador.
  */
 public final class TicketStatusTransition {
 
@@ -35,18 +40,21 @@ public final class TicketStatusTransition {
 		allowed.put(TicketStatus.ABERTO, Set.of(
 				TicketStatus.EM_ANDAMENTO,
 				TicketStatus.RESOLVIDO,
-				TicketStatus.FECHADO
+				TicketStatus.FECHADO,
+				TicketStatus.CANCELADO
 		));
 		allowed.put(TicketStatus.EM_ANDAMENTO, Set.of(
 				TicketStatus.ABERTO,
 				TicketStatus.RESOLVIDO,
-				TicketStatus.FECHADO
+				TicketStatus.FECHADO,
+				TicketStatus.CANCELADO
 		));
 		allowed.put(TicketStatus.RESOLVIDO, Set.of(
 				TicketStatus.EM_ANDAMENTO,
 				TicketStatus.FECHADO
 		));
 		allowed.put(TicketStatus.FECHADO, Set.of());
+		allowed.put(TicketStatus.CANCELADO, Set.of());
 
 		return Map.copyOf(allowed);
 	}
