@@ -82,9 +82,13 @@ HNSW. A similaridade de cosseno é calculada **em Java**, não no banco: o pgvec
 coluna e índice, o que significa que a aplicação roda em Postgres comum quando a IA está desligada.
 
 O limiar é `0,75`, medido sobre os pares reais da base e não arbitrado. As distribuições se
-sobrepõem — há duplicata verdadeira em 0,672 e par falso em 0,726 —, então não existe corte limpo;
-0,75 é o melhor ponto disponível, e o comentário no `application.properties` carrega os números para
-que o próximo ajuste também seja medido.
+sobrepõem — há duplicata verdadeira em 0,672 e par falso em 0,726 —, então não existe corte limpo.
+
+O limite real não é o corte, é o modelo: medindo os 378 pares possíveis dos 28 chamados da base, uma
+duplicata escrita com vocabulário diferente pontua 0,5022 enquanto pares sem relação chegam a
+0,6661 — a duplicata verdadeira fica **abaixo** do ruído, e nenhum limiar separa isso. Trocar para
+`paraphrase-multilingual` foi testado: melhora o piso de ruído (mediana 0,41 → 0,22) e piora o topo
+do ranking, então a troca não se sustentou. O README registra a medição completa.
 
 ## Notificações
 

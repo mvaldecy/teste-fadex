@@ -180,12 +180,25 @@ separação que permite dizer quanto o modelo acerta.
 
 **Duplicados por similaridade semântica.** Cada chamado gera um embedding (`all-minilm`, 384
 dimensões) guardado em pgvector. Pares acima de **0,75** de similaridade de cosseno viram vínculo
-persistido, visível na aba "Semelhantes". O limiar foi medido, não arbitrado: com este modelo e
-textos em português, medindo os pares reais da base, duplicatas verdadeiras
-aparecem em 0,850, 0,764 e 0,672, e entre elas há um par não relacionado em 0,726. As
-distribuições se sobrepõem — não existe corte perfeito. 0,75 é o melhor ponto disponível: pega as
-duplicatas mais claras e fica acima do falso positivo. Textos curtos e vagos, como "o sistema está
-travado", são onde o modelo perde separação.
+persistido, visível na aba "Semelhantes" e sinalizado por um selo na listagem. O pipeline funciona
+ponta a ponta: o vínculo que existe na base foi criado pela detecção automática, não inserido à mão.
+
+**A parte honesta: o modelo não é bom o suficiente para o caso real.** Medindo todos os 378 pares
+possíveis dos 28 chamados da base, um chamado escrito de propósito como duplicata de outro —
+"Problema no sistema de arquivos" contra "Servidor de arquivos fora do ar" — pontua **0,5022**,
+enquanto pares sem relação nenhuma chegam a **0,6661**. O modelo coloca a duplicata verdadeira
+**abaixo** do ruído. Baixar o limiar não resolve: para alcançar 0,50 seria preciso passar por todos
+os falsos positivos antes.
+
+Testamos trocar por um modelo multilíngue (`paraphrase-multilingual`, mesmas 384 dimensões, troca
+sem migração). O piso de ruído melhora muito — a mediana geral cai de 0,41 para 0,22 —, mas o topo
+do ranking piora: a duplicata verdadeira que era a primeira colocada cai para segunda, atrás de um
+par falso. **Não trocamos**, porque a medição não sustentou a troca.
+
+O que funciona hoje é o caso de reescrita próxima: duplicata escrita com outras palavras mas com o
+mesmo vocabulário pontua 0,85 e é detectada. O que não funciona é o caso mais comum de helpdesk —
+duas pessoas descrevendo o mesmo problema com vocabulários diferentes. A correção de verdade é um
+modelo de embedding treinado ou ajustado para português de domínio, não um ajuste de limiar.
 
 ## Arquitetura
 
