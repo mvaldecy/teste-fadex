@@ -7,6 +7,7 @@ import br.org.fadex.helpdesk.repository.TicketLinkRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -76,6 +77,28 @@ class DuplicateDetectionServiceTest {
 
 		assertThat(created).isEqualTo(1);
 		verify(ticketLinkRepository).save(any(TicketLink.class));
+	}
+
+	@Test
+	void deveGravarASimilaridadeDoParNoVinculo() {
+		UUID similarId = UUID.randomUUID();
+		when(duplicateEmbeddingRepository.findEmbeddedTickets()).thenReturn(List.<Object[]>of(
+				row(sourceId, "[1.0,0.0,0.0]"),
+				row(similarId, "[0.99,0.1,0.0]")
+		));
+
+		service.detect(sourceId);
+
+		ArgumentCaptor<TicketLink> captor = ArgumentCaptor.forClass(TicketLink.class);
+		verify(ticketLinkRepository).save(captor.capture());
+
+		// Cosseno de [1,0,0] com [0.99,0.1,0.0], arredondado a quatro casas como a gravacao faz.
+		double esperado = Math.round(
+				EmbeddingSimilarity.cosine(List.of(1.0, 0.0, 0.0), List.of(0.99, 0.1, 0.0)) * 10000.0
+		) / 10000.0;
+
+		assertThat(captor.getValue().getSimilarity()).isNotNull();
+		assertThat(captor.getValue().getSimilarity()).isEqualTo(esperado);
 	}
 
 	@Test
