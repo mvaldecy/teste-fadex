@@ -6,6 +6,7 @@ import { buildChoiceLabelMap } from "@/src/features/tickets/choice-labels";
 import { toApiErrorMessage } from "@/src/services/api-error";
 import { choicesService } from "@/src/services/choices.service";
 import { indicatorsService } from "@/src/services/indicators.service";
+import { useSessionStore } from "@/src/stores/session.store";
 import type {
   ChoicesResponse,
   IndicatorsResponse,
@@ -30,6 +31,9 @@ const reloadEventNames = new Set([
 ]);
 
 export function useIndicators() {
+  // `GET /indicators` e restrito a ADMIN. Sem esta checagem o SOLICITANTE
+  // abriria o dashboard e receberia um 403 exibido como erro tecnico.
+  const isAdmin = useSessionStore((state) => state.role) === "ADMIN";
   const [choices, setChoices] = useState<ChoicesResponse | null>(null);
   const [indicators, setIndicators] = useState<IndicatorsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +45,10 @@ export function useIndicators() {
   );
 
   const loadIndicators = useCallback(async () => {
+    if (!isAdmin) {
+      return;
+    }
+
     setError(null);
 
     try {
@@ -48,7 +56,7 @@ export function useIndicators() {
     } catch (loadError) {
       setError(toApiErrorMessage(loadError));
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -58,7 +66,7 @@ export function useIndicators() {
       try {
         const [choicesResponse, indicatorsResponse] = await Promise.all([
           choicesService.getChoices(),
-          indicatorsService.get()
+          isAdmin ? indicatorsService.get() : Promise.resolve(null)
         ]);
 
         setChoices(choicesResponse);
@@ -71,7 +79,7 @@ export function useIndicators() {
     }
 
     void loadInitialData();
-  }, []);
+  }, [isAdmin]);
 
   const handleEvent = useCallback(
     (event: NotificationEvent) => {
@@ -87,6 +95,7 @@ export function useIndicators() {
   return {
     choiceLabels,
     indicators,
+    isAdmin,
     isLoading,
     error,
     loadIndicators

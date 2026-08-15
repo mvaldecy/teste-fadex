@@ -32,7 +32,8 @@ function formatDateTime(value?: string) {
 }
 
 export function DashboardPage() {
-  const { choiceLabels, indicators, isLoading, error } = useIndicators();
+  const { choiceLabels, indicators, isAdmin, isLoading, error } =
+    useIndicators();
 
   if (isLoading) {
     return (
@@ -58,20 +59,37 @@ export function DashboardPage() {
   const topRequesters = workload?.topRequesters ?? [];
   const closureByAssignee = workload?.closureTimeByAssignee ?? [];
 
+  const header = (
+    <header className="border-b border-slate-200 pb-5">
+      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">
+        Indicadores
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-normal">Dashboard</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+        Visao operacional dos chamados, atualizada em tempo real.
+        {generatedAt ? ` Apurado em ${generatedAt}.` : ""}
+      </p>
+    </header>
+  );
+
+  // Os indicadores sao restritos a ADMIN no backend. Dizer isso e melhor do
+  // que pedir o dado e exibir o 403 — ou uma parede de "--".
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto grid max-w-7xl gap-6">
+        {header}
+
+        <p className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Os indicadores gerenciais sao restritos a administradores. Acompanhe
+          seus chamados pelo menu Chamados.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
-      <header className="border-b border-slate-200 pb-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">
-          Indicadores
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-normal">
-          Dashboard
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Visao operacional dos chamados, atualizada em tempo real.
-          {generatedAt ? ` Apurado em ${generatedAt}.` : ""}
-        </p>
-      </header>
+      {header}
 
       {error ? (
         <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
