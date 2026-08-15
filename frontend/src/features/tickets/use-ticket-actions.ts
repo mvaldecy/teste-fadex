@@ -95,6 +95,20 @@ export function useTicketActions(
     [runAction]
   );
 
+  /**
+   * Sem otimismo de tela: cancelamento e irreversivel, entao o estado so muda
+   * depois do `200` do servidor, como nas demais acoes deste hook.
+   */
+  const cancel = useCallback(
+    () =>
+      runAction(
+        (id) => ticketsService.cancel(id),
+        "Chamado cancelado.",
+        "Nao foi possivel cancelar o chamado."
+      ),
+    [runAction]
+  );
+
   const updateClassification = useCallback(
     (
       category: TicketCategoryValue,
@@ -120,6 +134,7 @@ export function useTicketActions(
     changeStatus,
     assign,
     unassign,
+    cancel,
     updateClassification
   };
 }

@@ -24,7 +24,11 @@ import type {
   TicketStatusValue,
   UserSummary
 } from "@/src/types/api";
-import { selectableStatusesFrom } from "./ticket-status-transitions";
+import type { TicketStatusTransitions } from "@/src/services/ticket-status-transitions.service";
+import {
+  isTerminalStatus,
+  selectableStatusesFrom
+} from "./ticket-status-transitions";
 
 /**
  * Responsavel candidato com a carga atual. O numero vem de
@@ -39,6 +43,7 @@ type TicketLifecycleActionsProps = {
   choices: ChoicesResponse | null;
   isSubmitting: boolean;
   ticket: TicketDto;
+  transitions: TicketStatusTransitions | null;
   onAssign: (assigneeId: string) => Promise<boolean>;
   onChangeStatus: (status: TicketStatusValue) => Promise<boolean>;
   onUnassign: () => Promise<boolean>;
@@ -49,6 +54,7 @@ export function TicketLifecycleActions({
   choices,
   isSubmitting,
   ticket,
+  transitions,
   onAssign,
   onChangeStatus,
   onUnassign
@@ -63,13 +69,18 @@ export function TicketLifecycleActions({
     setAssigneeId(ticket.assignee?.id ?? "");
   }, [ticket.id, ticket.status, ticket.assignee?.id]);
 
-  const isClosed = ticket.status === "FECHADO";
+  // Estado terminal vem da matriz do servidor, e nao de uma lista de status
+  // aqui: FECHADO e CANCELADO nao tem saida, e o proximo terminal que aparecer
+  // ja entra coberto.
+  const isClosed = isTerminalStatus(transitions, ticket.status);
   const hasStatusChange = status !== ticket.status;
 
   // Somente as transicoes que o backend aceita a partir do status atual. Sem
   // isso a tela ofereceria, por exemplo, reabrir chamado FECHADO — que sempre
-  // responde 409.
-  const selectableStatuses = new Set(selectableStatusesFrom(ticket.status));
+  // responde 409. Enquanto a matriz nao chegou, so o status atual aparece.
+  const selectableStatuses = new Set(
+    selectableStatusesFrom(transitions, ticket.status)
+  );
 
   return (
     <Card>
@@ -77,7 +88,7 @@ export function TicketLifecycleActions({
         <CardTitle className="text-base">Acoes do chamado</CardTitle>
         <CardDescription>
           {isClosed
-            ? "Chamado fechado nao reabre."
+            ? `Chamado ${ticket.status === "CANCELADO" ? "cancelado" : "fechado"} nao reabre.`
             : "Atualize o andamento e a responsabilidade pelo atendimento."}
         </CardDescription>
       </CardHeader>
