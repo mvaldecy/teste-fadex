@@ -12,7 +12,9 @@ export default function LoginPage() {
             Fadex Helpdesk
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-            Acesso mockado para preparar a integracao com a API de autenticacao.
+            Central de chamados internos com triagem por IA, indicadores
+            gerenciais e acompanhamento em tempo real. Entre com o seu e-mail
+            corporativo para continuar.
           </p>
         </div>
 
@@ -20,7 +22,7 @@ export default function LoginPage() {
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-slate-950">Login</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Use os dados preenchidos para entrar na home inicial.
+              Informe suas credenciais de acesso.
             </p>
           </div>
           <LoginForm />
