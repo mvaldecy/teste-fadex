@@ -21,6 +21,8 @@ import {
   type ChoiceLabelMap,
   resolveChoiceLabel
 } from "./choice-labels";
+import { PriorityLegend } from "./priority-legend";
+import { resolvePriorityTone } from "./priority-tone";
 import { TicketActions } from "./ticket-actions";
 
 type TicketListProps = {
@@ -70,9 +72,16 @@ export function TicketList({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Fila de chamados</CardTitle>
-        <CardDescription>{tickets.length} chamados encontrados.</CardDescription>
+      <CardHeader className="gap-3">
+        <div>
+          <CardTitle>Fila de chamados</CardTitle>
+          <CardDescription className="mt-1">
+            {tickets.length} chamados encontrados.
+          </CardDescription>
+        </div>
+
+        {/* A cor da linha so informa quem tem a legenda a vista. */}
+        <PriorityLegend priorities={choiceLabels?.priorities} />
       </CardHeader>
       <CardContent>
         {tickets.length === 0 ? (
@@ -98,12 +107,18 @@ export function TicketList({
                     <TableRow
                       className={cn(
                         "transition-colors",
+                        resolvePriorityTone(ticket.priority).surface,
                         isHighlighted(ticket.id) && highlightRowClass
                       )}
                       key={ticket.id}
                     >
                       <TableCell>
-                        <div>
+                        <div
+                          className={cn(
+                            "border-l-4 pl-3",
+                            resolvePriorityTone(ticket.priority).bar
+                          )}
+                        >
                           <p className="font-medium text-slate-950">
                             {ticket.title}
                           </p>
@@ -157,7 +172,9 @@ export function TicketList({
               {tickets.map((ticket) => (
                 <article
                   className={cn(
-                    "grid gap-3 rounded-md border border-slate-200 bg-white p-4 transition-colors",
+                    "grid gap-3 rounded-md border border-l-4 border-slate-200 bg-white p-4 transition-colors",
+                    resolvePriorityTone(ticket.priority).bar,
+                    resolvePriorityTone(ticket.priority).surface,
                     isHighlighted(ticket.id) && highlightRowClass
                   )}
                   key={ticket.id}
