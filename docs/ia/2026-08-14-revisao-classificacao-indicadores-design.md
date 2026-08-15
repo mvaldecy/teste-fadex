@@ -220,6 +220,14 @@ Regra de apuracao, que precisa ser explicita para o numero significar algo:
 - Chamado **em aberto**: so conta como violado se a idade atual **ja passou** do alvo. Um chamado
   aberto ha 1h com alvo de 4h nao e violacao nem cumprimento — fica fora do denominador.
 
+**Revisado na implementacao — o caso `RESOLVIDO` faltava.** Este documento so previa "fechado" e
+"em aberto", e o schema tem um terceiro estado: `RESOLVIDO`, com `resolved_at` preenchido e
+`closed_at` nulo. Pela regra literal ele nao era encerrado e continuaria acumulando tempo contra o
+alvo para sempre — todo chamado resolvido e nao fechado viraria violacao permanente, e o seed tem
+exatamente essa forma. A apuracao passou a medir ate `closed_at` quando existe, senao ate
+`resolved_at`; so continua correndo quem esta em `ABERTO` ou `EM_ANDAMENTO`. O cronometro para
+quando o trabalho termina, nao quando alguem lembra de fechar o chamado.
+
 Sem essa segunda regra, todo chamado recem-aberto entraria como violacao e o percentual afundaria
 sozinho com o tempo.
 

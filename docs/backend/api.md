@@ -884,10 +884,12 @@ Regras de leitura:
   nos cortes 0–1d / 1–3d / >3d.
 - `openHighPriority` conta `ALTA` em `ABERTO` ou `EM_ANDAMENTO`. E o numero do alerta de prioridade
   alta.
-- SLA: alvos ALTA 4h, MEDIA 24h, BAIXA 72h. Chamado fechado cumpre se fechou dentro do alvo. Chamado
-  **ainda aberto e dentro do alvo fica fora do denominador** — so entra como violacao depois de
-  estourar. Sem essa regra, todo chamado recem-criado contaria como violacao. `percentage` e `null`
-  quando `evaluated` e `0`.
+- SLA: alvos ALTA 4h, MEDIA 24h, BAIXA 72h. Chamado **encerrado** cumpre se encerrou dentro do alvo;
+  encerrado inclui `FECHADO` (mede ate `closedAt`) e `RESOLVIDO` (mede ate `resolvedAt`) — o
+  cronometro do atendimento para quando o trabalho termina, nao quando alguem lembra de fechar o
+  chamado. Chamado **ainda aberto e dentro do alvo fica fora do denominador** — so entra como
+  violacao depois de estourar. Sem essa regra, todo chamado recem-criado contaria como violacao.
+  `percentage` e `null` quando `evaluated` e `0`.
 - `topRequesters` traz no maximo 5 itens.
 - `averageQueueToDoneSeconds` mede `updatedAt - createdAt` dos jobs `DONE`: fila **mais** execucao.
   `ai_jobs` nao registra o instante de inicio do processamento, entao chamar isso de "tempo medio de
@@ -917,7 +919,9 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
 }
 ```
 
-- `category` e `priority` obrigatorios; `justification` opcional, ate 2000 caracteres.
+- `category` e `priority` obrigatorios; `justification` opcional, ate 2000 caracteres. O corpo
+  tambem aceita `classificationJustification` como nome alternativo da justificativa, que e o nome
+  que o frontend ja envia.
 - Se os valores enviados forem iguais aos sugeridos pela IA, o gesto e aceite e
   `classificationOrigin` permanece `IA`. Se diferirem, vira `MANUAL`.
 - Chamado ainda sem sugestao (`PENDENTE`) sempre vira `MANUAL`.

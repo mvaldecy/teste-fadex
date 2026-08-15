@@ -14,6 +14,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * casa com o mapeamento da entidade, o seed grava mesmo {@code classification_reviewed_at}, e a
  * concordancia admin x IA sai com denominador maior que zero e percentual que nao e 100 — se o seed
  * so tivesse aceites, o numero nao mediria nada.
+ *
+ * A assercao de percentual menor que 100 depende do conteudo do seed: exige pelo menos um chamado
+ * com origem MANUAL cuja sugestao diverge da classificacao vigente. E de proposito que ela dependa
+ * disso — e essa divergencia que torna a metrica informativa. Se este teste falhar depois de uma
+ * mudanca em {@code DevTicketSeeder}, o defeito provavel esta no seed, nao no calculo.
  */
 @SpringBootTest(properties = {
 		"app.seed.enabled=true",

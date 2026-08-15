@@ -212,10 +212,13 @@ public class IndicatorService {
 		long withinTarget = 0;
 
 		for (TicketIndicatorProjection projection : projections) {
-			LocalDateTime end = projection.isClosed() ? projection.closedAt() : now;
+			// Encerrado inclui RESOLVIDO, nao so FECHADO: o cronometro do atendimento para quando o
+			// trabalho termina, nao quando alguem lembra de fechar o chamado.
+			LocalDateTime settledAt = projection.settledAt();
+			LocalDateTime end = settledAt == null ? now : settledAt;
 			Duration elapsed = Duration.between(projection.createdAt(), end);
 			SlaOutcome outcome = SlaTarget.forPriority(projection.priority())
-					.evaluate(elapsed, projection.isClosed());
+					.evaluate(elapsed, settledAt != null);
 
 			if (outcome == SlaOutcome.NOT_EVALUABLE) {
 				continue;

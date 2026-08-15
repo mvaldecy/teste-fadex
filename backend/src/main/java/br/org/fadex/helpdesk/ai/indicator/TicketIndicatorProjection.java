@@ -31,6 +31,7 @@ public record TicketIndicatorProjection(
 		LocalDateTime createdAt,
 		LocalDateTime assignedAt,
 		LocalDateTime firstResponseAt,
+		LocalDateTime resolvedAt,
 		LocalDateTime closedAt,
 		LocalDateTime classificationReviewedAt
 ) {
@@ -41,6 +42,25 @@ public record TicketIndicatorProjection(
 
 	public boolean isClosed() {
 		return closedAt != null;
+	}
+
+	/**
+	 * Instante em que o atendimento parou de correr, ou {@code null} se ainda esta correndo.
+	 *
+	 * Chamado RESOLVIDO tem o trabalho concluido mesmo sem ninguem ter clicado em fechar. Medir SLA
+	 * ate agora nesse caso transformaria toda pendencia de fechamento em violacao permanente, o que
+	 * mede burocracia e nao atendimento.
+	 */
+	public LocalDateTime settledAt() {
+		if (closedAt != null) {
+			return closedAt;
+		}
+
+		return isOpen() ? null : resolvedAt;
+	}
+
+	public boolean isSettled() {
+		return settledAt() != null;
 	}
 
 	public boolean hasSuggestion() {

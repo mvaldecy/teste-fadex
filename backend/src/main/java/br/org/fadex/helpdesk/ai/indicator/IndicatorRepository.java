@@ -33,6 +33,7 @@ public interface IndicatorRepository extends JpaRepository<Ticket, UUID> {
 				ticket.createdAt,
 				ticket.assignedAt,
 				ticket.firstResponseAt,
+				ticket.resolvedAt,
 				ticket.closedAt,
 				ticket.classificationReviewedAt
 			)

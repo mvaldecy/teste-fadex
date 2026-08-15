@@ -179,6 +179,16 @@ class IndicatorServiceTest {
 	}
 
 	@Test
+	void deveEncerrarOCronometroDeSlaEmChamadoResolvidoAindaNaoFechado() {
+		givenProjections(resolvido(TicketPriority.ALTA, NOW.minusHours(100), NOW.minusHours(98)));
+
+		SlaIndicatorsDto sla = service().getIndicators().durations().sla();
+
+		assertThat(sla.overall().evaluated()).isEqualTo(1);
+		assertThat(sla.overall().withinTarget()).isEqualTo(1);
+	}
+
+	@Test
 	void deveDevolverPercentualDeSlaNuloSemAmostra() {
 		givenProjections(aberto(TicketPriority.BAIXA, TicketCategory.ACESSO, NOW.minusHours(1)));
 
@@ -324,6 +334,33 @@ class IndicatorServiceTest {
 				null, null, null, null, null, createdAt, null, null, closedAt, null);
 	}
 
+	private TicketIndicatorProjection resolvido(
+			TicketPriority priority,
+			LocalDateTime createdAt,
+			LocalDateTime resolvedAt
+	) {
+		return new TicketIndicatorProjection(
+				UUID.randomUUID(),
+				TicketStatus.RESOLVIDO,
+				priority,
+				TicketCategory.ACESSO,
+				ClassificationOrigin.PENDENTE,
+				null,
+				null,
+				null,
+				UUID.randomUUID(),
+				"Solicitante",
+				null,
+				null,
+				createdAt,
+				null,
+				null,
+				resolvedAt,
+				null,
+				null
+		);
+	}
+
 	private TicketIndicatorProjection abertoComResponsavel(UUID assigneeId, String assigneeName) {
 		return projection(TicketStatus.ABERTO, TicketPriority.MEDIA, TicketCategory.ACESSO,
 				ClassificationOrigin.PENDENTE, null, null, null, null, null,
@@ -397,6 +434,7 @@ class IndicatorServiceTest {
 			LocalDateTime closedAt,
 			LocalDateTime classificationReviewedAt
 	) {
+		LocalDateTime resolvedAt = closedAt;
 		return new TicketIndicatorProjection(
 				UUID.randomUUID(),
 				status,
@@ -413,6 +451,7 @@ class IndicatorServiceTest {
 				createdAt,
 				null,
 				null,
+				resolvedAt,
 				closedAt,
 				classificationReviewedAt
 		);
