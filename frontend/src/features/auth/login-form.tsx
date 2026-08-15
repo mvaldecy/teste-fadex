@@ -1,16 +1,26 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { loginDefaultValues } from "@/src/features/auth/login-default-values";
 import { loginFormSchema } from "@/src/schemas/auth.schema";
-import { homeRouteForRole } from "@/src/routes/routes";
+import {
+  changePasswordRouteWithRedirect,
+  homeRouteForRole,
+  redirectParamName,
+  sanitizeRedirect
+} from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
 
 export function LoginForm() {
   const router = useRouter();
+  // Destino pretendido, guardado pela guarda de rota quando ela mandou o
+  // usuario para ca. Sem isto, quem abre o link de um chamado pelo e-mail
+  // autentica e cai no dashboard, perdendo o chamado que queria ver.
+  const searchParams = useSearchParams();
+  const redirectTo = sanitizeRedirect(searchParams.get(redirectParamName));
   const login = useSessionStore((state) => state.login);
   const apiError = useSessionStore((state) => state.error);
   const isLoading = useSessionStore((state) => state.isLoading);
@@ -39,11 +49,23 @@ export function LoginForm() {
     setErrors({});
     const didLogin = await login(parsed.data);
 
-    if (didLogin) {
-      // O papel so existe depois do login, por isso a leitura e feita aqui e
-      // nao no topo do componente.
-      router.push(homeRouteForRole(useSessionStore.getState().role));
+    if (!didLogin) {
+      return;
     }
+
+    // O papel e o `mustChangePassword` so existem depois do login, por isso a
+    // leitura e feita aqui e nao no topo do componente.
+    const { mustChangePassword, role } = useSessionStore.getState();
+
+    if (mustChangePassword) {
+      // A senha provisoria nao abre o resto do sistema: o token do login e
+      // limitado ao endpoint de troca. O destino pretendido segue junto e e
+      // aplicado depois da troca.
+      router.replace(changePasswordRouteWithRedirect(redirectTo));
+      return;
+    }
+
+    router.replace(redirectTo ?? homeRouteForRole(role));
   }
 
   return (

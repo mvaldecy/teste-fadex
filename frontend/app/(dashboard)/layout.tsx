@@ -1,9 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/src/components/layout/app-shell";
-import { routes } from "@/src/routes/routes";
+import {
+  changePasswordRouteWithRedirect,
+  loginRouteWithRedirect
+} from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
 
 export default function DashboardLayout({
@@ -12,14 +15,43 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const pathname = usePathname();
   const isHydrated = useSessionStore((state) => state.isHydrated);
   const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
+  const mustChangePassword = useSessionStore(
+    (state) => state.mustChangePassword
+  );
 
   useEffect(() => {
-    if (isHydrated && !isAuthenticated) {
-      router.replace(routes.login);
+    if (!isHydrated) {
+      return;
     }
-  }, [isAuthenticated, isHydrated, router]);
+
+    // O destino pretendido segue junto: sem ele, quem abre o link de um
+    // chamado sem sessao autentica e cai no dashboard, perdendo o chamado.
+    //
+    // A busca vem de `window` e nao de `useSearchParams` de proposito: o hook
+    // no layout tiraria **todas** as telas do grupo da pre-renderizacao
+    // estatica. Aqui a leitura acontece so no cliente, dentro do efeito.
+    const intendedRoute = `${pathname}${window.location.search}`;
+
+    if (!isAuthenticated) {
+      router.replace(loginRouteWithRedirect(intendedRoute));
+      return;
+    }
+
+    // Senha provisoria: o token do login so abre o endpoint de troca, entao
+    // qualquer tela daqui responderia `403`.
+    if (mustChangePassword) {
+      router.replace(changePasswordRouteWithRedirect(intendedRoute));
+    }
+  }, [
+    isAuthenticated,
+    isHydrated,
+    mustChangePassword,
+    pathname,
+    router
+  ]);
 
   // Esperar a reidratacao e o que impede o redirect de disparar antes de o
   // sessionStorage carregar, que expulsaria o usuario a cada F5.
@@ -31,7 +63,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || mustChangePassword) {
     return null;
   }
 
