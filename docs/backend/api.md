@@ -403,7 +403,7 @@ Protegido.
 
 Filtros:
 
-- `status`: `ABERTO`, `EM_ANDAMENTO`, `RESOLVIDO`, `FECHADO`
+- `status`: `ABERTO`, `EM_ANDAMENTO`, `RESOLVIDO`, `FECHADO`, `CANCELADO`
 - `priority`: `BAIXA`, `MEDIA`, `ALTA`
 - `category`: `ACESSO`, `SISTEMAS`, `INFRAESTRUTURA`, `EQUIPAMENTOS`, `FINANCEIRO`, `RH`, `OUTROS`
 - `requesterId`: UUID
@@ -489,20 +489,34 @@ ser o unico consumido por tela de lista e pelo payload de notificacao.
 Ao fechar um chamado que nunca passou por `RESOLVIDO`, `resolvedAt` recebe o mesmo instante de
 `closedAt`. Sem isso, chamado fechado direto sairia das metricas de tempo de resolucao.
 
+**Cancelamento nao carimba nada.** Chamado `CANCELADO` mantem `resolvedAt` e `closedAt` nulos, e nao
+existe coluna `canceledAt` — o instante e o autor do cancelamento ficam no evento
+`CHAMADO_CANCELADO` do historico. E o que mantem o chamado cancelado fora da media de tempo de
+fechamento e dos contadores de chamado fechado.
+
 ### Transicoes de status
 
-| De / Para | ABERTO | EM_ANDAMENTO | RESOLVIDO | FECHADO |
-| --- | --- | --- | --- | --- |
-| `ABERTO` | — | sim | sim | sim |
-| `EM_ANDAMENTO` | sim | — | sim | sim |
-| `RESOLVIDO` | nao | sim | — | sim |
-| `FECHADO` | nao | nao | nao | — |
+| De / Para | ABERTO | EM_ANDAMENTO | RESOLVIDO | FECHADO | CANCELADO |
+| --- | --- | --- | --- | --- | --- |
+| `ABERTO` | — | sim | sim | sim | sim |
+| `EM_ANDAMENTO` | sim | — | sim | sim | sim |
+| `RESOLVIDO` | nao | sim | — | sim | nao |
+| `FECHADO` | nao | nao | nao | — | nao |
+| `CANCELADO` | nao | nao | nao | nao | — |
 
-`FECHADO` e terminal: qualquer transicao a partir dele responde `409`. Transicao para o status
-atual tambem responde `409`, em vez de `200` silencioso, para que duplo clique na UI apareca.
+`FECHADO` e `CANCELADO` sao terminais: qualquer transicao a partir deles responde `409`. Transicao
+para o status atual tambem responde `409`, em vez de `200` silencioso, para que duplo clique na UI
+apareca.
 
 `RESOLVIDO` para `ABERTO` nao existe: reabrir um chamado resolvido significa voltar a trabalha-lo,
 que corresponde a `EM_ANDAMENTO`.
+
+`RESOLVIDO` para `CANCELADO` tambem nao existe: o trabalho ja foi feito, e tirar o chamado do
+denominador de SLA depois de concluido seria maquiar indicador. O caminho de um chamado resolvido e
+fechar.
+
+**Chamado cancelado nao reabre.** Quem mudou de ideia abre um chamado novo — reabrir devolveria ao
+denominador de SLA um chamado cujo relogio ficou parado por tempo indeterminado.
 
 ### `PATCH /api/v1/tickets/{id}/status`
 
@@ -528,9 +542,13 @@ Registra evento `STATUS_ALTERADO` no historico e emite `CHAMADO_ATUALIZADO` no s
 | --- | --- |
 | chamado nao encontrado | `404` |
 | usuario nao e `ADMIN` | `403` |
-| chamado esta `FECHADO` | `409` |
+| chamado esta `FECHADO` ou `CANCELADO` | `409` |
 | status igual ao atual | `409` |
 | transicao nao permitida pela matriz | `409` |
+
+`CANCELADO` tambem e um destino valido aqui para o `ADMIN`, porque a matriz o permite. E o mesmo
+metodo de dominio de `DELETE /api/v1/tickets/{id}`: mesma validacao, mesmo evento de historico e
+mesma notificacao. A diferenca e que o `DELETE` tambem atende o `SOLICITANTE`.
 
 ### `PATCH /api/v1/tickets/{id}/assignee`
 
@@ -591,8 +609,41 @@ Registra evento `RESPONSAVEL_REMOVIDO` no historico e emite `CHAMADO_ATUALIZADO`
 | --- | --- |
 | chamado nao encontrado | `404` |
 | usuario nao e `ADMIN` | `403` |
-| chamado esta `FECHADO` | `409` |
+| chamado esta `FECHADO` ou `CANCELADO` | `409` |
 | chamado nao possui responsavel | `409` |
+
+### `DELETE /api/v1/tickets/{id}`
+
+Protegido. Sem corpo de requisicao.
+
+**Exclusao logica: cancela o chamado.** Nenhum registro e removido — historico, comentarios,
+vinculos de similaridade e o que a IA classificou continuam na base. O valor deste sistema e o
+rastro, e um chamado aberto por engano nao e um chamado que nunca existiu: e um chamado que nao sera
+atendido, e essa e exatamente a informacao que o historico deve preservar.
+
+Response `200`: `TicketDto` com `"status": "CANCELADO"`. Nao `204`: o corpo deixa explicito que o
+chamado continua existindo, e o cliente precisa do retrato novo para atualizar a tela.
+
+Quem pode cancelar:
+
+| Papel | Pode cancelar | Em que status |
+| --- | --- | --- |
+| `ADMIN` | qualquer chamado | `ABERTO`, `EM_ANDAMENTO` |
+| `SOLICITANTE` | apenas os proprios | apenas `ABERTO` |
+
+A fronteira do `SOLICITANTE` em `ABERTO` existe porque, a partir de `EM_ANDAMENTO`, ha trabalho de
+outra pessoa em curso. Nesse ponto o caminho e comentar pedindo o cancelamento, e o `ADMIN` cancela.
+
+Registra evento `CHAMADO_CANCELADO` no historico e emite `CHAMADO_ATUALIZADO` no stream SSE para o
+solicitante e o responsavel. Por e-mail, o cancelamento e o unico caso de mudanca de status que
+tambem alcanca o responsavel: quem esta atendendo precisa saber que o chamado morreu.
+
+| Situacao | Status |
+| --- | --- |
+| chamado nao encontrado | `404` |
+| `SOLICITANTE` tentando cancelar chamado de outro | `403` |
+| `SOLICITANTE` tentando cancelar o proprio chamado ja em atendimento | `409` |
+| chamado ja `CANCELADO`, `RESOLVIDO` ou `FECHADO` | `409` |
 
 ### `GET /api/v1/tickets/{ticketId}/events`
 
@@ -603,7 +654,7 @@ Lista o historico de eventos do chamado. O usuario precisa ter acesso ao chamado
 Filtros:
 
 - `actorId`: UUID
-- `type`: `CHAMADO_CRIADO`, `COMENTARIO_ADICIONADO`, `STATUS_ALTERADO`, `RESPONSAVEL_ATRIBUIDO`, `RESPONSAVEL_REMOVIDO`, `PRIORIDADE_ALTERADA`, `CATEGORIA_ALTERADA`, `CLASSIFICACAO_ATUALIZADA`
+- `type`: `CHAMADO_CRIADO`, `COMENTARIO_ADICIONADO`, `STATUS_ALTERADO`, `RESPONSAVEL_ATRIBUIDO`, `RESPONSAVEL_REMOVIDO`, `PRIORIDADE_ALTERADA`, `CATEGORIA_ALTERADA`, `CLASSIFICACAO_ATUALIZADA`, `CHAMADO_CANCELADO`
 - `search`: busca parcial pela descricao do evento
 
 Tambem aceita `page`, `size` e `sort`.
@@ -649,15 +700,23 @@ Response `200`:
 
 ```json
 {
-  "ABERTO": ["EM_ANDAMENTO", "FECHADO", "RESOLVIDO"],
-  "EM_ANDAMENTO": ["ABERTO", "FECHADO", "RESOLVIDO"],
+  "ABERTO": ["CANCELADO", "EM_ANDAMENTO", "FECHADO", "RESOLVIDO"],
+  "EM_ANDAMENTO": ["ABERTO", "CANCELADO", "FECHADO", "RESOLVIDO"],
   "RESOLVIDO": ["EM_ANDAMENTO", "FECHADO"],
-  "FECHADO": []
+  "FECHADO": [],
+  "CANCELADO": []
 }
 ```
 
-`FECHADO` mapeia para lista vazia: chamado fechado nao reabre. Publicar a matriz nao afrouxa a
-validacao — `PATCH /api/v1/tickets/{id}/status` continua recusando transicao invalida com `409`.
+As listas vem ordenadas alfabeticamente; nao dependa da posicao.
+
+`FECHADO` e `CANCELADO` mapeiam para lista vazia: nem um nem outro reabre. Publicar a matriz nao
+afrouxa a validacao — `PATCH /api/v1/tickets/{id}/status` continua recusando transicao invalida com
+`409`.
+
+**A matriz e do dominio e independe de papel.** Que `ABERTO` aceite `CANCELADO` nao significa que
+quem esta na tela possa cancelar: a regra de papel (ver `DELETE /api/v1/tickets/{id}`) e camada de
+cima, aplicada pelo cliente sobre esta resposta e reconferida pelo servidor a cada chamada.
 
 ## Comentarios
 
@@ -800,6 +859,7 @@ precisa fazer nada para que a notificacao aconteca.
 | Status alterado | solicitante | `O status do seu chamado mudou: <titulo>` |
 | Chamado resolvido | solicitante | `Seu chamado foi resolvido: <titulo>` |
 | Chamado fechado | solicitante | `Seu chamado foi fechado: <titulo>` |
+| Chamado cancelado | solicitante **e** responsavel | `Seu chamado foi cancelado: <titulo>` |
 | Comentario adicionado | a contraparte: solicitante quando quem comentou foi `ADMIN`, responsavel quando foi o solicitante | `Novo comentario no chamado: <titulo>` |
 | Job de IA falhou | todos os `ADMIN` | `Job de IA falhou` |
 | Usuario criado | o usuario criado | `Acesso provisorio ao Fadex Helpdesk` |
@@ -971,6 +1031,15 @@ Regras de leitura:
   chamado. Chamado **ainda aberto e dentro do alvo fica fora do denominador** — so entra como
   violacao depois de estourar. Sem essa regra, todo chamado recem-criado contaria como violacao.
   `percentage` e `null` quando `evaluated` e `0`.
+- **Chamado `CANCELADO` fica de fora de SLA, `backlogAging`, `oldestOpenTicketHours`,
+  `openHighPriority`, `closure`, `closedToday`/`closedThisWeek` e `workload.openByAssignee`.** Nao
+  foi resolvido, mas tambem nao esta pendente de ninguem: medir SLA sobre ele mediria uma espera que
+  ninguem mais esta esperando, e sem esse corte todo cancelado viraria violacao permanente, piorando
+  sozinho com o tempo.
+- Chamado `CANCELADO` **continua** em `total`, nos mapas `byStatus`/`byPriority`/`byCategory`, em
+  `topRequesters` e nos indicadores de IA. Volume e volume: o chamado foi aberto, ocupou a fila e
+  consumiu triagem. A fatia `byStatus.CANCELADO` e o dado de gestao novo — quantos chamados foram
+  abandonados.
 - `topRequesters` traz no maximo 5 itens.
 - `averageQueueToDoneSeconds` mede `updatedAt - createdAt` dos jobs `DONE`: fila **mais** execucao.
   `ai_jobs` nao registra o instante de inicio do processamento, entao chamar isso de "tempo medio de
@@ -1168,6 +1237,8 @@ Ja implementado e disponivel (nao reimplementar):
 - Notificacoes por e-mail em HTML com alternativa em texto (ver "Notificacoes por E-mail").
 - Historico de eventos do chamado, em `GET /api/v1/tickets/{ticketId}/events`.
 - Atualizacao de status, atribuicao e remocao de responsavel do chamado.
+- Cancelamento de chamado (exclusao logica) em `DELETE /api/v1/tickets/{id}`, com regra de papel:
+  `ADMIN` cancela qualquer chamado, `SOLICITANTE` cancela o proprio enquanto `ABERTO`.
 - Jobs de IA para o ADMIN, em `GET /api/v1/ai/jobs` e `POST /api/v1/ai/jobs/{id}/retry`.
 - Deteccao de duplicados por embedding, gravando os pares em `ticket_links`.
 - Revisao da sugestao da IA pelo ADMIN, em `PATCH /api/v1/tickets/{id}/classification`.
