@@ -46,7 +46,7 @@ cd teste-fadex
 ./setup.sh
 ```
 
-O assistente cuida do resto: confere os pré-requisitos, **testa cada porta e desloca sozinho as que
+O wizard cuida do resto: confere os pré-requisitos, **testa cada porta e desloca sozinho as que
 estiverem ocupadas**, gera o `JWT_SECRET`, deriva a URL da API e a lista de CORS a partir das portas
 escolhidas, e sobe a stack. No fim ele imprime os endereços e as credenciais. No caso normal é só ir
 apertando Enter.
@@ -66,7 +66,7 @@ Durante a execução ele pergunta se quer baixar os modelos de IA (cerca de 2,1 
 classificação continua funcionando por heurística de palavras-chave, e o sistema não perde nenhuma
 funcionalidade além da detecção de duplicados, que depende de embeddings.
 
-### Sem o assistente
+### Sem o wizard
 
 ```bash
 cp .env.example .env     # e troque o JWT_SECRET
@@ -85,7 +85,7 @@ Com as portas padrão:
 | Swagger | http://localhost:8080/swagger-ui.html |
 | Mailpit (e-mails enviados) | http://localhost:8025 |
 
-Se alguma porta estiver ocupada, o assistente escolhe outra e informa no resumo final.
+Se alguma porta estiver ocupada, o wizard escolhe outra e informa no resumo final.
 
 ### Comandos do dia a dia
 
@@ -298,7 +298,7 @@ acima disso. A busca textual usa `like` sem índice.
 
 **Autenticação.** Não há limite de tentativas de login, e o refresh token não é rotacionado dentro
 da validade. O `JWT_SECRET` tem valor padrão apenas para desenvolvimento e **precisa ser trocado**
-em qualquer uso real — o assistente de instalação gera um automaticamente.
+em qualquer uso real — o wizard de instalação gera um automaticamente.
 
 **Infraestrutura.** O despacho de e-mail e o de SSE compartilham o mesmo executor; há timeouts de
 SMTP configurados para que um servidor lento não trave as notificações em tempo real, mas separar
@@ -317,10 +317,10 @@ ambiente; o certo seria `Instant` com formatação no cliente.
 ## Ambiente
 
 Todas as variáveis estão documentadas em [`.env.example`](.env.example), com comentário explicando
-cada bloco. As duas que importam ao rodar fora do assistente:
+cada bloco. As duas que importam ao rodar fora do wizard:
 
 - `JWT_SECRET` — precisa de pelo menos 32 caracteres. Gere com `openssl rand -base64 48`.
 - `AI_TRIAGE_ENABLED` — nasce ligada. Desligue apenas se não quiser rodar o Ollama.
 
-Não versione `.env` real. O assistente de instalação gera o arquivo e nunca sobrescreve valor
+Não versione `.env` real. O wizard de instalação gera o arquivo e nunca sobrescreve valor
 existente sem perguntar.

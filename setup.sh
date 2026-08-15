@@ -180,7 +180,7 @@ finish() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES — assistente de instalacao do Fadex Helpdesk.
+# STAGES — wizard de instalacao do Fadex Helpdesk.
 # ──────────────────────────────────────────────────────────────────────────
 
 TOTAL_STAGES=7
