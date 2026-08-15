@@ -22,11 +22,13 @@ receber atualizacoes em tempo real pelo stream SSE ja publicado pelo backend.
 Fora deste escopo:
 
 - Qualquer alteracao em `backend/**` e qualquer migration.
-- Sistema de permissoes no frontend. Gating por papel fica restrito a esconder os itens de
-  navegacao de ADMIN (`/usuarios` e `/admin/jobs`), conforme decisao registrada em
-  `docs/projeto/2026-08-14-frentes-de-trabalho.md`.
-- Paginacao completa e ordenacao configuravel nas telas novas; as listagens usam a primeira
-  pagina com `size` fixo, como ja acontece na tela de chamados.
+- Sistema de permissoes no frontend. **Atualizado no segundo ciclo:** alem de esconder os itens
+  de navegacao de ADMIN, `/usuarios` e `/admin/jobs` passam por uma guarda de rota que
+  redireciona quem nao e ADMIN. Esconder item de menu nunca foi controle de acesso — quem
+  digitava a URL recebia `403` da API como erro tecnico. A autorizacao de verdade continua sendo
+  do backend.
+- Ordenacao configuravel nas telas novas. **A paginacao entrou** em `/usuarios` e `/admin/jobs`,
+  com uma barra reutilizavel; a ordenacao segue fixa.
 
 ## Estado de Partida
 
@@ -43,168 +45,49 @@ Levantamento feito sobre o codigo em `dev` (`95da427`), para nao redesenhar o qu
 | `src/services/api-token.ts` | Token em variavel de modulo, perdido no reload |
 | Aba "Historico" em `ticket-detail-panel.tsx` | Placeholder, apesar de `GET /tickets/{id}/events` existir desde `e8695b8` |
 
-## Dependencia do Backend e Contratos Provisorios
+## Contratos: de provisorio para verificado
 
-Das seis entregas, tres dependem de endpoints que ainda nao existem em `docs/backend/api.md`.
-Verificado no codigo, e nao so na documentacao: `cf2a80b` adicionou `changeStatus` e `unassign`
-a **entidade** `Ticket`, mas nenhum controller expoe `PATCH` ou `DELETE` ate agora. Os contratos
-abaixo seguem provisorios.
-A regra de trabalho e a definida no documento de frentes: **nao esperar**. Cada service novo
-usa o caminho e o verbo fixados no documento de frentes, e cai para dado fixo quando o backend
-responde `404`.
+Esta secao substitui os contratos provisorios do primeiro ciclo. **Todos os endpoints do plano
+estao publicados** e foram exercitados contra o backend rodando, com o token do `admin`. O que
+segue e o que a verificacao mudou.
 
-### Regra de fallback
+### Nao ha mais fallback para dado fixo
 
-O desenho original dizia "cai para dado fixo **somente** em `404`". **Verificado contra o
-backend rodando, isso estava errado e nunca funcionaria:** uma rota inexistente nao responde
-`404`. O handler global de excecao converte `NoHandlerFound` em
-`{"code":"INTERNAL_ERROR","status":500}`.
+O ciclo anterior caia para dado fixo em `404` ou `500` porque `GET /indicators` e `GET /ai/jobs`
+ainda nao existiam. Os dois estao no ar, e o mecanismo inteiro foi removido:
+`endpoint-fallback.ts`, `indicators.fixture.ts` e `ai-jobs.fixture.ts` deixaram de existir.
+Manter o fallback num endpoint publicado transformaria erro real da API em tela de exemplo, que
+e o pior dos dois mundos: o operador ve numeros que nao existem e ninguem ve a falha.
 
-```
-GET /api/v1/indicators -> 500
-GET /api/v1/ai/jobs    -> 500
-```
+### Divergencias encontradas contra o que o desenho supunha
 
-Regra corrigida, em `src/services/endpoint-fallback.ts`: cai para dado fixo em `404` **ou**
-`500`. `401` e `403` continuam subindo, porque sao sessao e permissao e precisam acionar o
-refresh ou o logout. Erro de rede, sem resposta, tambem sobe — nao ha o que interpretar.
+| Ponto | O que o desenho dizia | O que o backend faz |
+| --- | --- | --- |
+| `PATCH /tickets/{id}/assignee` em chamado ja atribuido | `409`, atribuir e recusar mutuamente exclusivos | `200`, troca o responsavel |
+| `PATCH /tickets/{id}/assignee` com responsavel nao-ADMIN | nao previsto | `409` "O responsavel pelo chamado precisa ter papel de administrador" |
+| `POST /ai/jobs/{id}/retry` em job que nao falhou | nao previsto | `409` "Apenas jobs com falha podem ser retentados" |
+| `GET /indicators` | objeto plano, chaves em portugues | quatro camadas — `overview`, `durations`, `ai`, `workload` — em ingles |
+| `GET /ai/jobs` | corpo do item ja conferia | conferiu, campo a campo |
+| `GET /tickets/{id}/events` | contrato real desde o inicio | conferiu, campo a campo |
 
-O preco de aceitar `500` e real: um erro genuino de um endpoint ja publicado tambem cai no
-fallback. A mitigacao e nao mentir sobre a causa. O motivo observado viaja junto do resultado
-(`fixtureReason`) e a faixa de aviso mostra o status de verdade:
+Cada divergencia virou mudanca de UI, nao comentario: o seletor de responsavel fica visivel
+mesmo com o chamado atribuido (troca direta), a lista de candidatos ja vinha filtrada por
+`role=ADMIN` e por isso o segundo `409` nunca chega ao usuario, o botao de reprocessar so fica
+ativo em job `FAILED`, e os indicadores foram reescritos sobre o payload real.
 
-> Dados de exemplo: os numeros abaixo nao vem do banco. A API respondeu 500 em
-> GET /api/v1/indicators. O endpoint provavelmente ainda nao foi publicado pela frente API.
+**Duas coisas ficam registradas para o backend**, sem alteracao em `backend/**` por esta frente:
 
-Assim o avaliador ve o status real em vez de uma explicacao inventada, e o dado fixo nunca
-aparece sem aviso. Mutacoes seguem sem fallback nenhum.
+1. A exclusao mutua entre atribuir e recusar estava registrada aqui como decisao de produto, nao
+   como inferencia. O backend nao a implementa. Ou a decisao mudou, ou a regra nunca chegou ao
+   codigo — vale confirmar antes que a UI de troca direta seja tomada por engano.
+2. A exigencia de que o responsavel seja ADMIN nao esta em `docs/backend/api.md`.
 
-### Contratos provisorios — confirmar com a frente API
+### Campos de IA no `TicketDto`
 
-Os caminhos e verbos abaixo sao os fixados no documento de frentes e devem ser usados
-literalmente. Os **corpos** de requisicao e resposta sao inferencia do frontend e precisam
-ser confirmados quando o delta do `api.md` sair.
-
-`PATCH /api/v1/tickets/{id}/status`
-
-```json
-{ "status": "EM_ANDAMENTO" }
-```
-
-Resposta esperada: `TicketDto`. Espera-se `409` ao tentar reabrir chamado `FECHADO`.
-
-`PATCH /api/v1/tickets/{id}/assignee`
-
-```json
-{ "assigneeId": "00000000-0000-0000-0000-000000000000" }
-```
-
-Resposta esperada: `TicketDto`.
-
-`DELETE /api/v1/tickets/{id}/assignee`
-
-Sem corpo. **Confirmado pela frente API:** responde `200` com `TicketDto`, nao `204`.
-
-**Confirmado tambem: atribuir e recusar sao mutuamente exclusivos.** `PATCH /assignee` num
-chamado que ja tem responsavel responde `409` — decisao do Marcos. Trocar de responsavel e
-recusar primeiro e atribuir depois.
-
-Isso mudou a UI: o bloco de responsavel nao mostra mais o seletor e o botao "Recusar" ao mesmo
-tempo. Com responsavel, mostra o nome e o botao "Recusar atribuicao"; sem responsavel, mostra o
-seletor e o botao "Atribuir". Manter os dois convidaria o usuario a uma acao que a API recusa.
-
-`PATCH /api/v1/tickets/{id}/classification`
-
-```json
-{
-  "category": "SISTEMAS",
-  "priority": "ALTA",
-  "classificationJustification": "texto opcional"
-}
-```
-
-**Confirmado pela frente API:** o campo chama-se `classificationJustification`, tanto na
-leitura quanto no corpo do `PATCH`. Nao existe `justification`. O nome ja estava no `TicketDto`
-desde a triagem por IA, so nunca tinha sido documentado.
-
-Resposta esperada: `TicketDto`. Aceitar a sugestao da IA e enviar `aiSuggestedCategory` e
-`aiSuggestedPriority` sem alteracao — nao ha endpoint separado de "aceitar".
-
-`GET /api/v1/indicators` — payload unico com todas as camadas. Forma assumida:
-
-```json
-{
-  "totalPorStatus": { "ABERTO": 8, "EM_ANDAMENTO": 5, "RESOLVIDO": 4, "FECHADO": 3 },
-  "totalPorPrioridade": { "BAIXA": 6, "MEDIA": 9, "ALTA": 5 },
-  "totalPorCategoria": { "SISTEMAS": 7 },
-  "abertosHoje": 3,
-  "fechadosHoje": 2,
-  "abertosNaSemana": 11,
-  "fechadosNaSemana": 7,
-  "altaPrioridadeEmAberto": 4,
-  "tempoFechamentoHoras": { "media": 42.5, "mediana": 30.0, "p90": 96.0 },
-  "tempoPrimeiraRespostaHoras": { "media": 6.2, "mediana": 4.0, "p90": 14.0 },
-  "tempoAtribuicaoHoras": { "media": 3.1, "mediana": 2.0, "p90": 8.0 },
-  "agingBacklog": { "ate1Dia": 4, "de1A3Dias": 6, "acima3Dias": 3 },
-  "idadeChamadoMaisAntigoHoras": 480.0,
-  "percentualDentroDoSla": 72.5,
-  "concordanciaIaPercentual": 68.0,
-  "confiancaMediaIa": 0.81,
-  "distribuicaoClassificacao": { "IA": 9, "MANUAL": 7, "PENDENTE": 4 },
-  "filaJobs": { "pendentes": 2, "falhos": 1, "tempoMedioProcessamentoSegundos": 4.7 },
-  "duplicadosDetectados": 3,
-  "cargaPorResponsavel": [{ "responsavel": { "id": "...", "name": "..." }, "abertos": 5 }],
-  "topSolicitantes": [{ "solicitante": { "id": "...", "name": "..." }, "total": 6 }]
-}
-```
-
-Todo campo agregado e lido como **opcional** no frontend. A camada 4 e o p90 estao na linha de
-corte do documento de frentes; se a frente IA nao entregar, o card correspondente simplesmente
-nao renderiza, em vez de quebrar a pagina.
-
-`GET /api/v1/ai/jobs` — pagina de jobs. **O corpo aqui nao e inferencia.** `AiJobDto` e
-`AiJobSummaryDto` ja existem em `backend/src/main/java/br/org/fadex/helpdesk/ai/job/`, e os
-enums estao fixados tambem no check constraint da migration V3:
-
-- `AiJobType`: `CLASSIFICATION`, `EMBEDDING`
-- `AiJobStatus`: `PENDING`, `PROCESSING`, `DONE`, `FAILED`
-
-Valores em ingles, ao contrario dos enums de dominio do chamado, que sao em portugues. O frontend
-segue o backend nos dois casos, sem traduzir.
-
-```json
-{
-  "id": "00000000-0000-0000-0000-000000000000",
-  "ticketId": "00000000-0000-0000-0000-000000000000",
-  "type": "CLASSIFICATION",
-  "status": "FAILED",
-  "attempts": 2,
-  "nextAttemptAt": "2026-08-14T10:10:00",
-  "lastError": "timeout ao chamar o modelo local",
-  "createdAt": "2026-08-14T10:00:00",
-  "updatedAt": "2026-08-14T10:05:00"
-}
-```
-
-O campo de erro chama-se `lastError`, nao `errorMessage`, e existe apenas no `AiJobDto`; o
-`AiJobSummaryDto`, provavel retorno da listagem, traz `nextAttemptAt` mas nao o erro. O frontend
-declara `lastError` opcional para servir aos dois. Continua provisorio apenas o **caminho** do
-endpoint e o formato de paginacao — nao o corpo do item.
-
-Estes enums nao estao em `GET /api/v1/choices`, que so expoe enums de dominio do chamado. E a
-unica excecao a regra de nao hardcodar label de enum no frontend, e esta registrada como tal.
-
-`POST /api/v1/ai/jobs/{id}/retry` — sem corpo, resposta ignorada; a tela recarrega a lista.
-
-### Campos novos no `TicketDto`
-
-A frente API ja entregou as colunas e o `Ticket.applyAiSuggestion(...)`, mas expor
-`aiSuggestedCategory`, `aiSuggestedPriority` e `confidence` no DTO e da frente IA e ainda nao
-aconteceu. Os tres seguem opcionais no tipo do frontend e, por ora, vem sempre ausentes: o
-bloco de sugestao da IA nao renderiza e a tela mostra "Sem sugestao da IA para este chamado".
-`classificationJustification` ja vem preenchido hoje. Enquanto o
-backend nao os enviar, o bloco de sugestao da IA nao aparece — nao ha fixture aqui, porque o
-resto do `TicketDto` e real e misturar campo inventado com campo real seria enganoso.
+`aiSuggestedCategory`, `aiSuggestedPriority` e `confidence` chegam preenchidos. O bloco de
+sugestao renderiza com os tres, e aceitar a sugestao e reenviar os valores por
+`PATCH /tickets/{id}/classification` — nao ha endpoint separado de aceite. O corpo enviado usa
+`classificationJustification`, que o backend aceita como alias de `justification`.
 
 ## Pendencias Registradas para o Backend
 
@@ -216,7 +99,12 @@ resto do `TicketDto` e real e misturar campo inventado com campo real seria enga
    pedem `password`. O frontend corrige o proprio lado neste ciclo.
 3. **`UserDto` no frontend nao tem `mustChangePassword`**, que o `api.md` documenta. Corrigido
    neste ciclo.
-4. **`AuthLoginResponse` no frontend descarta `refreshToken` e `mustChangePassword`.** Isto
+4. **`PATCH /tickets/{id}/assignee` nao implementa a exclusao mutua** registrada aqui como
+   decisao de produto: chamado ja atribuido e reatribuido com `200`. Confirmar se a decisao
+   mudou ou se a regra nao chegou ao codigo.
+5. **`PATCH /tickets/{id}/assignee` exige responsavel com papel ADMIN** (`409` caso contrario) e
+   isso nao esta em `docs/backend/api.md`.
+6. **`AuthLoginResponse` no frontend descarta `refreshToken` e `mustChangePassword`.** Isto
    nao e pendencia do backend: `AuthResponseDto` **ja devolve os dois**, e `POST /api/v1/auth/refresh`
    ja existe no `AuthController`. Quem joga fora os campos e o tipo do frontend. Verificado no
    codigo, corrigido neste ciclo — ver "Renovacao de sessao" abaixo.
@@ -349,7 +237,7 @@ valida — que nao cabe numa celula de tabela. As acoes viram um bloco proprio n
 
 ```
 src/services/notifications-stream.ts   cliente SSE singleton (parser, reconexao, assinaturas)
-src/services/indicators.service.ts     GET /indicators com fallback por 404
+src/services/indicators.service.ts     GET /indicators (sem fallback: endpoint publicado)
 src/services/ai-jobs.service.ts        GET /ai/jobs e POST /ai/jobs/{id}/retry
 src/services/tickets.service.ts        + updateStatus, assign, unassign, updateClassification
 
@@ -361,6 +249,9 @@ src/features/tickets/ticket-lifecycle-actions.tsx acoes de status/responsavel
 src/features/tickets/ticket-classification-card.tsx sugestao da IA e classificacao manual
 src/features/tickets/ticket-history-list.tsx     historico de eventos do chamado
 src/components/layout/user-menu.tsx               menu de usuario com logout
+src/components/layout/pagination-bar.tsx          paginacao das listagens
+src/components/layout/admin-route-guard.tsx       guarda de rota das telas de ADMIN
+src/features/notifications/high-priority-alerts.tsx alerta de prioridade ALTA no shell
 ```
 
 ## UI
@@ -373,6 +264,37 @@ de contagens e mantem o build previsivel dentro do prazo.
 Toda listagem tem tres estados explicitos: carregando (skeleton), vazio (moldura tracejada com
 texto) e erro (faixa vermelha com a mensagem normalizada por `toApiErrorMessage`). Sucesso e
 falha de acao assincrona usam toast do Sonner, como no resto do app.
+
+## Verificacao no Navegador
+
+O cliente SSE era a maior lacuna do ciclo anterior: existia codigo, nao existia evidencia. Foi
+verificado com o Chrome real, contra o **dev server** (`next dev`), e nao contra o container de
+producao — o StrictMode so monta duas vezes em desenvolvimento, entao medir no build de producao
+nao provaria nada sobre a contagem de assinantes. A instrumentacao foi um envelope em
+`window.fetch` registrando inicio, status e aborto de cada requisicao ao stream.
+
+- **StrictMode:** duas requisicoes saem, e so uma sobrevive. A primeira e abortada 8 ms depois de
+  aberta, pelo unsubscribe do primeiro mount; a segunda responde `200` e permanece. Sobra uma
+  conexao viva, que e o que a contagem de assinantes promete.
+- **Backoff:** com `docker stop fadex-helpdesk-backend-1`, as tentativas saem com intervalos de
+  1 s, 2 s, 4 s, 8 s, 16 s, 30 s e 30 s — o teto de 30 s segurou por dois ciclos. Os intervalos
+  medidos entre inicios sao ~1 s maiores porque incluem a propria tentativa que falha.
+- **Recuperacao:** apos `docker start`, a decima tentativa respondeu `200` e o stream voltou sem
+  intervencao. A tela nao ficou presa em estado de erro.
+- **Logout:** a conexao viva e abortada no clique em "Sair" e **nenhuma** nova tentativa aparece
+  depois — o `stopNotificationsStream()` no `logout()` faz o que promete.
+- **Tempo real de ponta a ponta:** chamado aberto por outro usuario aparece na listagem do ADMIN
+  sem recarregar, e o alerta de prioridade ALTA chega como toast com o titulo do chamado e atalho
+  para abri-lo, disparado pela triagem da IA.
+
+### Defeito encontrado e corrigido
+
+A sessao reidratava mas `isHydrated` nunca virava `true`: qualquer F5 numa rota do dashboard
+travava o app em "Carregando sessao..." para sempre. A causa e que, para storage sincrono, o
+zustand roda a reidratacao **dentro** do `create`, quando a const `useSessionStore` ainda esta na
+zona morta temporal; o `ReferenceError` era engolido pelo thenable interno da persistencia. A
+troca de status virou acao da propria store (`markHydrated`), que nao depende da referencia
+externa, com `initialState` como rede no ramo de erro.
 
 ## Validacao
 
