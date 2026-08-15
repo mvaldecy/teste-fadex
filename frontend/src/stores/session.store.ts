@@ -122,7 +122,14 @@ export const useSessionStore = create<SessionState>()(
         mustChangePassword: state.mustChangePassword,
         isAuthenticated: state.isAuthenticated
       }),
-      onRehydrateStorage: () => (state, error) => {
+      // `initialState` e o estado que o zustand entrega antes de ler o
+      // storage. Ele importa no ramo de erro: quando a leitura falha, `state`
+      // vem indefinido, e sem um fallback a guarda de rota ficaria travada em
+      // "Carregando sessao..." exatamente no cenario em que o usuario mais
+      // precisa chegar ao login.
+      onRehydrateStorage: (initialState) => (state, error) => {
+        const settledState = state ?? initialState;
+
         // O token vive em memoria no cliente HTTP; reidratar a store sem
         // reidratar o cliente deixaria a sessao valida na UI e ausente na API.
         setApiAccessToken(state?.accessToken ?? null);
@@ -131,18 +138,11 @@ export const useSessionStore = create<SessionState>()(
           console.error("Falha ao reidratar a sessao.", error);
         }
 
-        state?.markHydrated();
+        settledState?.markHydrated();
       }
     }
   )
 );
-
-// Rede de seguranca: se a reidratacao falhar, o callback acima recebe `state`
-// indefinido e a guarda de rota ficaria travada. Aqui ja estamos fora do
-// `create`, entao referenciar a store e seguro.
-if (typeof window !== "undefined" && useSessionStore.persist.hasHydrated()) {
-  useSessionStore.getState().markHydrated();
-}
 
 setSessionRefreshHandlers({
   getRefreshToken: () => useSessionStore.getState().refreshToken,
