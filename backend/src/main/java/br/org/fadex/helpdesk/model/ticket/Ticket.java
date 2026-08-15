@@ -96,6 +96,9 @@ public class Ticket {
 	@Column(name = "ai_confidence")
 	private Double aiConfidence;
 
+	@Column(name = "classification_reviewed_at")
+	private LocalDateTime classificationReviewedAt;
+
 	@Column(name = "created_at", nullable = false)
 	@CreatedDate
 	private LocalDateTime createdAt;
@@ -162,6 +165,17 @@ public class Ticket {
 			String classificationJustification
 	) {
 		applyClassification(category, priority, ClassificationOrigin.MANUAL, classificationJustification);
+	}
+
+	/**
+	 * Carimba o instante em que o ADMIN revisou a classificacao — aceitando ou corrigindo.
+	 *
+	 * E este carimbo que separa "sugestao aceita" de "ninguem olhou": sem ele os dois casos ficam
+	 * com origem IA e valores iguais aos sugeridos, e a taxa de concordancia admin x IA passaria a
+	 * contar chamado nunca revisado como aceite.
+	 */
+	public void markClassificationReviewed(LocalDateTime classificationReviewedAt) {
+		this.classificationReviewedAt = classificationReviewedAt;
 	}
 
 	public void applyAiSuggestion(TicketCategory category, TicketPriority priority, Double confidence) {
@@ -265,6 +279,10 @@ public class Ticket {
 
 	public Double getAiConfidence() {
 		return aiConfidence;
+	}
+
+	public LocalDateTime getClassificationReviewedAt() {
+		return classificationReviewedAt;
 	}
 
 	public LocalDateTime getCreatedAt() {

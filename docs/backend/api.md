@@ -737,9 +737,9 @@ deve ignorar eventos cujo nome nao reconheca — a lista cresce sem quebrar quem
 | --- | --- | --- |
 | `CHAMADO_ATUALIZADO` | solicitante e responsavel do chamado | `TicketMinDto` |
 | `CHAMADO_ALTA_PRIORIDADE` | todos os `ADMIN` | `TicketMinDto` |
-| `CLASSIFICACAO_CONCLUIDA` | solicitante do chamado e todos os `ADMIN` | definido pela frente de IA |
-| `JOB_IA_FALHOU` | todos os `ADMIN` | definido pela frente de IA |
-| `INDICADORES_ATUALIZADOS` | todos os `ADMIN` | definido pela frente de IA |
+| `CLASSIFICACAO_CONCLUIDA` | solicitante do chamado e todos os `ADMIN` | `ticketId`, `category`, `priority`, `confidence` |
+| `JOB_IA_FALHOU` | todos os `ADMIN` | `jobId`, `ticketId`, `type`, `attempts`, `lastError` |
+| `INDICADORES_ATUALIZADOS` | todos os `ADMIN` | `reason`, `ticketId`, `occurredAt` |
 
 `CHAMADO_ATUALIZADO` e emitido em mudanca de status, atribuicao, remocao de responsavel e
 reclassificacao. O `data` e o mesmo objeto do item de `GET /api/v1/tickets`, para que a linha da
@@ -762,10 +762,8 @@ por aquela frente.
 
 Secao escrita pela frente IA. Todos os endpoints desta secao exigem papel `ADMIN`.
 
-**Estado hoje:** so `GET /api/v1/ai/jobs` e `POST /api/v1/ai/jobs/{id}/retry` estao implementados e
-respondem. O restante desta secao e contrato publicado para o frontend trabalhar contra, e depende da
-`V4` da frente API. Cada endpoint abaixo declara o proprio estado logo no titulo — chamar um que
-ainda nao existe devolve `404`.
+**Estado hoje:** toda esta secao esta implementada e responde — revisao da classificacao,
+indicadores, campos de sugestao no `TicketDto`, operacao da fila de jobs e os tres eventos SSE.
 
 ### Compatibilidade com o formato assumido pelo frontend
 
@@ -815,7 +813,7 @@ Mapeamento campo a campo, para o realinhamento ser mecanico:
 
 ### `GET /api/v1/indicators`
 
-**Contrato publicado, ainda nao implementado.** Depende da `V4`. Manter dados fixos no front ate esta linha mudar.
+**Disponivel.**
 
 Resposta `200`:
 
@@ -886,10 +884,12 @@ Regras de leitura:
   nos cortes 0–1d / 1–3d / >3d.
 - `openHighPriority` conta `ALTA` em `ABERTO` ou `EM_ANDAMENTO`. E o numero do alerta de prioridade
   alta.
-- SLA: alvos ALTA 4h, MEDIA 24h, BAIXA 72h. Chamado fechado cumpre se fechou dentro do alvo. Chamado
-  **ainda aberto e dentro do alvo fica fora do denominador** — so entra como violacao depois de
-  estourar. Sem essa regra, todo chamado recem-criado contaria como violacao. `percentage` e `null`
-  quando `evaluated` e `0`.
+- SLA: alvos ALTA 4h, MEDIA 24h, BAIXA 72h. Chamado **encerrado** cumpre se encerrou dentro do alvo;
+  encerrado inclui `FECHADO` (mede ate `closedAt`) e `RESOLVIDO` (mede ate `resolvedAt`) — o
+  cronometro do atendimento para quando o trabalho termina, nao quando alguem lembra de fechar o
+  chamado. Chamado **ainda aberto e dentro do alvo fica fora do denominador** — so entra como
+  violacao depois de estourar. Sem essa regra, todo chamado recem-criado contaria como violacao.
+  `percentage` e `null` quando `evaluated` e `0`.
 - `topRequesters` traz no maximo 5 itens.
 - `averageQueueToDoneSeconds` mede `updatedAt - createdAt` dos jobs `DONE`: fila **mais** execucao.
   `ai_jobs` nao registra o instante de inicio do processamento, entao chamar isso de "tempo medio de
@@ -906,7 +906,7 @@ revisada pelo ADMIN.
 
 ### `PATCH /api/v1/tickets/{id}/classification`
 
-**Contrato publicado, ainda nao implementado.** Depende da `V4`.
+**Disponivel.**
 
 ADMIN aceita ou corrige a sugestao da IA. Confirmado igual ao que o frontend assumiu — **nao existe
 endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alteracao.
@@ -919,7 +919,9 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
 }
 ```
 
-- `category` e `priority` obrigatorios; `justification` opcional, ate 2000 caracteres.
+- `category` e `priority` obrigatorios; `justification` opcional, ate 2000 caracteres. O corpo
+  tambem aceita `classificationJustification` como nome alternativo da justificativa, que e o nome
+  que o frontend ja envia.
 - Se os valores enviados forem iguais aos sugeridos pela IA, o gesto e aceite e
   `classificationOrigin` permanece `IA`. Se diferirem, vira `MANUAL`.
 - Chamado ainda sem sugestao (`PENDENTE`) sempre vira `MANUAL`.
@@ -930,7 +932,7 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
 
 ### Campos novos no `TicketDto`
 
-**Contrato publicado, ainda nao implementado.** Depende da `V4`. Hoje o `TicketDto` nao traz estes campos.
+**Disponivel.**
 
 ```json
 {
@@ -938,11 +940,16 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
   "classificationJustification": "Mencao a rede e servidor indica infraestrutura.",
   "aiSuggestedCategory": "INFRAESTRUTURA",
   "aiSuggestedPriority": "ALTA",
-  "aiConfidence": 0.87
+  "confidence": 0.87
 }
 ```
 
-Os tres campos `ai*` sao `null` enquanto a IA nao respondeu. `aiConfidence` vai de `0.0` a `1.0`.
+Os tres campos sao `null` enquanto a IA nao respondeu. `confidence` vai de `0.0` a `1.0`.
+
+O campo da confianca chama-se `confidence`, e nao `aiConfidence` como esta secao publicou antes: o
+frontend ja consome `ticket.confidence`, e como nada consumia o nome antigo, alinhar o backend ao
+consumidor real custou menos que pedir mudanca em `frontend/`. O prefixo `ai` continua nos dois
+campos de sugestao, onde o frontend ja usava `aiSuggestedCategory` e `aiSuggestedPriority`.
 
 ### `GET /api/v1/ai/jobs`
 
@@ -985,7 +992,7 @@ Sem corpo. Reagenda um job com falha: volta para `PENDING`, limpa `lastError`.
 
 ### Eventos SSE disparados por esta frente
 
-**Ainda nao disparados.** Dependem da `V4`; os nomes abaixo ja sao definitivos.
+**Disponiveis.**
 
 | Evento | Audiencia | Quando |
 | --- | --- | --- |
@@ -1008,10 +1015,14 @@ Ja implementado e disponivel (nao reimplementar):
 - Atualizacao de status, atribuicao e remocao de responsavel do chamado.
 - Jobs de IA para o ADMIN, em `GET /api/v1/ai/jobs` e `POST /api/v1/ai/jobs/{id}/retry`.
 - Deteccao de duplicados por embedding, gravando os pares em `ticket_links`.
+- Revisao da sugestao da IA pelo ADMIN, em `PATCH /api/v1/tickets/{id}/classification`.
+- Indicadores agregados em `GET /api/v1/indicators`, incluindo `overview.openHighPriority`, que
+  sustenta o alerta de chamado com prioridade ALTA.
+- Persistencia da sugestao da IA (`aiSuggestedCategory`, `aiSuggestedPriority`, `confidence`) e
+  carimbo de revisao pelo ADMIN.
 
 Ainda pendente:
 
-Contrato publicado, implementacao pendente (ver secao "Frente IA"):
-
-- Revisao da sugestao da IA pelo ADMIN, aceitando ou corrigindo a classificacao.
-- Indicadores agregados e alerta de chamado com prioridade ALTA.
+- Endpoint de busca de similares sob demanda (`GET /tickets/{id}/similar`). O vinculo detectado por
+  embedding ja e gravado; falta a consulta interativa.
+- Remocao de vinculo de duplicidade por acao explicita do ADMIN.

@@ -17,4 +17,6 @@ public interface AiJobRepository extends JpaRepository<AiJob, UUID>, JpaSpecific
 	);
 
 	long countByStatus(AiJobStatus status);
+
+	List<AiJob> findByStatus(AiJobStatus status);
 }

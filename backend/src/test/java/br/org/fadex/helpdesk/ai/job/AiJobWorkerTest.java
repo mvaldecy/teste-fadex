@@ -1,6 +1,7 @@
 package br.org.fadex.helpdesk.ai.job;
 
 import br.org.fadex.helpdesk.ai.AiIntegrationException;
+import br.org.fadex.helpdesk.ai.classification.TicketAiSuggestionService;
 import br.org.fadex.helpdesk.ai.client.AiEmbeddingClient;
 import br.org.fadex.helpdesk.ai.client.AiTriageClient;
 import br.org.fadex.helpdesk.ai.duplicate.DuplicateDetectionService;
@@ -13,11 +14,15 @@ import br.org.fadex.helpdesk.model.enums.TicketPriority;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.repository.TicketEmbeddingRepository;
+import br.org.fadex.helpdesk.service.TicketService;
+import br.org.fadex.helpdesk.sse.model.NotificationEventName;
+import br.org.fadex.helpdesk.sse.model.NotificationMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -28,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,8 +65,17 @@ class AiJobWorkerTest {
 	@Mock
 	private DuplicateDetectionService duplicateDetectionService;
 
+	@Mock
+	private TicketService ticketService;
+
+	@Mock
+	private TicketAiSuggestionService ticketAiSuggestionService;
+
+	@Mock
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	@Test
-	void deveClassificarChamadoComClienteLocalEFinalizarJob() {
+	void deveClassificarChamadoPelaSeamEFinalizarJob() {
 		Ticket ticket = ticket();
 		AiJob job = job(ticket, AiJobType.CLASSIFICATION);
 		TicketClassification classification = new TicketClassification(
@@ -75,12 +91,60 @@ class AiJobWorkerTest {
 
 		worker.processDueJobs();
 
-		assertThat(ticket.getCategory()).isEqualTo(TicketCategory.SISTEMAS);
-		assertThat(ticket.getPriority()).isEqualTo(TicketPriority.ALTA);
-		assertThat(ticket.getClassificationOrigin()).isEqualTo(ClassificationOrigin.IA);
-		assertThat(ticket.getClassificationJustification()).isEqualTo("Erro recorrente no sistema interno.");
+		verify(ticketService).applyClassification(
+				ticket.getId(),
+				TicketCategory.SISTEMAS,
+				TicketPriority.ALTA,
+				ClassificationOrigin.IA,
+				"Erro recorrente no sistema interno."
+		);
 		verify(aiJobRepository).save(job);
 		assertThat(job.getStatus()).isEqualTo(AiJobStatus.DONE);
+	}
+
+	@Test
+	void naoDeveMutarOChamadoDiretamenteAoClassificar() {
+		Ticket ticket = ticket();
+		AiJob job = job(ticket, AiJobType.CLASSIFICATION);
+		AiJobWorker worker = worker(true, true);
+
+		when(aiJobService.findDueJobs(any(LocalDateTime.class), eq(BATCH_SIZE))).thenReturn(List.of(job));
+		when(aiTriageClient.classify(anyString(), anyString())).thenReturn(new TicketClassification(
+				TicketCategory.SISTEMAS,
+				TicketPriority.ALTA,
+				0.9,
+				"Erro recorrente no sistema interno."
+		));
+
+		worker.processDueJobs();
+
+		assertThat(ticket.getCategory()).isEqualTo(TicketCategory.OUTROS);
+		assertThat(ticket.getPriority()).isEqualTo(TicketPriority.MEDIA);
+		assertThat(ticket.getClassificationOrigin()).isEqualTo(ClassificationOrigin.PENDENTE);
+	}
+
+	@Test
+	void deveGravarSugestaoEConfiancaDaIa() {
+		Ticket ticket = ticket();
+		AiJob job = job(ticket, AiJobType.CLASSIFICATION);
+		AiJobWorker worker = worker(true, true);
+
+		when(aiJobService.findDueJobs(any(LocalDateTime.class), eq(BATCH_SIZE))).thenReturn(List.of(job));
+		when(aiTriageClient.classify(anyString(), anyString())).thenReturn(new TicketClassification(
+				TicketCategory.INFRAESTRUTURA,
+				TicketPriority.ALTA,
+				0.87,
+				"Mencao a rede e servidor."
+		));
+
+		worker.processDueJobs();
+
+		verify(ticketAiSuggestionService).recordSuggestion(
+				ticket.getId(),
+				TicketCategory.INFRAESTRUTURA,
+				TicketPriority.ALTA,
+				0.87
+		);
 	}
 
 	@Test
@@ -102,10 +166,82 @@ class AiJobWorkerTest {
 
 		worker.processDueJobs();
 
-		assertThat(ticket.getCategory()).isEqualTo(TicketCategory.ACESSO);
-		assertThat(ticket.getClassificationOrigin()).isEqualTo(ClassificationOrigin.IA);
 		verify(fallbackTicketClassifier).classify(ticket.getTitle(), ticket.getDescription());
+		verify(ticketService).applyClassification(
+				ticket.getId(),
+				TicketCategory.ACESSO,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.IA,
+				"Classificacao por fallback."
+		);
 		assertThat(job.getStatus()).isEqualTo(AiJobStatus.DONE);
+	}
+
+	@Test
+	void devePublicarClassificacaoConcluidaEIndicadoresAtualizados() {
+		Ticket ticket = ticket();
+		AiJob job = job(ticket, AiJobType.CLASSIFICATION);
+		AiJobWorker worker = worker(true, true);
+
+		when(aiJobService.findDueJobs(any(LocalDateTime.class), eq(BATCH_SIZE))).thenReturn(List.of(job));
+		when(aiTriageClient.classify(anyString(), anyString())).thenReturn(new TicketClassification(
+				TicketCategory.INFRAESTRUTURA,
+				TicketPriority.ALTA,
+				0.87,
+				"Mencao a rede e servidor."
+		));
+		when(ticketAiSuggestionService.recordSuggestion(any(), any(), any(), any()))
+				.thenReturn(UUID.randomUUID());
+
+		worker.processDueJobs();
+
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		verify(applicationEventPublisher, atLeastOnce()).publishEvent(captor.capture());
+
+		assertThat(captor.getAllValues())
+				.extracting(NotificationMessage::eventName)
+				.contains(
+						NotificationEventName.CLASSIFICACAO_CONCLUIDA,
+						NotificationEventName.INDICADORES_ATUALIZADOS
+				);
+	}
+
+	@Test
+	void devePublicarJobIaFalhouSomenteAoEsgotarTentativas() {
+		Ticket ticket = ticket();
+		AiJob job = job(ticket, AiJobType.CLASSIFICATION);
+		ReflectionTestUtils.setField(job, "attempts", MAX_ATTEMPTS - 1);
+		AiJobWorker worker = worker(true, true);
+
+		when(aiJobService.findDueJobs(any(LocalDateTime.class), eq(BATCH_SIZE))).thenReturn(List.of(job));
+		when(aiTriageClient.classify(anyString(), anyString()))
+				.thenThrow(new IllegalStateException("modelo local indisponivel"));
+
+		worker.processDueJobs();
+
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		verify(applicationEventPublisher, atLeastOnce()).publishEvent(captor.capture());
+
+		assertThat(captor.getAllValues())
+				.extracting(NotificationMessage::eventName)
+				.contains(NotificationEventName.JOB_IA_FALHOU);
+		assertThat(job.getStatus()).isEqualTo(AiJobStatus.FAILED);
+	}
+
+	@Test
+	void naoDevePublicarJobIaFalhouQuandoAindaHaTentativas() {
+		Ticket ticket = ticket();
+		AiJob job = job(ticket, AiJobType.CLASSIFICATION);
+		AiJobWorker worker = worker(true, true);
+
+		when(aiJobService.findDueJobs(any(LocalDateTime.class), eq(BATCH_SIZE))).thenReturn(List.of(job));
+		when(aiTriageClient.classify(anyString(), anyString()))
+				.thenThrow(new IllegalStateException("modelo local indisponivel"));
+
+		worker.processDueJobs();
+
+		verify(applicationEventPublisher, never()).publishEvent(any(Object.class));
+		assertThat(job.getStatus()).isEqualTo(AiJobStatus.PENDING);
 	}
 
 	@Test
@@ -155,6 +291,9 @@ class AiJobWorkerTest {
 				fallbackTicketClassifier,
 				ticketEmbeddingRepository,
 				duplicateDetectionService,
+				ticketService,
+				ticketAiSuggestionService,
+				applicationEventPublisher,
 				triageEnabled,
 				workerEnabled,
 				BATCH_SIZE,

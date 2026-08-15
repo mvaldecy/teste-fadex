@@ -141,6 +141,16 @@ uso — nao e a frente IA abrindo caminho proprio. Ele toca **so** as tres colun
 precisa estar numa transacao com a entidade gerenciada para o flush acontecer. Se o metodo chegar
 diferente, o ajuste e local ao worker.
 
+**Revisado na implementacao — a premissa da transacao nao se sustentava.** A assinatura chegou como
+esperado, mas o `AiJobWorker` e instanciado pelo Quartz, e nao resolvido como bean proxiado: depender
+da transacao ambiente daquela thread deixaria a mutacao silenciosamente sem efeito, que e exatamente
+o modo de falha que esta decisao existe para evitar. A escrita passou entao por
+`TicketAiSuggestionService`, um `@Service` transacional em `ai/classification/`, que carrega o
+chamado por `TicketService.findEntityById` (leitura e livre), chama `applyAiSuggestion` e devolve o
+id do solicitante — o relacionamento e lazy e so pode ser lido dentro daquela transacao, e o worker
+precisa desse id para a audiencia do `CLASSIFICACAO_CONCLUIDA`. A fronteira continua intacta:
+categoria, prioridade e origem seguem exclusivas de `applyClassification`.
+
 ### D2 — O worker hoje viola a fronteira e precisa parar
 
 `AiJobWorker.processClassification` chama `ticket.applyAutomaticClassification(...)` na entidade
@@ -158,6 +168,9 @@ depois: worker -> ticketService.applyClassification(id, cat, pri, IA, justificat
 ```
 
 ### D3 — Nomes de eventos SSE enquanto a `V4` nao chega
+
+**Encerrada.** `NotificationEventName` chegou em `dev` com as cinco constantes; o holder temporario
+`AiNotificationEventName` foi apagado e todos os usos apontam para o enum da frente API.
 
 `NotificationMessage.of(String eventName, ...)` recebe **String**, nao enum. Esta frente nao esta
 bloqueada pela existencia do `NotificationEventName`.
@@ -206,6 +219,14 @@ Regra de apuracao, que precisa ser explicita para o numero significar algo:
 - Chamado **fechado**: cumpre o SLA se `closed_at - created_at <= alvo`.
 - Chamado **em aberto**: so conta como violado se a idade atual **ja passou** do alvo. Um chamado
   aberto ha 1h com alvo de 4h nao e violacao nem cumprimento — fica fora do denominador.
+
+**Revisado na implementacao — o caso `RESOLVIDO` faltava.** Este documento so previa "fechado" e
+"em aberto", e o schema tem um terceiro estado: `RESOLVIDO`, com `resolved_at` preenchido e
+`closed_at` nulo. Pela regra literal ele nao era encerrado e continuaria acumulando tempo contra o
+alvo para sempre — todo chamado resolvido e nao fechado viraria violacao permanente, e o seed tem
+exatamente essa forma. A apuracao passou a medir ate `closed_at` quando existe, senao ate
+`resolved_at`; so continua correndo quem esta em `ABERTO` ou `EM_ANDAMENTO`. O cronometro para
+quando o trabalho termina, nao quando alguem lembra de fechar o chamado.
 
 Sem essa segunda regra, todo chamado recem-aberto entraria como violacao e o percentual afundaria
 sozinho com o tempo.
@@ -335,11 +356,17 @@ O controller vive em `ai/`, mapeado no mesmo base path `/api/v1/tickets`. Nao ha
   "classificationJustification": "Mencao a rede e servidor indica infraestrutura.",
   "aiSuggestedCategory": "INFRAESTRUTURA",
   "aiSuggestedPriority": "ALTA",
-  "aiConfidence": 0.87
+  "confidence": 0.87
 }
 ```
 
 `classificationJustification` ja existe. Os tres campos novos sao nulos enquanto a IA nao respondeu.
+
+**Revisado na implementacao:** o campo da confianca chama-se `confidence`, e nao `aiConfidence` como
+este documento previa. `frontend/` esta fora do escopo desta frente e ja consome `ticket.confidence`;
+publicar `aiConfidence` deixaria o selo de confianca sem renderizar por divergencia de nome. Como
+nenhum consumidor usava o nome antigo, alinhar ao consumidor real custou menos que pedir mudanca no
+frontend. Os dois campos de sugestao mantiveram o prefixo `ai`, que o frontend ja usava.
 
 ### GET /api/v1/ai/jobs
 

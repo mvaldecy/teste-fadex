@@ -25,6 +25,9 @@ public record TicketDto(
 		LocalDateTime resolvedAt,
 		LocalDateTime closedAt,
 		LocalDateTime createdAt,
-		LocalDateTime updatedAt
+		LocalDateTime updatedAt,
+		TicketCategory aiSuggestedCategory,
+		TicketPriority aiSuggestedPriority,
+		Double confidence
 ) {
 }

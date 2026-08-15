@@ -83,8 +83,8 @@ O projeto deve demonstrar organização de código, modelagem relacional, docume
 | 3. Chamados | Criação, listagem, detalhe, filtros, atualização, cancelamento e regras de status. | Parcial |
 | 4. Comentários e histórico | Comentários em chamados e registro cronológico de interações/mudanças. | Parcial |
 | 5. Autorização por papel | Restringir visibilidade e ações por ADMIN/SOLICITANTE. | Pendente |
-| 6. Triagem por IA | Classificação automática de categoria/prioridade e revisão pelo ADMIN. | Pendente |
-| 7. Indicadores em tempo real | Contadores por status/prioridade e alerta de prioridade ALTA. | Pendente |
+| 6. Triagem por IA | Classificação automática de categoria/prioridade e revisão pelo ADMIN. | Concluído |
+| 7. Indicadores em tempo real | Contadores por status/prioridade e alerta de prioridade ALTA. | Parcial |
 | 8. Frontend | Telas de login, chamados, detalhe, comentários, indicadores e experiência responsiva. | Em andamento |
 | 9. Documentação final | README, exemplos de requisição, credenciais de teste, justificativa da IA e instruções locais. | Pendente |
 | 10. Submissão | Tornar repositório público, revisar checklist final e enviar link. | Pendente |
@@ -113,3 +113,6 @@ O projeto deve demonstrar organização de código, modelagem relacional, docume
 - Histórico de status deve ser modelado sem misturar regra de negócio na entidade.
 - O README final é item obrigatório e precisa ser escrito para avaliador reproduzir o projeto rapidamente.
 - O repositório está privado durante o desenvolvimento, mas deve ficar público antes da entrega.
+- O item 7 fica como Parcial de propósito: `GET /api/v1/indicators` entrega os contadores e o
+  `overview.openHighPriority` que sustenta o alerta, mas a emissão do alerta na **abertura** de um
+  chamado ALTA é da frente de API/Notificações e ainda está em andamento.
