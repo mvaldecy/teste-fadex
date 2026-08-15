@@ -198,6 +198,58 @@ class TicketEmailComposerTest {
 		assertThat(fechado.getFirst().subject()).startsWith("Seu chamado foi fechado");
 	}
 
+	/**
+	 * O responsavel entra na lista so no cancelamento: quem esta atendendo precisa saber que o
+	 * chamado morreu, sob pena de continuar trabalhando nele.
+	 */
+	@Test
+	void chamadoCanceladoDeveNotificarSolicitanteEResponsavel() {
+		List<EmailMessage> messages = composer.compose(event(
+				TicketNotificationType.STATUS_ALTERADO,
+				TicketPriority.MEDIA,
+				TicketStatus.CANCELADO,
+				responsavel(),
+				OUTRO_ADMIN_ID,
+				TicketPriority.MEDIA,
+				"Chamado cancelado."
+		));
+
+		assertThat(messages).extracting(EmailMessage::to)
+				.containsExactlyInAnyOrder("maria@fadex.org.br", "ana@fadex.org.br");
+		assertThat(messages).allSatisfy(message ->
+				assertThat(message.subject()).startsWith("Seu chamado foi cancelado"));
+	}
+
+	@Test
+	void chamadoCanceladoPeloProprioSolicitanteNaoDeveVoltarParaEle() {
+		List<EmailMessage> messages = composer.compose(event(
+				TicketNotificationType.STATUS_ALTERADO,
+				TicketPriority.MEDIA,
+				TicketStatus.CANCELADO,
+				responsavel(),
+				SOLICITANTE_ID,
+				TicketPriority.MEDIA,
+				"Chamado cancelado."
+		));
+
+		assertThat(messages).extracting(EmailMessage::to).containsExactly("ana@fadex.org.br");
+	}
+
+	@Test
+	void chamadoCanceladoSemResponsavelDeveNotificarApenasOSolicitante() {
+		List<EmailMessage> messages = composer.compose(event(
+				TicketNotificationType.STATUS_ALTERADO,
+				TicketPriority.MEDIA,
+				TicketStatus.CANCELADO,
+				null,
+				OUTRO_ADMIN_ID,
+				TicketPriority.MEDIA,
+				"Chamado cancelado."
+		));
+
+		assertThat(messages).extracting(EmailMessage::to).containsExactly("maria@fadex.org.br");
+	}
+
 	@Test
 	void comentarioDeAdminDeveNotificarOSolicitante() {
 		List<EmailMessage> messages = composer.compose(event(

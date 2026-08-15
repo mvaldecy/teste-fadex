@@ -307,6 +307,90 @@ class IndicatorServiceTest {
 		assertThat(closureTime.getFirst().averageHours()).isEqualTo(3.0);
 	}
 
+	/**
+	 * Cancelado nao foi resolvido, mas tambem nao esta pendente de ninguem: sai do numerador e do
+	 * denominador. Sem isso ele viraria violacao permanente, piorando sozinho com o tempo.
+	 */
+	@Test
+	void naoDeveContarChamadoCanceladoComoViolacaoDeSla() {
+		givenProjections(
+				fechado(TicketPriority.ALTA, TicketCategory.ACESSO, NOW.minusHours(10), NOW.minusHours(9)),
+				cancelado(TicketPriority.ALTA, TicketCategory.ACESSO, NOW.minusHours(100))
+		);
+
+		SlaIndicatorsDto sla = service().getIndicators().durations().sla();
+
+		assertThat(sla.overall().evaluated()).isEqualTo(1);
+		assertThat(sla.overall().withinTarget()).isEqualTo(1);
+		assertThat(sla.overall().percentage()).isEqualTo(100.0);
+		assertThat(sla.byPriority().get(TicketPriority.ALTA).evaluated()).isEqualTo(1);
+	}
+
+	@Test
+	void naoDeveContarChamadoCanceladoNoEnvelhecimentoDaFila() {
+		givenProjections(cancelado(TicketPriority.MEDIA, TicketCategory.ACESSO, NOW.minusHours(100)));
+
+		DurationIndicatorsDto durations = service().getIndicators().durations();
+		BacklogAgingDto aging = durations.backlogAging();
+
+		assertThat(aging.upToOneDay() + aging.oneToThreeDays() + aging.overThreeDays()).isZero();
+		assertThat(durations.oldestOpenTicketHours()).isNull();
+	}
+
+	@Test
+	void naoDeveContarChamadoCanceladoComoAltaPrioridadeEmAberto() {
+		givenProjections(cancelado(TicketPriority.ALTA, TicketCategory.ACESSO, NOW.minusHours(100)));
+
+		assertThat(service().getIndicators().overview().openHighPriority()).isZero();
+	}
+
+	@Test
+	void naoDeveContarChamadoCanceladoNaMediaDeFechamento() {
+		givenProjections(cancelado(TicketPriority.MEDIA, TicketCategory.ACESSO, NOW.minusHours(2)));
+
+		IndicatorsDto indicators = service().getIndicators();
+
+		assertThat(indicators.durations().closure().overall().sampleSize()).isZero();
+		assertThat(indicators.overview().closedToday()).isZero();
+		assertThat(indicators.overview().closedThisWeek()).isZero();
+	}
+
+	@Test
+	void naoDeveContarChamadoCanceladoNaCargaDoResponsavel() {
+		UUID assigneeId = UUID.randomUUID();
+
+		givenProjections(canceladoComResponsavel(assigneeId, "Ana Admin"));
+
+		WorkloadIndicatorsDto workload = service().getIndicators().workload();
+
+		assertThat(workload.openByAssignee()).isEmpty();
+		assertThat(workload.closureTimeByAssignee()).isEmpty();
+	}
+
+	/**
+	 * Volume e volume: o chamado foi aberto, ocupou a fila e consumiu triagem. Escondê-lo do total
+	 * faria os mapas por status nao somarem o total, e a fatia CANCELADO e justamente o dado de
+	 * gestao novo.
+	 */
+	@Test
+	void deveContarChamadoCanceladoNoTotalNaFatiaDeStatusENoVolumePorSolicitante() {
+		UUID requesterId = UUID.randomUUID();
+
+		givenProjections(
+				aberto(TicketPriority.MEDIA, TicketCategory.ACESSO, NOW.minusHours(2)),
+				projection(TicketStatus.CANCELADO, TicketPriority.MEDIA, TicketCategory.ACESSO,
+						ClassificationOrigin.PENDENTE, null, null, null, requesterId, "Bruno",
+						NOW.minusHours(100), null, null, null, null)
+		);
+
+		IndicatorsDto indicators = service().getIndicators();
+
+		assertThat(indicators.overview().total()).isEqualTo(2);
+		assertThat(indicators.overview().byStatus()).containsEntry(TicketStatus.CANCELADO, 1L);
+		assertThat(indicators.workload().topRequesters())
+				.anyMatch(volume -> volume.user().id().equals(requesterId) && volume.tickets() == 1);
+	}
+
 	private IndicatorService service() {
 		return new IndicatorService(indicatorRepository, aiJobRepository, ticketLinkRepository, clock);
 	}
@@ -322,6 +406,25 @@ class IndicatorServiceTest {
 	) {
 		return projection(TicketStatus.ABERTO, priority, category, ClassificationOrigin.PENDENTE,
 				null, null, null, null, null, createdAt, null, null, null, null);
+	}
+
+	/**
+	 * Chamado cancelado nao tem {@code resolvedAt} nem {@code closedAt}: cancelar nao carimba nada,
+	 * e e isso que o mantem fora dos indicadores de fechamento.
+	 */
+	private TicketIndicatorProjection cancelado(
+			TicketPriority priority,
+			TicketCategory category,
+			LocalDateTime createdAt
+	) {
+		return projection(TicketStatus.CANCELADO, priority, category, ClassificationOrigin.PENDENTE,
+				null, null, null, null, null, createdAt, null, null, null, null);
+	}
+
+	private TicketIndicatorProjection canceladoComResponsavel(UUID assigneeId, String assigneeName) {
+		return projection(TicketStatus.CANCELADO, TicketPriority.MEDIA, TicketCategory.ACESSO,
+				ClassificationOrigin.PENDENTE, null, null, null, null, null,
+				NOW.minusHours(100), assigneeId, assigneeName, null, null);
 	}
 
 	private TicketIndicatorProjection fechado(

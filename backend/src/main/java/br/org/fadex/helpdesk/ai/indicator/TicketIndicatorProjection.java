@@ -45,11 +45,24 @@ public record TicketIndicatorProjection(
 	}
 
 	/**
+	 * Chamado cancelado: nao esta aberto, nao foi resolvido e nao foi fechado.
+	 *
+	 * Fica explicito em vez de emergir de {@code isOpen()} porque as metricas que precisam exclui-lo
+	 * sao mais de uma, e cada uma exclui por um motivo diferente.
+	 */
+	public boolean isCanceled() {
+		return status == TicketStatus.CANCELADO;
+	}
+
+	/**
 	 * Instante em que o atendimento parou de correr, ou {@code null} se ainda esta correndo.
 	 *
 	 * Chamado RESOLVIDO tem o trabalho concluido mesmo sem ninguem ter clicado em fechar. Medir SLA
 	 * ate agora nesse caso transformaria toda pendencia de fechamento em violacao permanente, o que
 	 * mede burocracia e nao atendimento.
+	 *
+	 * Nao vale para chamado CANCELADO, que nao entra no SLA de forma alguma — ver
+	 * {@code IndicatorService.buildSla}.
 	 */
 	public LocalDateTime settledAt() {
 		if (closedAt != null) {

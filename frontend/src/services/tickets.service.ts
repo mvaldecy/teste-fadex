@@ -53,6 +53,20 @@ async function unassign(id: string) {
   return response.data;
 }
 
+/**
+ * Cancelamento e exclusao logica: o backend responde `200` com o chamado ja em
+ * `CANCELADO`, e nao `204`. O chamado continua existindo — historico,
+ * comentarios e metricas ficam.
+ *
+ * ADMIN cancela qualquer chamado; SOLICITANTE cancela o proprio enquanto
+ * `ABERTO`. Papel indevido responde `403`, estado que nao aceita cancelamento
+ * responde `409`.
+ */
+async function cancel(id: string) {
+  const response = await api.delete<TicketDto>(`/tickets/${id}`);
+  return response.data;
+}
+
 async function updateClassification(
   id: string,
   payload: UpdateTicketClassificationRequest
@@ -94,6 +108,7 @@ export const ticketsService = {
   updateStatus,
   assign,
   unassign,
+  cancel,
   updateClassification,
   listSimilar,
   requestAiTriage

@@ -9,6 +9,7 @@ import { indicatorsService } from "@/src/services/indicators.service";
 import { usersService } from "@/src/services/users.service";
 import { useSessionStore } from "@/src/stores/session.store";
 
+import { TicketCancelAction } from "./ticket-cancel-action";
 import { TicketClassificationCard } from "./ticket-classification-card";
 import { TicketDetailPanel } from "./ticket-detail-panel";
 import { TicketHistoryList } from "./ticket-history-list";
@@ -17,6 +18,10 @@ import {
   type AssigneeOption,
   TicketLifecycleActions
 } from "./ticket-lifecycle-actions";
+import {
+  canCancelFrom,
+  useTicketStatusTransitions
+} from "./ticket-status-transitions";
 import { useTicketActions } from "./use-ticket-actions";
 import { useTicketComments } from "./use-ticket-comments";
 import { useTicketDetail } from "./use-ticket-detail";
@@ -29,7 +34,9 @@ export function TicketDetailPage() {
   const params = useParams<{ id: string }>();
   const ticketId = params.id ?? null;
   const role = useSessionStore((state) => state.role);
+  const userId = useSessionStore((state) => state.user?.id ?? null);
   const isAdmin = role === "ADMIN";
+  const transitions = useTicketStatusTransitions();
 
   const detail = useTicketDetail(ticketId);
   const comments = useTicketComments(ticketId);
@@ -131,29 +138,56 @@ export function TicketDetailPage() {
     };
   }, [isAdmin]);
 
-  const actionsSlot =
-    isAdmin && detail.ticket ? (
-      <div className="grid gap-4">
-        <TicketLifecycleActions
-          assignees={assignees}
-          choices={detail.choices}
-          isSubmitting={actions.isSubmitting}
-          ticket={detail.ticket}
-          onAssign={actions.assign}
-          onChangeStatus={actions.changeStatus}
-          onUnassign={actions.unassign}
-        />
+  // Quem pode cancelar: ADMIN em qualquer chamado, SOLICITANTE no proprio e
+  // apenas enquanto ABERTO — a mesma regra que o backend aplica em
+  // `DELETE /tickets/{id}`. O que a matriz do servidor decide e se o **estado**
+  // aceita cancelamento; o papel e camada de cima, e o servidor reconfere.
+  //
+  // Sem matriz carregada, `canCancelFrom` e falso e a acao some, em vez de
+  // aparecer para tomar 409.
+  const isOwner = detail.ticket?.requester.id === userId;
+  const canCancel =
+    detail.ticket !== null &&
+    canCancelFrom(transitions, detail.ticket.status) &&
+    (isAdmin || (isOwner && detail.ticket.status === "ABERTO"));
 
-        <TicketClassificationCard
-          choiceLabels={detail.choiceLabels}
-          choices={detail.choices}
-          hasTriageInProgress={triage.hasTriageInProgress}
-          isRequestingTriage={triage.isRequesting}
-          isSubmitting={actions.isSubmitting}
-          ticket={detail.ticket}
-          onRequestTriage={triage.requestTriage}
-          onUpdateClassification={actions.updateClassification}
-        />
+  const cancelSlot = canCancel ? (
+    <TicketCancelAction
+      isSubmitting={actions.isSubmitting}
+      onCancel={actions.cancel}
+    />
+  ) : null;
+
+  const actionsSlot =
+    detail.ticket && (isAdmin || cancelSlot) ? (
+      <div className="grid gap-4">
+        {isAdmin ? (
+          <TicketLifecycleActions
+            assignees={assignees}
+            choices={detail.choices}
+            isSubmitting={actions.isSubmitting}
+            ticket={detail.ticket}
+            transitions={transitions}
+            onAssign={actions.assign}
+            onChangeStatus={actions.changeStatus}
+            onUnassign={actions.unassign}
+          />
+        ) : null}
+
+        {cancelSlot}
+
+        {isAdmin ? (
+          <TicketClassificationCard
+            choiceLabels={detail.choiceLabels}
+            choices={detail.choices}
+            hasTriageInProgress={triage.hasTriageInProgress}
+            isRequestingTriage={triage.isRequesting}
+            isSubmitting={actions.isSubmitting}
+            ticket={detail.ticket}
+            onRequestTriage={triage.requestTriage}
+            onUpdateClassification={actions.updateClassification}
+          />
+        ) : null}
       </div>
     ) : null;
 

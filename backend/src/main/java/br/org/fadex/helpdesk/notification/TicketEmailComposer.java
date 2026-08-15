@@ -3,6 +3,7 @@ package br.org.fadex.helpdesk.notification;
 import br.org.fadex.helpdesk.mail.EmailMessage;
 import br.org.fadex.helpdesk.mail.EmailTemplateRenderer;
 import br.org.fadex.helpdesk.model.enums.Role;
+import br.org.fadex.helpdesk.model.enums.TicketStatus;
 import br.org.fadex.helpdesk.model.ticket.TicketMinDto;
 import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.notification.event.NotificationRecipient;
@@ -185,53 +186,70 @@ public class TicketEmailComposer {
 		));
 	}
 
+	/**
+	 * O responsavel so entra na lista quando o chamado e cancelado: quem esta atendendo precisa
+	 * saber que o chamado morreu, sob pena de continuar trabalhando nele. Nas demais mudancas de
+	 * status o destinatario segue sendo apenas o solicitante, como ja estava publicado no contrato.
+	 */
 	private List<EmailMessage> composeStatusChanged(TicketNotificationEvent event) {
-		NotificationRecipient requester = event.requester();
-
-		if (!requester.isNot(event.actorId())) {
-			return List.of();
-		}
-
 		TicketMinDto ticket = event.ticket();
 		String titulo = switch (ticket.status()) {
 			case RESOLVIDO -> "Seu chamado foi resolvido";
 			case FECHADO -> "Seu chamado foi fechado";
+			case CANCELADO -> "Seu chamado foi cancelado";
 			default -> "O status do seu chamado mudou";
 		};
 		String detalhe = event.detail() == null
 				? "O status do chamado agora e " + ticket.status().getLabel() + "."
 				: event.detail();
 
-		Map<String, Object> variables = ticketVariables(event);
-		variables.put("titulo", titulo);
-		variables.put("destinatarioNome", requester.name());
-		variables.put("detalhe", detalhe);
+		List<NotificationRecipient> recipients = new ArrayList<>();
+		recipients.add(event.requester());
 
-		String text = """
-				Ola, %s. %s
+		if (ticket.status() == TicketStatus.CANCELADO && event.assignee() != null) {
+			recipients.add(event.assignee());
+		}
 
-				Chamado: %s
-				Categoria: %s
-				Prioridade: %s
-				Status: %s
+		List<EmailMessage> messages = new ArrayList<>();
 
-				Abrir chamado: %s
-				""".formatted(
-				requester.name(),
-				detalhe,
-				ticket.title(),
-				ticket.category().getLabel(),
-				ticket.priority().getLabel(),
-				ticket.status().getLabel(),
-				ticketUrl(ticket)
-		);
+		for (NotificationRecipient recipient : recipients) {
+			if (!recipient.isNot(event.actorId())) {
+				continue;
+			}
 
-		return List.of(new EmailMessage(
-				requester.email(),
-				titulo + ": " + ticket.title(),
-				text,
-				templateRenderer.render("status-alterado", variables)
-		));
+			Map<String, Object> variables = ticketVariables(event);
+			variables.put("titulo", titulo);
+			variables.put("destinatarioNome", recipient.name());
+			variables.put("detalhe", detalhe);
+
+			String text = """
+					Ola, %s. %s
+
+					Chamado: %s
+					Categoria: %s
+					Prioridade: %s
+					Status: %s
+
+					Abrir chamado: %s
+					""".formatted(
+					recipient.name(),
+					detalhe,
+					ticket.title(),
+					ticket.category().getLabel(),
+					ticket.priority().getLabel(),
+					ticket.status().getLabel(),
+					ticketUrl(ticket)
+			);
+
+			messages.add(new EmailMessage(
+					recipient.email(),
+					titulo + ": " + ticket.title(),
+					text,
+					templateRenderer.render("status-alterado", variables)
+			));
+		}
+
+		return messages;
 	}
 
 	/**
