@@ -819,7 +819,8 @@ senha provisoria nao chega e o ADMIN precisa recriar o usuario.
 Secao escrita pela frente IA. Todos os endpoints desta secao exigem papel `ADMIN`.
 
 **Estado hoje:** toda esta secao esta implementada e responde — revisao da classificacao,
-indicadores, campos de sugestao no `TicketDto`, operacao da fila de jobs e os tres eventos SSE.
+indicadores, campos de sugestao no `TicketDto`, operacao da fila de jobs, consulta de semelhantes,
+solicitacao manual de triagem e os tres eventos SSE.
 
 ### Compatibilidade com o formato assumido pelo frontend
 
@@ -1007,6 +1008,79 @@ frontend ja consome `ticket.confidence`, e como nada consumia o nome antigo, ali
 consumidor real custou menos que pedir mudanca em `frontend/`. O prefixo `ai` continua nos dois
 campos de sugestao, onde o frontend ja usava `aiSuggestedCategory` e `aiSuggestedPriority`.
 
+### `GET /api/v1/tickets/{id}/similar`
+
+**Disponivel.** ADMIN.
+
+Chamados semelhantes ja detectados por embedding. Nao roda deteccao: apenas le os vinculos que o
+worker gravou em `ticket_links`.
+
+Resposta `200`:
+
+```json
+[
+  {
+    "id": "uuid",
+    "title": "Servidor de arquivos fora do ar",
+    "status": "ABERTO",
+    "priority": "ALTA",
+    "category": "INFRAESTRUTURA",
+    "similarity": 0.9312,
+    "createdAt": "2026-08-14T09:00:00"
+  }
+]
+```
+
+- **Restrito a ADMIN, e nao ao dono do chamado.** O resultado expoe titulo e situacao de chamados de
+  outros solicitantes; a visibilidade de chamado no projeto e escopada por solicitante, entao liberar
+  esta leitura para SOLICITANTE vazaria titulo alheio por um caminho lateral. O front deve esconder a
+  aba "Semelhantes" para quem nao e ADMIN em vez de renderizar e tomar `403`.
+- `similarity` e o cosseno do par no instante da deteccao, de `-1` a `1`, arredondado a quatro casas.
+  **Pode vir `null`**: vinculos gravados antes da `V6` nao registraram o valor, e nao ha backfill —
+  o embedding de origem pode ter mudado desde entao. Renderize a ausencia, nao assuma zero.
+- A lista sai ordenada pela maior similaridade, com os sem score no fim.
+- O vinculo e **bidirecional na leitura**: a deteccao grava `origem -> alvo` quando o job de embedding
+  da origem roda, entao para um chamado antigo o par costuma estar gravado na direcao oposta. O
+  endpoint consulta as duas direcoes e nao repete o mesmo chamado.
+- Lista vazia (`[]`) quando nao ha semelhante. `404` se o chamado nao existe.
+
+### `POST /api/v1/tickets/{id}/ai-triage`
+
+**Disponivel.** ADMIN.
+
+Reenfileira a triagem por IA de um chamado. Sem corpo de requisicao.
+
+Resposta `202 Accepted` com os jobs criados:
+
+```json
+[
+  {
+    "id": "uuid",
+    "ticketId": "uuid",
+    "type": "CLASSIFICATION",
+    "status": "PENDING",
+    "attempts": 0,
+    "nextAttemptAt": "2026-08-14T18:00:00",
+    "lastError": null,
+    "createdAt": "2026-08-14T18:00:00",
+    "updatedAt": "2026-08-14T18:00:00"
+  }
+]
+```
+
+- **`202`, nao `200`**: a requisicao nao espera o modelo local responder. Ela enfileira e devolve; o
+  worker do Quartz processa depois. Acompanhe por `CLASSIFICACAO_CONCLUIDA` ou por
+  `GET /api/v1/ai/jobs?ticketId={id}`.
+- **Guarda contra job duplicado, por tipo.** Um tipo que ja tenha job `PENDING` ou `PROCESSING` para
+  aquele chamado e pulado; os demais sao enfileirados. Dois cliques nao viram dois processamentos
+  concorrentes. A guarda e por tipo e nao por chamado de proposito: o job de embedding e o mais
+  lento dos dois, e uma guarda por chamado deixaria um embedding ainda `PENDING` bloqueando a
+  reclassificacao — que e justamente o que o ADMIN quer refazer.
+- `409` quando **nenhum** tipo pode ser enfileirado, ou seja, ja ha triagem em andamento para os dois.
+- Jobs `FAILED` nao bloqueiam: tem o proprio caminho em `POST /api/v1/ai/jobs/{id}/retry`. Jobs
+  `DONE` tambem nao — reprocessar um chamado ja classificado e o caso de uso principal deste endpoint.
+- `404` se o chamado nao existe.
+
 ### `GET /api/v1/ai/jobs`
 
 **Disponivel.**
@@ -1078,8 +1152,9 @@ Ja implementado e disponivel (nao reimplementar):
 - Persistencia da sugestao da IA (`aiSuggestedCategory`, `aiSuggestedPriority`, `confidence`) e
   carimbo de revisao pelo ADMIN.
 
+- Consulta de chamados semelhantes, em `GET /api/v1/tickets/{id}/similar`.
+- Solicitacao manual de triagem por IA, em `POST /api/v1/tickets/{id}/ai-triage`.
+
 Ainda pendente:
 
-- Endpoint de busca de similares sob demanda (`GET /tickets/{id}/similar`). O vinculo detectado por
-  embedding ja e gravado; falta a consulta interativa.
 - Remocao de vinculo de duplicidade por acao explicita do ADMIN.
