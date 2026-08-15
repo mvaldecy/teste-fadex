@@ -3,6 +3,7 @@
 import { Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/src/components/ui/button";
+import { cn } from "@/src/lib/utils";
 import { Input } from "@/src/components/ui/input";
 import {
   Select,
@@ -68,6 +69,15 @@ export function TicketFilterBar({
   );
   const [assignment, setAssignment] = useState<string>(assignmentAll);
   const currentUserId = useSessionStore((state) => state.user?.id);
+  /**
+   * Atribuicao so faz sentido para o ADMIN. O SOLICITANTE ja enxerga apenas os
+   * chamados que ele abriu e nunca e responsavel por nenhum: as tres opcoes
+   * responderiam a mesma coisa, e "meus chamados" significaria outra coisa
+   * para ele — o que ele abriu, nao o que ele atende.
+   */
+  const canFilterByAssignment = useSessionStore(
+    (state) => state.role === "ADMIN"
+  );
 
   const appliedSearch = filters.search ?? "";
   const hasActiveFilters =
@@ -147,7 +157,14 @@ export function TicketFilterBar({
 
   return (
     <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 lg:grid-cols-[minmax(200px,1fr)_160px_160px_180px_190px]">
+      <div
+        className={cn(
+          "grid gap-3",
+          canFilterByAssignment
+            ? "lg:grid-cols-[minmax(200px,1fr)_160px_160px_180px_190px]"
+            : "lg:grid-cols-[minmax(220px,1fr)_170px_170px_190px]"
+        )}
+      >
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
@@ -207,23 +224,25 @@ export function TicketFilterBar({
           </SelectContent>
         </Select>
 
-        <Select
-          value={assignment}
-          onValueChange={handleSelect(setAssignment, "assignment")}
-        >
-          <SelectTrigger aria-label="Atribuicao">
-            <SelectValue placeholder="Atribuicao" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={assignmentAll}>Qualquer atribuicao</SelectItem>
-            <SelectItem value={assignmentUnassigned}>
-              Sem responsavel
-            </SelectItem>
-            <SelectItem disabled={!currentUserId} value={assignmentMine}>
-              Meus chamados
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        {canFilterByAssignment ? (
+          <Select
+            value={assignment}
+            onValueChange={handleSelect(setAssignment, "assignment")}
+          >
+            <SelectTrigger aria-label="Atribuicao">
+              <SelectValue placeholder="Atribuicao" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={assignmentAll}>Qualquer atribuicao</SelectItem>
+              <SelectItem value={assignmentUnassigned}>
+                Sem responsavel
+              </SelectItem>
+              <SelectItem disabled={!currentUserId} value={assignmentMine}>
+                Meus chamados
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
