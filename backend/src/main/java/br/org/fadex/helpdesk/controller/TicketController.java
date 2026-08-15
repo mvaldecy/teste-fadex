@@ -81,6 +81,22 @@ public class TicketController {
 		return ResponseEntity.ok(ticket);
 	}
 
+	/**
+	 * Exclusao logica do chamado: cancela e devolve o retrato novo.
+	 *
+	 * {@code DELETE} porque e onde o cliente procura "remover o chamado", e {@code 200} com corpo
+	 * porque o chamado continua existindo em CANCELADO — um {@code 204} mudo sugeriria que o
+	 * registro sumiu, e ele nao some: historico, comentarios e metricas ficam.
+	 *
+	 * A regra de quem pode cancelar e o que o estado atual permite ficam no service, nao aqui.
+	 */
+	@DeleteMapping("/{id}")
+	public ResponseEntity<TicketDto> cancel(@PathVariable UUID id) {
+		TicketDto ticket = ticketService.cancel(id);
+
+		return ResponseEntity.ok(ticket);
+	}
+
 	@DeleteMapping("/{id}/assignee")
 	public ResponseEntity<TicketDto> removeAssignee(@PathVariable UUID id) {
 		TicketDto ticket = ticketService.removeAssignee(id);

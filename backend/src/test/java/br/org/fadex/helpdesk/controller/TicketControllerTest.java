@@ -180,6 +180,44 @@ class TicketControllerTest {
 	}
 
 	/**
+	 * Exclusao logica: o {@code DELETE} devolve 200 com o chamado em CANCELADO, e nao 204, porque o
+	 * chamado continua existindo — quem chamou precisa ver o retrato novo.
+	 */
+	@Test
+	void deveCancelarChamadoERetornarORetratoCancelado() throws Exception {
+		when(ticketService.cancel(TICKET_ID)).thenReturn(ticketDto(TicketStatus.CANCELADO));
+
+		mockMvc.perform(delete("/api/v1/tickets/{id}", TICKET_ID).with(jwt()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(TICKET_ID.toString()))
+				.andExpect(jsonPath("$.status").value("CANCELADO"));
+	}
+
+	@Test
+	void deveRecusarCancelamentoSemAutenticacao() throws Exception {
+		mockMvc.perform(delete("/api/v1/tickets/{id}", TICKET_ID))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void deveMapearConflitoDeCancelamentoParaStatus409() throws Exception {
+		doThrow(new ConflictException("Transicao de Fechado para Cancelado nao e permitida."))
+				.when(ticketService).cancel(TICKET_ID);
+
+		mockMvc.perform(delete("/api/v1/tickets/{id}", TICKET_ID).with(jwt()))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void deveMapearCancelamentoDeChamadoInexistenteParaStatus404() throws Exception {
+		doThrow(new NotFoundException("Chamado não encontrado."))
+				.when(ticketService).cancel(TICKET_ID);
+
+		mockMvc.perform(delete("/api/v1/tickets/{id}", TICKET_ID).with(jwt()))
+				.andExpect(status().isNotFound());
+	}
+
+	/**
 	 * O DTO e montado pelo mapper de producao de proposito: componente novo no record nao quebra
 	 * este teste, que se importa com status HTTP e serializacao, nao com a forma do payload.
 	 */
