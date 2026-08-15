@@ -846,10 +846,12 @@ deve ignorar eventos cujo nome nao reconheca — a lista cresce sem quebrar quem
 | `INDICADORES_ATUALIZADOS` | todos os `ADMIN` | `reason`, `ticketId`, `occurredAt` |
 
 `CHAMADO_ATUALIZADO` e emitido na **criacao** do chamado e em mudanca de status, atribuicao,
-remocao de responsavel e reclassificacao. Na criacao a audiencia inclui todo `ADMIN`, porque o
-ADMIN enxerga todos os chamados na listagem e precisa ver a linha nova sem recarregar a pagina;
-nas demais mutacoes a audiencia continua sendo solicitante e responsavel. O `data` e o mesmo objeto do item de `GET /api/v1/tickets`, para que a linha da
-lista seja atualizada sem uma segunda chamada REST.
+remocao de responsavel e reclassificacao. A audiencia e sempre solicitante, responsavel e **todo
+`ADMIN`**, porque o ADMIN enxerga todos os chamados na listagem e precisa ver a linha mudar sem
+recarregar a pagina. Ate 15/08 so a criacao incluia o ADMIN, e o efeito era a listagem dele ficar
+parada enquanto o painel reagia — os indicadores ja iam para todo `ADMIN`. O `data` e o mesmo
+objeto do item de `GET /api/v1/tickets`, para que a linha da lista seja atualizada sem uma
+segunda chamada REST.
 
 `CHAMADO_ALTA_PRIORIDADE` e emitido quando a prioridade **passa a ser** `ALTA` — inclusive quando o
 chamado ja **nasce** `ALTA`. Chamado que ja era `ALTA` e reclassificado em outro campo nao gera

@@ -57,7 +57,7 @@ class TicketSseNotificationListenerTest {
 	}
 
 	@Test
-	void mutacaoDeveAlcancarSolicitanteEResponsavel() {
+	void mutacaoDeveAlcancarSolicitanteResponsavelEAdmins() {
 		List<NotificationMessage> messages = listener.toMessages(event(
 				TicketNotificationType.STATUS_ALTERADO,
 				TicketPriority.MEDIA,
@@ -67,7 +67,8 @@ class TicketSseNotificationListenerTest {
 
 		assertThat(messages).hasSize(1);
 		assertThat(messages.getFirst().audience())
-				.isEqualTo(new NotificationAudience.Users(Set.of(SOLICITANTE_ID, RESPONSAVEL_ID)));
+				.isEqualTo(new NotificationAudience.UsersAndRoles(
+						Set.of(SOLICITANTE_ID, RESPONSAVEL_ID), Set.of(Role.ADMIN)));
 	}
 
 	@Test

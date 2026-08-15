@@ -3,7 +3,6 @@ package br.org.fadex.helpdesk.notification;
 import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.notification.event.NotificationRecipient;
 import br.org.fadex.helpdesk.notification.event.TicketNotificationEvent;
-import br.org.fadex.helpdesk.notification.event.TicketNotificationType;
 import br.org.fadex.helpdesk.sse.config.AsyncConfig;
 import br.org.fadex.helpdesk.sse.model.NotificationAudience;
 import br.org.fadex.helpdesk.sse.model.NotificationEventName;
@@ -75,9 +74,11 @@ public class TicketSseNotificationListener {
 	}
 
 	/**
-	 * Na criacao a audiencia inclui todo ADMIN: o ADMIN enxerga todos os chamados na listagem e
-	 * precisa ver a linha nova sem recarregar a pagina. Nas demais mutacoes segue solicitante e
-	 * responsavel, como ja estava publicado no contrato.
+	 * A audiencia inclui todo ADMIN, e nao apenas solicitante e responsavel. O motivo e o mesmo
+	 * em qualquer mutacao: o ADMIN enxerga todos os chamados na listagem, entao precisa ver a
+	 * linha mudar sem recarregar a pagina. Restringir as atualizacoes aos dois envolvidos deixava
+	 * a listagem do ADMIN parada enquanto o painel dele reagia — os indicadores ja iam para
+	 * {@code Roles(ADMIN)} —, o que parecia falha do tempo real e era so a audiencia.
 	 */
 	private NotificationAudience audienceFor(TicketNotificationEvent event) {
 		Set<UUID> userIds = new HashSet<>();
@@ -89,10 +90,6 @@ public class TicketSseNotificationListener {
 			userIds.add(assignee.id());
 		}
 
-		if (event.type() == TicketNotificationType.CHAMADO_CRIADO) {
-			return new NotificationAudience.UsersAndRoles(userIds, Set.of(Role.ADMIN));
-		}
-
-		return new NotificationAudience.Users(userIds);
+		return new NotificationAudience.UsersAndRoles(userIds, Set.of(Role.ADMIN));
 	}
 }
