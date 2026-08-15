@@ -15,7 +15,7 @@ type TicketSimilarListProps = {
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
-    timeStyle: "short"
+    timeStyle: "short",
   }).format(new Date(value));
 }
 
@@ -32,11 +32,37 @@ function formatSimilarity(similarity: number | null) {
   return `${Math.round(similarity * 100)}% de similaridade`;
 }
 
+/**
+ * O limite do modelo, dito na tela e nao so no README.
+ *
+ * Sem isso a aba vazia parece defeito, e a aba cheia parece garantia. Nenhuma
+ * das duas leituras e verdadeira: o `all-minilm` reconhece reescrita com
+ * vocabulario proximo e perde o mesmo problema descrito com outras palavras.
+ * O numero vem da medicao sobre os pares reais da base — a duplicata verdadeira
+ * ficou em 0,50 enquanto pares sem relacao chegaram a 0,67.
+ */
+function NotaDoModelo() {
+  return (
+    <p className="text-xs leading-5 text-slate-500">
+      A comparação é automática: cada chamado é comparado com todos os outros e
+      o vínculo é criado acima de <strong>75% de similaridade</strong>. O modelo
+      reconhece bem o mesmo texto reescrito, mas{" "}
+      <strong>
+        erra quando duas pessoas descrevem o mesmo problema com vocabulários
+        diferentes
+      </strong>{" "}
+      — na medição da nossa base, uma duplicata real ficou em 50% enquanto
+      chamados sem relação chegaram a 67%. Por isso a lista é uma sugestão para
+      conferir, nunca uma afirmação de que não existe duplicata.
+    </p>
+  );
+}
+
 export function TicketSimilarList({
   choiceLabels,
   error,
   isLoading,
-  similarTickets
+  similarTickets,
 }: TicketSimilarListProps) {
   if (isLoading) {
     return (
@@ -58,49 +84,55 @@ export function TicketSimilarList({
 
   if (similarTickets.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-slate-300 p-6 text-sm text-slate-600">
-        Nenhum chamado semelhante detectado. A deteccao roda no job de embedding
-        de cada chamado.
+      <div className="grid gap-3 rounded-md border border-dashed border-slate-300 p-6">
+        <p className="text-sm font-medium text-slate-700">
+          Nenhum chamado semelhante foi detectado.
+        </p>
+        <NotaDoModelo />
       </div>
     );
   }
 
   return (
-    <ul className="grid gap-3">
-      {similarTickets.map((similar) => (
-        <li
-          className="rounded-md border border-slate-200 p-4 transition-colors hover:border-emerald-300"
-          key={similar.id}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <Link
-              className="text-sm font-medium text-slate-950 hover:text-emerald-700 hover:underline"
-              href={routes.ticketDetails(similar.id)}
-            >
-              {similar.title}
-            </Link>
+    <div className="grid gap-4">
+      <ul className="grid gap-3">
+        {similarTickets.map((similar) => (
+          <li
+            className="rounded-md border border-slate-200 p-4 transition-colors hover:border-emerald-300"
+            key={similar.id}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <Link
+                className="text-sm font-medium text-slate-950 hover:text-emerald-700 hover:underline"
+                href={routes.ticketDetails(similar.id)}
+              >
+                {similar.title}
+              </Link>
 
-            <span className="shrink-0 text-xs font-medium tabular-nums text-emerald-700">
-              {formatSimilarity(similar.similarity)}
-            </span>
-          </div>
+              <span className="shrink-0 text-xs font-medium tabular-nums text-emerald-700">
+                {formatSimilarity(similar.similarity)}
+              </span>
+            </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">
-              {resolveChoiceLabel(choiceLabels?.statuses, similar.status)}
-            </Badge>
-            <Badge variant="outline">
-              {resolveChoiceLabel(choiceLabels?.priorities, similar.priority)}
-            </Badge>
-            <Badge variant="outline">
-              {resolveChoiceLabel(choiceLabels?.categories, similar.category)}
-            </Badge>
-            <span className="text-xs text-slate-500">
-              Aberto em {formatDate(similar.createdAt)}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">
+                {resolveChoiceLabel(choiceLabels?.statuses, similar.status)}
+              </Badge>
+              <Badge variant="outline">
+                {resolveChoiceLabel(choiceLabels?.priorities, similar.priority)}
+              </Badge>
+              <Badge variant="outline">
+                {resolveChoiceLabel(choiceLabels?.categories, similar.category)}
+              </Badge>
+              <span className="text-xs text-slate-500">
+                Aberto em {formatDate(similar.createdAt)}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <NotaDoModelo />
+    </div>
   );
 }
