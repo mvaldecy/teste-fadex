@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/src/components/ui/badge";
 import { Button } from "@/src/components/ui/button";
@@ -31,8 +31,11 @@ import { type ChoiceLabelMap, resolveChoiceLabel } from "./choice-labels";
 type TicketClassificationCardProps = {
   choiceLabels: ChoiceLabelMap | null;
   choices: ChoicesResponse | null;
+  hasTriageInProgress: boolean;
+  isRequestingTriage: boolean;
   isSubmitting: boolean;
   ticket: TicketDto;
+  onRequestTriage: () => Promise<boolean>;
   onUpdateClassification: (
     category: TicketCategoryValue,
     priority: TicketPriorityValue,
@@ -43,8 +46,11 @@ type TicketClassificationCardProps = {
 export function TicketClassificationCard({
   choiceLabels,
   choices,
+  hasTriageInProgress,
+  isRequestingTriage,
   isSubmitting,
   ticket,
+  onRequestTriage,
   onUpdateClassification
 }: TicketClassificationCardProps) {
   const [category, setCategory] = useState<string>(ticket.category);
@@ -81,6 +87,40 @@ export function TicketClassificationCard({
             <h3 className="text-sm font-semibold text-slate-950">
               Sugestao da IA
             </h3>
+          </div>
+
+          {/* O rotulo segue o estado: sem classificacao ainda e um pedido, com
+              classificacao e um reprocessamento. O botao fica desabilitado
+              quando ja ha job ativo dos dois tipos, que e exatamente o caso em
+              que o backend responde 409 — com o motivo visivel, em vez de
+              sumir e deixar a pessoa sem entender. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              disabled={isRequestingTriage || hasTriageInProgress}
+              size="sm"
+              title={
+                hasTriageInProgress
+                  ? "Ja existe triagem em andamento para este chamado."
+                  : undefined
+              }
+              type="button"
+              variant="outline"
+              onClick={() => onRequestTriage()}
+            >
+              <Wand2 className="h-4 w-4" />
+              {isRequestingTriage
+                ? "Enviando..."
+                : ticket.classificationOrigin === "PENDENTE"
+                  ? "Solicitar triagem"
+                  : "Reprocessar com IA"}
+            </Button>
+
+            {hasTriageInProgress ? (
+              <span className="text-xs text-slate-500">
+                Triagem em andamento. O resultado chega assim que o worker
+                processar.
+              </span>
+            ) : null}
           </div>
 
           {hasSuggestion ? (

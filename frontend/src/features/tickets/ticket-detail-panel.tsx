@@ -29,6 +29,12 @@ type TicketDetailPanelProps = {
   actionsSlot?: React.ReactNode;
   choiceLabels: ChoiceLabelMap | null;
   historySlot?: React.ReactNode;
+  /**
+   * Ausente para quem nao e ADMIN, e ai a aba nao existe. O endpoint de
+   * semelhantes expoe titulo de chamado de outro solicitante, entao renderizar
+   * a aba e tomar 403 seria mostrar uma porta que nunca abre.
+   */
+  similarSlot?: React.ReactNode;
   comments: TicketCommentSummary[];
   commentsError: string | null;
   isCreatingComment: boolean;
@@ -49,6 +55,7 @@ export function TicketDetailPanel({
   actionsSlot,
   choiceLabels,
   historySlot,
+  similarSlot,
   comments,
   commentsError,
   isCreatingComment,
@@ -103,10 +110,19 @@ export function TicketDetailPanel({
 
       <CardContent>
         <Tabs defaultValue="summary">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList
+            className={
+              similarSlot
+                ? "grid w-full grid-cols-4"
+                : "grid w-full grid-cols-3"
+            }
+          >
             <TabsTrigger value="summary">Resumo</TabsTrigger>
             <TabsTrigger value="comments">Comentarios</TabsTrigger>
             <TabsTrigger value="history">Historico</TabsTrigger>
+            {similarSlot ? (
+              <TabsTrigger value="similar">Semelhantes</TabsTrigger>
+            ) : null}
           </TabsList>
 
           <TabsContent className="mt-5 grid gap-5" value="summary">
@@ -188,6 +204,21 @@ export function TicketDetailPanel({
 
             {historySlot}
           </TabsContent>
+
+          {similarSlot ? (
+            <TabsContent className="mt-5 grid gap-4" value="similar">
+              <div>
+                <h2 className="text-base font-semibold text-slate-950">
+                  Chamados semelhantes
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Detectados por embedding quando o chamado foi processado.
+                </p>
+              </div>
+
+              {similarSlot}
+            </TabsContent>
+          ) : null}
         </Tabs>
 
       </CardContent>

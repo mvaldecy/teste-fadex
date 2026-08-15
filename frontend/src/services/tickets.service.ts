@@ -1,7 +1,9 @@
 import type {
+  AiJobDto,
   AssignTicketRequest,
   CreateTicketRequest,
   PageResponse,
+  SimilarTicketDto,
   TicketDto,
   TicketFilters,
   TicketSummary,
@@ -63,6 +65,28 @@ async function updateClassification(
   return response.data;
 }
 
+/**
+ * Chamados semelhantes ja detectados por embedding. Nao dispara deteccao: le os
+ * vinculos gravados pelo worker, nas duas direcoes.
+ *
+ * Restrito a ADMIN no backend. Quem chama precisa esconder a aba para os demais
+ * papeis em vez de tomar 403 — o resultado expoe titulo de chamado alheio.
+ */
+async function listSimilar(id: string) {
+  const response = await api.get<SimilarTicketDto[]>(`/tickets/${id}/similar`);
+  return response.data;
+}
+
+/**
+ * Reenfileira a triagem por IA. Responde `202`: enfileira e devolve, sem
+ * esperar o modelo local. O resultado chega depois por SSE
+ * (`CLASSIFICACAO_CONCLUIDA`) ou pela tela de jobs.
+ */
+async function requestAiTriage(id: string) {
+  const response = await api.post<AiJobDto[]>(`/tickets/${id}/ai-triage`);
+  return response.data;
+}
+
 export const ticketsService = {
   list,
   getById,
@@ -70,5 +94,7 @@ export const ticketsService = {
   updateStatus,
   assign,
   unassign,
-  updateClassification
+  updateClassification,
+  listSimilar,
+  requestAiTriage
 };
