@@ -509,6 +509,23 @@ filtro intacto para ADMIN e o restringe ao próprio id caso contrário — o mes
 
 ---
 
+## 4.7 Conferência do `acompanhamento-desenvolvimento.md` contra o código
+
+O documento de acompanhamento foi conferido linha a linha contra o código, e **não deve ser usado
+como fonte de verdade**. Onde diverge:
+
+| Linha | O que o documento diz | O que o código diz |
+|---|---|---|
+| 54 | "Histórico de mudanças de status — **Pendente**; eventos de status ainda não" | **Desatualizado.** `model/event/TicketEvent.java` existe, é gravado em toda transição (`TicketService:238`) e exposto em `GET /tickets/{id}/events`. Requisito **atendido**. |
+| 47 | "CRUD completo — Parcial; implementar atualização de status, atribuição, exclusão/cancelamento" | **Parcialmente desatualizado.** Status e atribuição **foram** implementados (`TicketController:64-89`). **Exclusão/cancelamento continua sendo a lacuna real** — este ponto do documento segue válido e é confirmado por §1.2. |
+| 53 | "Comentários — Parcial" | **Desatualizado.** Criação e listagem existem, com autorização e ordenação cronológica. Atendido. |
+| 61–62, 96–100 | README pendente | **Confirmado.** Continua sendo o item aberto mais caro. |
+
+Ou seja: o acompanhamento **subestima** o que já foi construído em histórico e comentários, e
+**acerta** nos dois itens que de fato faltam (README e exclusão/cancelamento).
+
+---
+
 ## 5. Lista priorizada
 
 ### 5.1 Corrigir antes da entrega
