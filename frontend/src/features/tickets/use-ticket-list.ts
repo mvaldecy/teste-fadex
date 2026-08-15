@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { choicesService } from "@/src/services/choices.service";
 import { toApiErrorMessage } from "@/src/services/api-error";
@@ -23,6 +23,15 @@ export function useTicketList() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Sequencia da ultima requisicao disparada.
+   *
+   * Com filtro reativo as buscas saem em rajada e nada garante que as
+   * respostas voltem na ordem em que sairam. Sem esta guarda, a resposta de
+   * uma busca antiga chegando depois sobrescreveria a lista da busca atual.
+   */
+  const requestIdRef = useRef(0);
+
   const choiceLabels = useMemo(
     () => (choices ? buildChoiceLabelMap(choices) : null),
     [choices]
@@ -30,17 +39,31 @@ export function useTicketList() {
 
   const loadTickets = useCallback(
     async (nextFilters = filters) => {
+      requestIdRef.current += 1;
+      const requestId = requestIdRef.current;
+
       setIsRefreshing(true);
       setError(null);
 
       try {
         const response = await ticketsService.list(nextFilters);
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         setTickets(response.content);
       } catch (loadError) {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         setError(toApiErrorMessage(loadError));
       } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
     },
     [filters]
@@ -89,12 +112,20 @@ export function useTicketList() {
       setError(null);
 
       try {
+        requestIdRef.current += 1;
+        const requestId = requestIdRef.current;
+
         const [choicesResponse, ticketsResponse] = await Promise.all([
           choicesService.getChoices(),
           ticketsService.list(initialTicketFilters)
         ]);
 
         setChoices(choicesResponse);
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         setTickets(ticketsResponse.content);
       } catch (loadError) {
         setError(toApiErrorMessage(loadError));
