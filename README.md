@@ -160,6 +160,18 @@ preso esperando inferência, e modelo fora do ar não impede ninguém de abrir c
 heurístico por palavras-chave assume, com justificativa dizendo que foi heurística. O sistema
 continua classificando — pior, mas honesto sobre como chegou ali.
 
+A heurística junta título e descrição, tira acentos e minúsculas, e procura palavras-chave numa
+ordem fixa — a primeira que casar decide a categoria: `ACESSO` (senha, login, acesso, bloqueado),
+`SISTEMAS` (sistema, erro, aplicação, interno), `INFRAESTRUTURA` (rede, internet, servidor, infra),
+`EQUIPAMENTOS` (computador, impressora, teclado, mouse), `FINANCEIRO` (pagamento, nota fiscal,
+boleto), `RH` (férias, folha, benefício) e, se nada casar, `OUTROS`. A prioridade sai da mesma
+varredura: `ALTA` com urgente, indisponível, parado, bloqueado ou "não consegue acessar"; `BAIXA`
+com dúvida, orientação ou "quando possível"; `MEDIA` no resto.
+
+A ordem é o que mais pesa e o que menos aparece: *"erro no sistema da folha de pagamento"* casa
+`SISTEMAS` no segundo teste e nunca chega em `RH`. É a limitação inerente da abordagem — ela não lê
+a frase, só procura substrings —, e é por isso que ela é o plano B e não o principal.
+
 **A sugestão é auditada.** Categoria, prioridade e confiança sugeridas pela IA são gravadas em
 colunas próprias, separadas da classificação vigente. Sem isso, a correção do administrador
 sobrescreveria a sugestão e a taxa de concordância daria 100% para sempre — mediria nada. É essa
