@@ -77,9 +77,11 @@ public class TicketService {
 		Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
 		Map<UUID, Integer> similarCounts = countSimilarByTicket(tickets.getContent());
 
+		boolean apurado = accessControlService.isAdmin();
+
 		return tickets.map(ticket -> TicketMapper.toMinDto(
 				ticket,
-				similarCounts.getOrDefault(ticket.getId(), 0)
+				apurado ? similarCounts.getOrDefault(ticket.getId(), 0) : null
 		));
 	}
 
@@ -88,9 +90,14 @@ public class TicketService {
 	 *
 	 * O vinculo e direcional na gravacao, mas nao no significado: se X foi ligado a Y, os dois sao
 	 * semelhantes um do outro. Por isso cada par soma nas duas pontas.
+	 *
+	 * Nao apurado para o SOLICITANTE. A aba de semelhantes e restrita a ADMIN — expor titulo de
+	 * chamado alheio e vazamento —, entao para ele o selo levaria a uma aba que nao existe. E a
+	 * contagem sozinha ja diria que ha outro chamado parecido em algum lugar da organizacao, que e
+	 * a mesma informacao pela porta dos fundos.
 	 */
 	private Map<UUID, Integer> countSimilarByTicket(List<Ticket> tickets) {
-		if (tickets.isEmpty()) {
+		if (tickets.isEmpty() || !accessControlService.isAdmin()) {
 			return Map.of();
 		}
 

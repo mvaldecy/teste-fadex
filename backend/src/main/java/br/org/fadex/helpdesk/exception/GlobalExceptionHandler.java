@@ -2,8 +2,11 @@ package br.org.fadex.helpdesk.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -17,6 +20,8 @@ import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	@ExceptionHandler(ApplicationException.class)
 	public ResponseEntity<ErrorResponse> handleApplicationException(
@@ -117,11 +122,40 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.badRequest().body(error);
 	}
 
+	/**
+	 * Papel insuficiente e 403, nao 500.
+	 *
+	 * O {@code @PreAuthorize} lanca {@link AccessDeniedException}, que nao e {@code
+	 * ApplicationException} e caia direto no catch-all abaixo: todo endpoint anotado respondia
+	 * "erro interno" para quem simplesmente nao tinha permissao. O sintoma enganava duas vezes —
+	 * escondia a causa de quem chamava e sugeria defeito onde havia regra funcionando.
+	 */
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+			AccessDeniedException exception,
+			HttpServletRequest request
+	) {
+		ErrorResponse error = createErrorResponse(
+				"FORBIDDEN",
+				"Acesso negado.",
+				HttpStatus.FORBIDDEN,
+				request.getRequestURI(),
+				List.of()
+		);
+
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponse> handleException(
 			Exception exception,
 			HttpServletRequest request
 	) {
+		// Registrado antes de responder. Sem este log, o 500 saia sem rastro nenhum e a causa
+		// tinha de ser deduzida por fora, testando a API — foi assim que este proprio handler
+		// escondeu por semanas um 403 disfarcado de erro interno.
+		log.error("Erro nao tratado em {}: {}", request.getRequestURI(), exception.getMessage(), exception);
+
 		ErrorResponse error = createErrorResponse(
 				"INTERNAL_ERROR",
 				"Ocorreu um erro interno.",
