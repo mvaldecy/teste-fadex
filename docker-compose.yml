@@ -31,6 +31,11 @@ services:
       context: ./backend
     restart: unless-stopped
     environment:
+      # Sem TZ o container roda em UTC, e como as entidades usam LocalDateTime (que nao
+      # carrega fuso) os carimbos saem tres horas adiantados na tela. Fixar o fuso alinha o
+      # relogio do backend ao do usuario. A correcao definitiva seria Instant/OffsetDateTime
+      # ponta a ponta, com formatacao no navegador.
+      TZ: ${TZ:-America/Fortaleza}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SERVER_PORT: 8080
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fadex_helpdesk}

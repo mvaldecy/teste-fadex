@@ -124,6 +124,31 @@ qualquer pessoa consome a chave criando chamados.
 
 Os itens 1 a 4 somam menos de uma hora e são eliminatórios ou quase.
 
+## Achados da verificação manual (madrugada de 15/08)
+
+**1. Ambiente inconsistente: dados à frente do código.** A frente de cancelamento rodou
+contra o banco compartilhado, aplicou a **V7** e deixou dois chamados em `CANCELADO` — ambos
+do `solicitante@fadex.org.br`. O container voltou a servir o build da `dev`, que não conhece
+esse status. Resultado: `GET /indicators` responde **500** (varre todos os chamados) e a
+listagem do solicitante responde **500** (os dois cancelados são dele). A listagem do admin
+escapa só porque eles não caem na primeira página. **Não é bug de código** — o build da `dev`
+está correto para os dados que a `dev` produz. Resolve com merge do cancelamento e rebuild,
+ou com ressemeadura (`docker compose down -v`).
+
+**2. Fuso horário.** O container rodava em UTC sem `TZ` definida, e as entidades usam
+`LocalDateTime`, que não carrega offset — os carimbos apareciam três horas adiantados.
+Corrigido fixando `TZ` no compose. **A correção definitiva é `Instant`/`OffsetDateTime`
+ponta a ponta com formatação no navegador**, e fica como dívida registrada.
+
+**3. O `GlobalExceptionHandler` não registra nada ao devolver 500.** A causa do erro acima
+teve de ser deduzida por fora, testando o enum pela API. Em produção seria um 500 sem rastro.
+Vale logar a exceção antes de responder.
+
+**4. Sessão persistida sem versionamento.** Quem tinha sessão de antes das mudanças de hoje
+fica com estado de formato antigo no `sessionStorage` — sem `user`, o menu de logout não
+renderiza; sem `role`, a navegação esconde tudo. O usuário fica preso numa interface
+degradada e sem conseguir sair. O `persist` do zustand tem `version` e `migrate` para isso.
+
 ## Armadilhas do ambiente, aprendidas na prática
 
 - **O container do backend guarda imagem antiga.** Três vezes hoje um endpoint novo
