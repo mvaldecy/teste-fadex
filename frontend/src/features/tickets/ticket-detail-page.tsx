@@ -217,6 +217,7 @@ export function TicketDetailPage() {
         {isAdmin ? (
           <TicketLifecycleActions
             assignees={assignees}
+            currentUserId={userId}
             choices={detail.choices}
             isSubmitting={actions.isSubmitting}
             ticket={detail.ticket}
