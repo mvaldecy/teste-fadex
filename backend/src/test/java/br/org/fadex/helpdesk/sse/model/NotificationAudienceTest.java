@@ -38,6 +38,18 @@ class NotificationAudienceTest {
 	}
 
 	@Test
+	void deveIncluirUsuariosListadosOuRolesListadas() {
+		NotificationAudience audience = new NotificationAudience.UsersAndRoles(
+				Set.of(DESTINATARIO),
+				Set.of(Role.ADMIN)
+		);
+
+		assertThat(audience.includes(DESTINATARIO, Role.SOLICITANTE)).isTrue();
+		assertThat(audience.includes(OUTRO_USUARIO, Role.ADMIN)).isTrue();
+		assertThat(audience.includes(OUTRO_USUARIO, Role.SOLICITANTE)).isFalse();
+	}
+
+	@Test
 	void deveGerarIdentificadorUnicoParaCadaMensagem() {
 		NotificationMessage primeira = NotificationMessage.of("CHAMADO_CRIADO", "dado", new NotificationAudience.Everyone());
 		NotificationMessage segunda = NotificationMessage.of("CHAMADO_CRIADO", "dado", new NotificationAudience.Everyone());

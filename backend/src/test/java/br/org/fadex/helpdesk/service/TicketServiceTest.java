@@ -45,6 +45,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -106,6 +107,7 @@ class TicketServiceTest {
 				"senha-com-hash",
 				Role.SOLICITANTE
 		);
+		ReflectionTestUtils.setField(requester, "id", UUID.randomUUID());
 		TicketCreationDto ticketCreationDto = new TicketCreationDto(
 				"Erro ao acessar sistema",
 				"Nao consigo acessar o sistema interno."
@@ -136,6 +138,7 @@ class TicketServiceTest {
 	void deveGravarEventoAoCriarChamado() {
 		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
 		User requester = new User("Maria", "maria@fadex.org.br", "hash", Role.SOLICITANTE, false);
+		ReflectionTestUtils.setField(requester, "id", UUID.randomUUID());
 		TicketCreationDto dto = new TicketCreationDto(
 				"Erro ao acessar sistema",
 				"Nao consigo acessar o sistema interno."
@@ -153,6 +156,79 @@ class TicketServiceTest {
 				eq(TicketEventType.CHAMADO_CRIADO),
 				eq("Chamado criado.")
 		);
+	}
+
+	@Test
+	void deveNotificarSolicitanteEAdminsAoCriarChamado() {
+		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
+		Ticket savedTicket = newTicket(TicketPriority.MEDIA);
+		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+
+		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
+		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
+		when(ticketRepository.save(any(Ticket.class))).thenReturn(savedTicket);
+
+		ticketService.create(dto);
+
+		verify(applicationEventPublisher).publishEvent(captor.capture());
+		NotificationMessage message = captor.getValue();
+
+		assertThat(message.eventName()).isEqualTo(NotificationEventName.CHAMADO_ATUALIZADO);
+		assertThat(message.audience()).isInstanceOf(NotificationAudience.UsersAndRoles.class);
+
+		NotificationAudience.UsersAndRoles audience = (NotificationAudience.UsersAndRoles) message.audience();
+
+		assertThat(audience.userIds()).containsExactly(savedTicket.getRequester().getId());
+		assertThat(audience.roles()).containsExactly(Role.ADMIN);
+	}
+
+	@Test
+	void deveAlertarAdminsQuandoChamadoNasceComPrioridadeAlta() {
+		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
+		Ticket savedTicket = newTicket(TicketPriority.ALTA);
+		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+
+		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
+		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
+		when(ticketRepository.save(any(Ticket.class))).thenReturn(savedTicket);
+
+		ticketService.create(dto);
+
+		verify(applicationEventPublisher, times(2)).publishEvent(captor.capture());
+		List<String> eventNames = captor.getAllValues().stream()
+				.map(NotificationMessage::eventName)
+				.toList();
+
+		assertThat(eventNames).containsExactlyInAnyOrder(
+				NotificationEventName.CHAMADO_ATUALIZADO,
+				NotificationEventName.CHAMADO_ALTA_PRIORIDADE
+		);
+
+		NotificationMessage alerta = captor.getAllValues().stream()
+				.filter(message -> message.eventName().equals(NotificationEventName.CHAMADO_ALTA_PRIORIDADE))
+				.findFirst()
+				.orElseThrow();
+
+		assertThat(alerta.audience()).isEqualTo(new NotificationAudience.Roles(Set.of(Role.ADMIN)));
+	}
+
+	@Test
+	void naoDeveAlertarPrioridadeAltaQuandoChamadoNasceComPrioridadeMedia() {
+		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
+		Ticket savedTicket = newTicket(TicketPriority.MEDIA);
+		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
+		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+
+		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
+		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
+		when(ticketRepository.save(any(Ticket.class))).thenReturn(savedTicket);
+
+		ticketService.create(dto);
+
+		verify(applicationEventPublisher).publishEvent(captor.capture());
+		assertThat(captor.getValue().eventName()).isEqualTo(NotificationEventName.CHAMADO_ATUALIZADO);
 	}
 
 	@Test

@@ -97,6 +97,7 @@ public class TicketService {
 		Ticket savedTicket = ticketRepository.save(ticket);
 		ticketEventService.record(savedTicket, requester, TicketEventType.CHAMADO_CRIADO, "Chamado criado.");
 		aiJobService.enqueueTicketJobs(savedTicket);
+		publishTicketCreated(savedTicket);
 		TicketDto response = TicketMapper.toResponseDto(savedTicket);
 
 		return response;
@@ -266,6 +267,27 @@ public class TicketService {
 		Optional<UUID> authenticatedUserId = accessControlService.findAuthenticatedUserId();
 
 		return authenticatedUserId.map(userService::findEntityById).orElse(null);
+	}
+
+	/**
+	 * Chamado recem-criado notifica o solicitante e todo ADMIN: o ADMIN enxerga todos os chamados
+	 * na listagem, entao e ele quem precisa ver a linha nova aparecer sem recarregar a pagina.
+	 *
+	 * A prioridade anterior e {@code null} de proposito: chamado que ja nasce ALTA e um chamado que
+	 * passou a ser ALTA, e o requisito e alertar quando um chamado ALTA e aberto.
+	 */
+	private void publishTicketCreated(Ticket ticket) {
+		NotificationMessage message = NotificationMessage.of(
+				NotificationEventName.CHAMADO_ATUALIZADO,
+				TicketMapper.toMinDto(ticket),
+				new NotificationAudience.UsersAndRoles(
+						Set.of(ticket.getRequester().getId()),
+						Set.of(Role.ADMIN)
+				)
+		);
+
+		applicationEventPublisher.publishEvent(message);
+		publishHighPriorityAlertIfNeeded(ticket, null);
 	}
 
 	private void publishTicketUpdated(Ticket ticket) {
