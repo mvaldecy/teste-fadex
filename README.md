@@ -163,11 +163,13 @@ sobrescreveria a sugestão e a taxa de concordância daria 100% para sempre — 
 separação que permite dizer quanto o modelo acerta.
 
 **Duplicados por similaridade semântica.** Cada chamado gera um embedding (`all-minilm`, 384
-dimensões) guardado em pgvector. Pares acima de **0,80** de similaridade de cosseno viram vínculo
+dimensões) guardado em pgvector. Pares acima de **0,75** de similaridade de cosseno viram vínculo
 persistido, visível na aba "Semelhantes". O limiar foi medido, não arbitrado: com este modelo e
-textos em português, uma duplicata real escrita com outras palavras marca 0,857, enquanto chamados
-de mesmo tema porém distintos ficam em 0,43. 0,80 fica acima do ruído com folga e ainda pega a
-paráfrase — um limiar mais alto só pegaria cópia quase literal.
+textos em português, medindo os pares reais da base, duplicatas verdadeiras
+aparecem em 0,850, 0,764 e 0,672, e entre elas há um par não relacionado em 0,726. As
+distribuições se sobrepõem — não existe corte perfeito. 0,75 é o melhor ponto disponível: pega as
+duplicatas mais claras e fica acima do falso positivo. Textos curtos e vagos, como "o sistema está
+travado", são onde o modelo perde separação.
 
 ## Arquitetura
 
