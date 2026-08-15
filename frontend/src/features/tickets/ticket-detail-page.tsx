@@ -12,6 +12,7 @@ import { useSessionStore } from "@/src/stores/session.store";
 import { TicketClassificationCard } from "./ticket-classification-card";
 import { TicketDetailPanel } from "./ticket-detail-panel";
 import { TicketHistoryList } from "./ticket-history-list";
+import { TicketSimilarList } from "./ticket-similar-list";
 import {
   type AssigneeOption,
   TicketLifecycleActions
@@ -21,6 +22,8 @@ import { useTicketComments } from "./use-ticket-comments";
 import { useTicketDetail } from "./use-ticket-detail";
 import { useTicketEvents } from "./use-ticket-events";
 import { useTicketHistory } from "./use-ticket-history";
+import { useTicketSimilar } from "./use-ticket-similar";
+import { useTicketTriage } from "./use-ticket-triage";
 
 export function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -31,6 +34,8 @@ export function TicketDetailPage() {
   const detail = useTicketDetail(ticketId);
   const comments = useTicketComments(ticketId);
   const history = useTicketHistory(ticketId);
+  // Semelhantes e triagem sao ADMIN: o hook nem chama a API para os demais.
+  const similar = useTicketSimilar(ticketId, isAdmin);
   const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
 
   const refreshTicket = detail.refreshTicket;
@@ -42,10 +47,21 @@ export function TicketDetailPage() {
   }, [refreshTicket, reloadHistory]);
 
   const actions = useTicketActions(ticketId, reloadTicket);
+  const triage = useTicketTriage(ticketId, isAdmin, reloadTicket);
+
+  const reloadSimilar = similar.loadSimilar;
+  const reloadTriageJobs = triage.loadActiveJobs;
 
   useTicketEvents({
     enabled: true,
-    onTicketChanged: reloadTicket,
+    onTicketChanged: () => {
+      reloadTicket();
+      // A deteccao de duplicados e a fila de jobs andam junto da
+      // classificacao: sem recarregar aqui, a aba de semelhantes e o botao de
+      // triagem ficariam mostrando o estado anterior ao evento.
+      void reloadSimilar();
+      void reloadTriageJobs();
+    },
     onCommentChanged: () => void comments.loadComments()
   });
 
@@ -131,8 +147,11 @@ export function TicketDetailPage() {
         <TicketClassificationCard
           choiceLabels={detail.choiceLabels}
           choices={detail.choices}
+          hasTriageInProgress={triage.hasTriageInProgress}
+          isRequestingTriage={triage.isRequesting}
           isSubmitting={actions.isSubmitting}
           ticket={detail.ticket}
+          onRequestTriage={triage.requestTriage}
           onUpdateClassification={actions.updateClassification}
         />
       </div>
@@ -176,6 +195,16 @@ export function TicketDetailPage() {
         isCreatingComment={comments.isCreating}
         isLoading={detail.isLoading}
         isLoadingComments={comments.isLoading}
+        similarSlot={
+          isAdmin ? (
+            <TicketSimilarList
+              choiceLabels={detail.choiceLabels}
+              error={similar.error}
+              isLoading={similar.isLoading}
+              similarTickets={similar.similarTickets}
+            />
+          ) : undefined
+        }
         ticket={detail.ticket}
         onCreateComment={comments.createComment}
       />

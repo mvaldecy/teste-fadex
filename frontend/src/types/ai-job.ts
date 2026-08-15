@@ -33,6 +33,13 @@ export type AiJobDto = {
   updatedAt?: string | null;
 };
 
+/**
+ * `type` e `ticketId` sao filtros reais do backend, documentados em `api.md`.
+ * O detalhe do chamado usa `ticketId` para saber se ja ha triagem em
+ * andamento antes de oferecer o botao.
+ */
 export type AiJobFilters = PageParams & {
   status?: AiJobStatus;
+  type?: AiJobType;
+  ticketId?: string;
 };

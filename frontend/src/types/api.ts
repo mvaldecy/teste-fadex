@@ -8,4 +8,5 @@ export type * from "./notification";
 export type * from "./pagination";
 export type * from "./ticket";
 export type * from "./ticket-event";
+export type * from "./similar-ticket";
 export type * from "./user";

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { routes } from "@/src/routes/routes";
+import { homeRouteForRole } from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
 
 type AdminRouteGuardProps = {
@@ -25,9 +25,11 @@ export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
 
   useEffect(() => {
     if (isHydrated && !isAdmin) {
-      router.replace(routes.dashboard);
+      // `homeRouteForRole` e nao `routes.dashboard`: o dashboard tambem e uma
+      // rota guardada, e devolver para la faria o nao-ADMIN quicar em laco.
+      router.replace(homeRouteForRole(role));
     }
-  }, [isAdmin, isHydrated, router]);
+  }, [isAdmin, isHydrated, role, router]);
 
   if (!isHydrated) {
     return null;
