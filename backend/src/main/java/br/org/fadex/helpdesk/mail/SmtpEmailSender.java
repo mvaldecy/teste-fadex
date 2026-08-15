@@ -1,10 +1,14 @@
 package br.org.fadex.helpdesk.mail;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class SmtpEmailSender implements EmailSender {
@@ -23,13 +27,25 @@ public class SmtpEmailSender implements EmailSender {
 	@Override
 	public void send(EmailMessage message) {
 		try {
-			SimpleMailMessage email = new SimpleMailMessage();
-			email.setFrom(from);
-			email.setTo(message.to());
-			email.setSubject(message.subject());
-			email.setText(message.text());
-			mailSender.send(email);
-		} catch (MailException exception) {
+			MimeMessage mimeMessage = mailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(
+					mimeMessage,
+					message.hasHtml(),
+					StandardCharsets.UTF_8.name()
+			);
+
+			helper.setFrom(from);
+			helper.setTo(message.to());
+			helper.setSubject(message.subject());
+
+			if (message.hasHtml()) {
+				helper.setText(message.text(), message.html());
+			} else {
+				helper.setText(message.text(), false);
+			}
+
+			mailSender.send(mimeMessage);
+		} catch (MailException | MessagingException exception) {
 			throw new EmailDeliveryException("Nao foi possivel enviar o e-mail.", exception);
 		}
 	}

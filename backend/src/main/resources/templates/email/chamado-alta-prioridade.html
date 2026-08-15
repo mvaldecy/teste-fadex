@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{email/layout :: base(~{::section})}" lang="pt-br">
+<body>
+<section>
+	<h2 th:replace="~{email/componentes :: titulo('Chamado aberto com prioridade ALTA')}">Titulo</h2>
+	<p style="margin:0;">
+		Um chamado com prioridade <strong style="color:#b23c17;">ALTA</strong> foi aberto por
+		<span th:text="${solicitanteNome}">Solicitante</span> e precisa de atendimento.
+	</p>
+	<table th:replace="~{email/componentes :: chamado}"></table>
+	<table th:replace="~{email/componentes :: acao}"></table>
+</section>
+</body>
+</html>
