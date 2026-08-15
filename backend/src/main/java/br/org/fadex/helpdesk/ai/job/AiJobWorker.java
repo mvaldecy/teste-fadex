@@ -1,6 +1,7 @@
 package br.org.fadex.helpdesk.ai.job;
 
 import br.org.fadex.helpdesk.ai.AiIntegrationException;
+import lombok.extern.slf4j.Slf4j;
 import br.org.fadex.helpdesk.ai.client.AiEmbeddingClient;
 import br.org.fadex.helpdesk.ai.classification.TicketAiSuggestionService;
 import br.org.fadex.helpdesk.ai.client.AiTriageClient;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Component
 @DisallowConcurrentExecution
 public class AiJobWorker implements Job {
@@ -197,6 +199,14 @@ public class AiJobWorker implements Job {
 		try {
 			return aiTriageClient.classify(ticket.getTitle(), ticket.getDescription());
 		} catch (AiIntegrationException exception) {
+			// Registrado em WARN de proposito: por meses a queda para a heuristica foi silenciosa, e
+			// o sistema parecia estar classificando por IA quando nao estava. Falha de modelo pode
+			// degradar o resultado, nunca esconder que degradou.
+			log.warn(
+					"Classificacao por IA falhou para o chamado {}; usando fallback heuristico: {}",
+					ticket.getId(),
+					exception.getMessage()
+			);
 			return fallbackTicketClassifier.classify(ticket.getTitle(), ticket.getDescription());
 		}
 	}
