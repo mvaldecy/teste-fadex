@@ -930,7 +930,7 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
 
 ### Campos novos no `TicketDto`
 
-**Contrato publicado, ainda nao implementado.** Depende da `V4`. Hoje o `TicketDto` nao traz estes campos.
+**Disponivel.**
 
 ```json
 {
@@ -938,11 +938,16 @@ endpoint separado de aceite**: aceitar e reenviar os valores sugeridos sem alter
   "classificationJustification": "Mencao a rede e servidor indica infraestrutura.",
   "aiSuggestedCategory": "INFRAESTRUTURA",
   "aiSuggestedPriority": "ALTA",
-  "aiConfidence": 0.87
+  "confidence": 0.87
 }
 ```
 
-Os tres campos `ai*` sao `null` enquanto a IA nao respondeu. `aiConfidence` vai de `0.0` a `1.0`.
+Os tres campos sao `null` enquanto a IA nao respondeu. `confidence` vai de `0.0` a `1.0`.
+
+O campo da confianca chama-se `confidence`, e nao `aiConfidence` como esta secao publicou antes: o
+frontend ja consome `ticket.confidence`, e como nada consumia o nome antigo, alinhar o backend ao
+consumidor real custou menos que pedir mudanca em `frontend/`. O prefixo `ai` continua nos dois
+campos de sugestao, onde o frontend ja usava `aiSuggestedCategory` e `aiSuggestedPriority`.
 
 ### `GET /api/v1/ai/jobs`
 

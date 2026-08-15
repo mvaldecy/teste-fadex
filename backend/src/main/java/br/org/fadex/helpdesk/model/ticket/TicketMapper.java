@@ -31,7 +31,10 @@ public abstract class TicketMapper {
 				ticket.getResolvedAt(),
 				ticket.getClosedAt(),
 				ticket.getCreatedAt(),
-				ticket.getUpdatedAt()
+				ticket.getUpdatedAt(),
+				ticket.getAiSuggestedCategory(),
+				ticket.getAiSuggestedPriority(),
+				ticket.getAiConfidence()
 		);
 	}
 
