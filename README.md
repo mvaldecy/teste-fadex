@@ -121,9 +121,14 @@ O seed é controlado por `APP_SEED_ENABLED` e pode ser desligado.
 
 ## O que o sistema faz
 
-**Chamados** — abertura, listagem paginada com filtros por status, prioridade, categoria,
-solicitante, responsável e busca textual, detalhe, mudança de status com matriz de transições
-válidas, atribuição e recusa de responsável. Chamado fechado não reabre.
+**Chamados** — abertura, listagem paginada com filtros reativos por status, prioridade, categoria,
+atribuição e busca textual, detalhe, mudança de status com matriz de transições válidas, atribuição
+e recusa de responsável, e **cancelamento**.
+
+Duas regras que valem citar: **chamado fechado não reabre**, e o cancelamento sai por status em vez
+de remoção — apagar a linha levaria junto o histórico, os comentários e a contagem que alimenta os
+indicadores. O ADMIN cancela chamado aberto ou em andamento; o solicitante só o próprio, e só
+enquanto está aberto.
 
 **Autenticação e autorização** — login com JWT e refresh token, senha com hash, troca obrigatória de
 senha provisória. ADMIN enxerga e administra tudo; SOLICITANTE vê e comenta apenas os próprios
@@ -133,7 +138,10 @@ chamados. A interface esconde o que o papel não pode fazer, mas quem autoriza �
 mudança: criação, status, responsável, classificação.
 
 **Triagem por IA** — classificação automática de categoria e prioridade com justificativa e grau de
-confiança, revisão pelo administrador, e detecção de chamados semelhantes por embeddings.
+confiança, revisão pelo administrador, e detecção de chamados semelhantes por embeddings. A tela
+avisa quando a classificação vigente é sugestão da IA que ninguém confirmou ainda, e a aba de
+semelhantes mostra também o **ranking dos mais próximos sem corte de limiar** — sem ele, "não há
+duplicata" e "o modelo não achou" seriam indistinguíveis.
 
 **Indicadores** — contagens por status, prioridade e categoria; tempo de fechamento, de primeira
 resposta e de atribuição com média, mediana e p90; envelhecimento da fila; percentual dentro do SLA;
@@ -300,8 +308,8 @@ make frontend-lint
 make frontend-build
 ```
 
-A suíte do backend cobre serviços, persistência, camada web, motor de SSE, composição de e-mail,
-worker de IA e cálculo de indicadores.
+São **350 testes** cobrindo serviços, persistência, camada web, motor de SSE, composição de e-mail,
+worker de IA, cálculo de indicadores e limite de tentativas de login.
 
 ## Limitações conhecidas
 
