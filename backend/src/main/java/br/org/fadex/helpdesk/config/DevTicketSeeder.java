@@ -521,6 +521,33 @@ public class DevTicketSeeder {
 						ClassificationOrigin.PENDENTE, null,
 						5, null, null, null,
 						null, null, null
+				),
+
+				// Par de duplicados: o mesmo incidente relatado por duas pessoas, com palavras
+				// diferentes. Existe porque sem ele a deteccao de duplicados nao tem o que achar —
+				// o par mais proximo do resto do seed marca 0,76, abaixo do limiar de 0,80, e a aba
+				// de similares nasce vazia num sistema que funciona.
+				//
+				// Medido com all-minilm pelo endpoint de embeddings: os dois marcam 0,850 entre si,
+				// e o vizinho mais proximo de qualquer um deles no restante do seed fica em 0,54.
+				// Ou seja, o par entra com folga acima do limiar e nao arrasta ninguem junto.
+				new TicketSeed(
+						"Sistema de protocolo fora do ar para todo o setor",
+						"Ninguem do setor consegue abrir o sistema de protocolo desde as 8h da manha; a pagina fica carregando e nao entra.",
+						TicketCategory.OUTROS, TicketPriority.MEDIA, TicketStatus.ABERTO,
+						"ana.ribeiro@fadex.org.br", null,
+						ClassificationOrigin.PENDENTE, null,
+						4, null, null, null,
+						null, null, null
+				),
+				new TicketSeed(
+						"Nao consigo entrar no sistema de protocolo desde a manha",
+						"Desde as 8h o sistema de protocolo fica carregando e nao entra; ninguem da minha sala consegue abrir.",
+						TicketCategory.OUTROS, TicketPriority.MEDIA, TicketStatus.ABERTO,
+						"bruno.carvalho@fadex.org.br", null,
+						ClassificationOrigin.PENDENTE, null,
+						3, null, null, null,
+						null, null, null
 				)
 		);
 	}
