@@ -635,6 +635,30 @@ Response `200`:
 
 Response `404` quando o chamado nao existir.
 
+## Transicoes de Status
+
+### `GET /api/v1/ticket-status-transitions`
+
+Protegido. Devolve as transicoes de status permitidas, por status de origem, para que o cliente
+habilite apenas o que o servidor aceita.
+
+Fica fora de `/choices` de proposito: aquele agrega rotulos de enum e e publico, enquanto isto e
+regra de fluxo do dominio.
+
+Response `200`:
+
+```json
+{
+  "ABERTO": ["EM_ANDAMENTO", "FECHADO", "RESOLVIDO"],
+  "EM_ANDAMENTO": ["ABERTO", "FECHADO", "RESOLVIDO"],
+  "RESOLVIDO": ["EM_ANDAMENTO", "FECHADO"],
+  "FECHADO": []
+}
+```
+
+`FECHADO` mapeia para lista vazia: chamado fechado nao reabre. Publicar a matriz nao afrouxa a
+validacao — `PATCH /api/v1/tickets/{id}/status` continua recusando transicao invalida com `409`.
+
 ## Comentarios
 
 ### `GET /api/v1/tickets/{ticketId}/comments`
