@@ -38,6 +38,15 @@ public class TicketLink {
 	@JoinColumn(name = "created_by", nullable = false)
 	private User createdBy;
 
+	/**
+	 * Similaridade de cosseno do par no instante da deteccao.
+	 *
+	 * Nulavel: vinculos gravados antes da V6 nao tem o valor, e nao ha backfill possivel — o
+	 * embedding de origem pode ter mudado desde entao. Quem le precisa tratar a ausencia.
+	 */
+	@Column(name = "similarity")
+	private Double similarity;
+
 	@Column(name = "created_at", nullable = false)
 	@CreatedDate
 	private LocalDateTime createdAt;
@@ -46,9 +55,14 @@ public class TicketLink {
 	}
 
 	public TicketLink(Ticket sourceTicket, Ticket targetTicket, User createdBy) {
+		this(sourceTicket, targetTicket, createdBy, null);
+	}
+
+	public TicketLink(Ticket sourceTicket, Ticket targetTicket, User createdBy, Double similarity) {
 		this.sourceTicket = sourceTicket;
 		this.targetTicket = targetTicket;
 		this.createdBy = createdBy;
+		this.similarity = similarity;
 	}
 
 	public UUID getId() {
@@ -65,6 +79,10 @@ public class TicketLink {
 
 	public User getCreatedBy() {
 		return createdBy;
+	}
+
+	public Double getSimilarity() {
+		return similarity;
 	}
 
 	public LocalDateTime getCreatedAt() {
