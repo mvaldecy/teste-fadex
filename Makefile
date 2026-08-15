@@ -6,12 +6,15 @@ SDKMAN_INIT := $(HOME)/.sdkman/bin/sdkman-init.sh
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
-.PHONY: help sdk env db-up db-down db-logs db-ps db-reset stack-build stack-up stack-down stack-logs stack-ps backend-test backend-build backend-run backend-clean frontend-install frontend-dev frontend-lint frontend-build test build run clean
+.PHONY: help setup sdk env db-up db-down db-logs db-ps db-reset stack-build stack-up stack-down stack-logs stack-ps backend-test backend-build backend-run backend-clean frontend-install frontend-dev frontend-lint frontend-build test build run clean
 
 
 help: ## Lista os comandos disponiveis
 	@awk 'BEGIN {FS = ":.*##"; printf "\nComandos disponiveis:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  make %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf "\n"
+
+setup: ## Assistente de instalacao (atalho para ./setup.sh)
+	@./setup.sh
 
 sdk: ## Ativa o Java definido no .sdkmanrc e exibe as versoes
 	@source "$(SDKMAN_INIT)" && sdk env && java -version && javac -version

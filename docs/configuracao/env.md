@@ -1,5 +1,31 @@
 # Variaveis de Ambiente
 
+## Caminho rapido: o assistente de instalacao
+
+Para subir tudo com um comando, sem preencher `.env` na mao:
+
+```bash
+./setup.sh
+```
+
+O `setup.sh` e o caminho oficial e funciona em qualquer sistema onde o bash roda:
+
+- Linux e macOS: `./setup.sh` no terminal.
+- Windows: `./setup.sh` pelo Git Bash ou pelo WSL. Quem preferir clicar pode usar o `setup.cmd`, que localiza o bash do Git for Windows (ou o WSL) e chama o script.
+- `make setup` faz a mesma coisa, mas e apenas conveniencia para quem tem `make` instalado — no Windows normalmente nao tem.
+
+O assistente confere o Docker, escolhe portas livres (subindo de 1 em 1 quando a padrao esta ocupada), gera o `JWT_SECRET`, escreve o `.env`, sobe a stack com `docker compose up -d --build` e verifica se backend e frontend responderam. Ele e idempotente: rodar de novo reaproveita o que ja esta no `.env`.
+
+Opcoes uteis:
+
+- `./setup.sh --dry-run`: percorre o fluxo inteiro imprimindo os comandos, sem tocar no Docker.
+- `./setup.sh --yes`: aceita todos os padroes, sem perguntas.
+- `ENV_FILE=/caminho/arquivo ./setup.sh`: grava em outro arquivo de ambiente.
+
+Duas variaveis nunca devem ser editadas a mao depois disso, porque dependem das portas escolhidas: `NEXT_PUBLIC_API_BASE_URL` (entra na imagem do frontend como build arg) e `CORS_ALLOWED_ORIGINS` (precisa listar a porta real do frontend). Se mudar uma porta, rode o `setup.sh` de novo em vez de ajustar o `.env` manualmente.
+
+O `make env` continua existindo e e o caminho manual: ele so copia os `.env.example` e nao valida portas nem sobe nada.
+
 ## Arquivos
 
 - `.env.example`: variaveis de infraestrutura do monorepo, usadas principalmente pelo Docker Compose.
