@@ -1,5 +1,7 @@
 package br.org.fadex.helpdesk.config;
 
+import br.org.fadex.helpdesk.ai.job.AiJobStatus;
+import br.org.fadex.helpdesk.ai.job.AiJobType;
 import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import br.org.fadex.helpdesk.model.enums.TicketCategory;
 import br.org.fadex.helpdesk.model.enums.TicketEventType;
@@ -49,7 +51,85 @@ public class DevTicketSeeder {
 					insertTicket(jdbcTemplate, userIdsByEmail, now, seed);
 				}
 			}
+
+			enqueueAiJobs(jdbcTemplate, now);
 		};
+	}
+
+	/**
+	 * Enfileira os jobs de IA dos chamados semeados.
+	 *
+	 * Sem isto uma instalacao nova nasce sem nenhum embedding: o seed escreve por SQL direto, entao
+	 * nao passa por {@code TicketService} e nunca dispara {@code enqueueTicketJobs}. Sem embedding a
+	 * deteccao de duplicados nao tem o que comparar e {@code ticket_links} fica permanentemente
+	 * vazia — a funcionalidade existe no codigo e some da tela.
+	 *
+	 * Roda fora do {@code if} de insercao de proposito: uma base ja semeada por uma versao anterior
+	 * tem os chamados e nao tem os jobs, e e exatamente essa base que precisa da correcao.
+	 *
+	 * EMBEDDING vai para todos os chamados semeados. CLASSIFICATION vai apenas para os de origem
+	 * PENDENTE: reclassificar um chamado com origem IA ou MANUAL sobrescreveria
+	 * {@code ai_suggested_*} com o mesmo valor que passaria a valer no chamado, e a concordancia
+	 * admin x IA — que ja tem {@code classification_reviewed_at} carimbado nesses chamados — subiria
+	 * para 100% sem medir nada. Os PENDENTE tem sugestao nula e revisao nula, entao a classificacao
+	 * so os move para o estado correto de "aguardando revisao do ADMIN".
+	 *
+	 * A guarda de idempotencia olha qualquer status, e nao apenas PENDING/PROCESSING como
+	 * {@code AiJobService.requeueTicketJobs}: aqui o job DONE e o caso de sucesso, e reenfileirar a
+	 * cada boot faria o backend reprocessar o seed inteiro toda vez que subisse.
+	 */
+	private void enqueueAiJobs(JdbcTemplate jdbcTemplate, LocalDateTime now) {
+		for (TicketSeed seed : ticketSeeds()) {
+			UUID ticketId = findTicketId(jdbcTemplate, seed.title());
+
+			if (ticketId == null) {
+				continue;
+			}
+
+			enqueueJob(jdbcTemplate, ticketId, AiJobType.EMBEDDING, now);
+
+			if (seed.classificationOrigin() == ClassificationOrigin.PENDENTE) {
+				enqueueJob(jdbcTemplate, ticketId, AiJobType.CLASSIFICATION, now);
+			}
+		}
+	}
+
+	private UUID findTicketId(JdbcTemplate jdbcTemplate, String title) {
+		List<UUID> ids = jdbcTemplate.queryForList(
+				"select id from tickets where title = ?",
+				UUID.class,
+				title
+		);
+
+		return ids.isEmpty() ? null : ids.getFirst();
+	}
+
+	private void enqueueJob(JdbcTemplate jdbcTemplate, UUID ticketId, AiJobType type, LocalDateTime now) {
+		Integer count = jdbcTemplate.queryForObject(
+				"select count(*) from ai_jobs where ticket_id = ? and type = ?",
+				Integer.class,
+				ticketId,
+				type.name()
+		);
+
+		if (count != null && count > 0) {
+			return;
+		}
+
+		jdbcTemplate.update(
+				"""
+				insert into ai_jobs (
+					id, ticket_id, type, status, attempts, next_attempt_at, created_at, updated_at
+				) values (?, ?, ?, ?, 0, ?, ?, ?)
+				""",
+				UUID.randomUUID(),
+				ticketId,
+				type.name(),
+				AiJobStatus.PENDING.name(),
+				Timestamp.valueOf(now),
+				Timestamp.valueOf(now),
+				Timestamp.valueOf(now)
+		);
 	}
 
 	private boolean ticketExists(JdbcTemplate jdbcTemplate, String title) {

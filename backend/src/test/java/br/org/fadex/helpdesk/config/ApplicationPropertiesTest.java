@@ -26,7 +26,9 @@ class ApplicationPropertiesTest {
 		assertThat(environment.getProperty("app.ai.triage.enabled")).isEqualTo("false");
 		assertThat(environment.getProperty("app.ai.base-url")).isEqualTo("http://localhost:11434");
 		assertThat(environment.getProperty("app.ai.embedding-dimensions")).isEqualTo("384");
-		assertThat(environment.getProperty("app.ai.worker.batch-size")).isEqualTo("1");
+		assertThat(environment.getProperty("app.ai.worker.batch-size")).isEqualTo("5");
+		assertThat(environment.getProperty("app.ai.worker.interval-millis")).isEqualTo("5000");
+		assertThat(environment.getProperty("app.ai.worker.enabled")).isEqualTo("false");
 		assertThat(environment.getProperty("spring.quartz.properties.org.quartz.threadPool.threadCount")).isEqualTo("1");
 	}
 }
