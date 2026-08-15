@@ -25,8 +25,16 @@ import type {
   UserSummary
 } from "@/src/types/api";
 
+/**
+ * Responsavel candidato com a carga atual. O numero vem de
+ * `workload.openByAssignee` do `/indicators`, cruzado na tela de detalhe.
+ */
+export type AssigneeOption = UserSummary & {
+  openTickets: number;
+};
+
 type TicketLifecycleActionsProps = {
-  assignees: UserSummary[];
+  assignees: AssigneeOption[];
   choices: ChoicesResponse | null;
   isSubmitting: boolean;
   ticket: TicketDto;
@@ -120,7 +128,7 @@ export function TicketLifecycleActions({
               <SelectContent>
                 {assignees.map((assignee) => (
                   <SelectItem key={assignee.id} value={assignee.id}>
-                    {assignee.name}
+                    {assignee.name} ({assignee.openTickets} em aberto)
                   </SelectItem>
                 ))}
               </SelectContent>
