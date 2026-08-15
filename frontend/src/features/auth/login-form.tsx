@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { loginDefaultValues } from "@/src/features/auth/login-default-values";
 import { loginFormSchema } from "@/src/schemas/auth.schema";
+import { homeRouteForRole } from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
-import { routes } from "@/src/routes/routes";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
 
@@ -40,7 +40,9 @@ export function LoginForm() {
     const didLogin = await login(parsed.data);
 
     if (didLogin) {
-      router.push(routes.dashboard);
+      // O papel so existe depois do login, por isso a leitura e feita aqui e
+      // nao no topo do componente.
+      router.push(homeRouteForRole(useSessionStore.getState().role));
     }
   }
 

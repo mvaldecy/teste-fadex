@@ -15,7 +15,7 @@ import { useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { HighPriorityAlerts } from "@/src/features/notifications/high-priority-alerts";
 import { cn } from "@/src/lib/utils";
-import { routes } from "@/src/routes/routes";
+import { homeRouteForRole, routes } from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
 import { UserMenu } from "./user-menu";
 
@@ -25,18 +25,22 @@ type AppShellProps = {
 
 const navigationItems = [
   {
-    href: routes.dashboard,
-    icon: Home,
-    label: "Dashboard"
-  },
-  {
     href: routes.tickets,
     icon: LifeBuoy,
     label: "Chamados"
   }
 ];
 
+/**
+ * Itens de ADMIN. O dashboard entrou aqui: `GET /api/v1/indicators` e restrito,
+ * entao para o SOLICITANTE o item apontava para uma tela que ele nao pode ver.
+ */
 const adminNavigationItems = [
+  {
+    href: routes.dashboard,
+    icon: Home,
+    label: "Dashboard"
+  },
   {
     href: routes.users,
     icon: Users,
@@ -56,8 +60,9 @@ export function AppShell({ children }: AppShellProps) {
 
   const visibleItems =
     role === "ADMIN"
-      ? [...navigationItems, ...adminNavigationItems]
+      ? [...adminNavigationItems, ...navigationItems]
       : navigationItems;
+  const homeRoute = homeRouteForRole(role);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -75,7 +80,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4">
             <Link
               className="flex min-w-0 items-center gap-3"
-              href={routes.dashboard}
+              href={homeRoute}
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-700 text-white">
                 <BarChart3 className="h-4 w-4" />
@@ -139,7 +144,7 @@ export function AppShell({ children }: AppShellProps) {
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur">
           <Link
             className="flex items-center gap-3 lg:hidden"
-            href={routes.dashboard}
+            href={homeRoute}
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-700 text-white">
               <BarChart3 className="h-4 w-4" />
