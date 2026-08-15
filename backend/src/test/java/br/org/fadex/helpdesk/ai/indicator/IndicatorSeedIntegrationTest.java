@@ -5,6 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,6 +36,9 @@ class IndicatorSeedIntegrationTest {
 
 	@Autowired
 	private IndicatorService indicatorService;
+
+	@Autowired
+	private ObjectMapper objectMapper;
 
 	@Test
 	void deveCalcularIndicadoresSobreABaseSemeada() {
@@ -65,6 +72,61 @@ class IndicatorSeedIntegrationTest {
 		long comSugestaoERevisado = ai.agreementRate().evaluated();
 		assertThat(comSugestaoERevisado).isPositive();
 		assertThat(ai.agreementRate().agreed()).isLessThanOrEqualTo(comSugestaoERevisado);
+	}
+
+	/**
+	 * O histograma existe para o grafico de distribuicao: tempo de atendimento tem parede em zero e
+	 * cauda longa, e so a distribuicao mostra isso — media e mediana lado a lado nao mostram.
+	 *
+	 * A assercao que importa e a soma: se as faixas nao somarem o {@code sampleSize}, o grafico e o
+	 * numero ao lado dele contam historias diferentes.
+	 */
+	@Test
+	void deveMontarHistogramaNosTresBlocosDeDuracaoSobreABaseSemeada() {
+		DurationIndicatorsDto durations = indicatorService.getIndicators().durations();
+
+		for (DurationStatsDto overall : List.of(
+				durations.closure().overall(),
+				durations.firstResponse().overall(),
+				durations.assignment().overall()
+		)) {
+			assertThat(overall.histogram()).hasSize(6);
+			assertThat(overall.histogram()).extracting(DurationBucketDto::fromHours)
+					.containsExactly(0, 4, 8, 24, 48, 96);
+			assertThat(overall.histogram().getLast().toHours()).isNull();
+
+			long total = overall.histogram().stream().mapToLong(DurationBucketDto::count).sum();
+			assertThat(total).isEqualTo(overall.sampleSize());
+		}
+
+		assertThat(durations.closure().overall().sampleSize()).isPositive();
+	}
+
+	/**
+	 * Contrato de serializacao combinado com o frontend: a chave {@code histogram} existe no recorte
+	 * geral e **nao existe** nos recortes por prioridade e por categoria. Ausencia de chave, e nao
+	 * lista vazia, para o front nao desenhar um grafico de amostra que nao comporta um.
+	 */
+	@Test
+	void deveOmitirOHistogramaNosRecortesPorPrioridadeECategoria() {
+		JsonNode durations = objectMapper.valueToTree(indicatorService.getIndicators().durations());
+		JsonNode closure = durations.path("closure");
+
+		assertThat(closure.path("overall").has("histogram")).isTrue();
+		assertThat(closure.path("byPriority").isEmpty()).isFalse();
+
+		for (JsonNode stats : closure.path("byPriority")) {
+			assertThat(stats.has("histogram")).isFalse();
+		}
+
+		for (JsonNode stats : closure.path("byCategory")) {
+			assertThat(stats.has("histogram")).isFalse();
+		}
+
+		JsonNode bucket = closure.path("overall").path("histogram").get(0);
+		assertThat(bucket.path("fromHours").asInt()).isZero();
+		assertThat(bucket.path("toHours").asInt()).isEqualTo(4);
+		assertThat(bucket.has("count")).isTrue();
 	}
 
 	@Test
