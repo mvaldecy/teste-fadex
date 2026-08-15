@@ -8,7 +8,7 @@ Documento de retomada. Atualizado em 15/08/2026, manhã, com `dev` em `2a2ba49`.
 Todas as frentes estão **mergeadas em `dev`**: cancelamento, revisão técnica, seed/IA/atribuição,
 refinamentos de uso do frontend e preparação para deploy. Não há branch pendente.
 
-- Backend: **341 testes, 0 falhas**.
+- Backend: **340 testes, 0 falhas**.
 - Frontend: lint limpo, build com 11 rotas.
 - Partida a frio verificada pelo caminho do avaliador (`down` + remoção do volume do Postgres +
   `up -d --build`): stack de pé em **99 s**, 38 jobs de IA todos `DONE`, **0 falhos**, **0 quedas
