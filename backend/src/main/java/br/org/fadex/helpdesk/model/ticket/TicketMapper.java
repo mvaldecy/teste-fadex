@@ -66,6 +66,10 @@ public abstract class TicketMapper {
 	}
 
 	public static TicketMinDto toMinDto(Ticket ticket) {
+		return toMinDto(ticket, null);
+	}
+
+	public static TicketMinDto toMinDto(Ticket ticket, Integer similarCount) {
 		User requester = ticket.getRequester();
 		User assignee = ticket.getAssignee();
 
@@ -79,7 +83,8 @@ public abstract class TicketMapper {
 				UserMapper.toMinDto(requester),
 				assignee != null ? UserMapper.toMinDto(assignee) : null,
 				ticket.getAssignedAt(),
-				ticket.getCreatedAt()
+				ticket.getCreatedAt(),
+				similarCount
 		);
 	}
 }

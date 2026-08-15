@@ -135,7 +135,8 @@ class TicketSseNotificationListenerTest {
 				assignee == null ? null : new UserMinDto(assignee.id(), assignee.name()),
 				null,
 				LocalDateTime.now()
-		);
+		,
+				null);
 
 		return new TicketNotificationEvent(
 				type,

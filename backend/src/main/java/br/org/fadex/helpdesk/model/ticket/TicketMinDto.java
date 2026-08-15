@@ -19,6 +19,15 @@ public record TicketMinDto(
 		UserMinDto requester,
 		UserMinDto assignee,
 		LocalDateTime assignedAt,
-		LocalDateTime createdAt
+		LocalDateTime createdAt,
+		/**
+		 * Quantos chamados semelhantes a deteccao de duplicados vinculou a este.
+		 *
+		 * {@code null} quando o numero nao foi apurado no contexto que montou o DTO — e o caso do
+		 * payload das notificacoes, que descreve a mudanca de um chamado e nao a listagem. Zero e
+		 * "nao tem semelhante"; nulo e "nao perguntei". Distinguir os dois evita a listagem
+		 * apagar um selo por causa de um evento que nunca soube dele.
+		 */
+		Integer similarCount
 ) {
 }

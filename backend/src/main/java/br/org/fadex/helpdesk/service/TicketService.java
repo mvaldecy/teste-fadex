@@ -23,6 +23,7 @@ import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.repository.TicketRepository;
 import br.org.fadex.helpdesk.repository.TicketSpecification;
 import br.org.fadex.helpdesk.security.AccessControlService;
+import br.org.fadex.helpdesk.ai.duplicate.SimilarTicketRepository;
 import br.org.fadex.helpdesk.notification.event.NotificationRecipient;
 import br.org.fadex.helpdesk.notification.event.TicketNotificationEvent;
 import br.org.fadex.helpdesk.notification.event.TicketNotificationType;
@@ -34,6 +35,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,6 +50,7 @@ public class TicketService {
 	private final TicketEventService ticketEventService;
 	private final AiJobService aiJobService;
 	private final ApplicationEventPublisher applicationEventPublisher;
+	private final SimilarTicketRepository similarTicketRepository;
 
 	public TicketService(
 			TicketRepository ticketRepository,
@@ -53,7 +58,8 @@ public class TicketService {
 			AccessControlService accessControlService,
 			TicketEventService ticketEventService,
 			AiJobService aiJobService,
-			ApplicationEventPublisher applicationEventPublisher
+			ApplicationEventPublisher applicationEventPublisher,
+			SimilarTicketRepository similarTicketRepository
 	) {
 		this.ticketRepository = ticketRepository;
 		this.userService = userService;
@@ -61,6 +67,7 @@ public class TicketService {
 		this.ticketEventService = ticketEventService;
 		this.aiJobService = aiJobService;
 		this.applicationEventPublisher = applicationEventPublisher;
+		this.similarTicketRepository = similarTicketRepository;
 	}
 
 	@Transactional(readOnly = true)
@@ -68,9 +75,37 @@ public class TicketService {
 		TicketFilter resolvedFilter = resolveFilterByRole(filter);
 		Specification<Ticket> spec = TicketSpecification.createSpecification(resolvedFilter);
 		Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
-		Page<TicketMinDto> response = tickets.map(TicketMapper::toMinDto);
+		Map<UUID, Integer> similarCounts = countSimilarByTicket(tickets.getContent());
 
-		return response;
+		return tickets.map(ticket -> TicketMapper.toMinDto(
+				ticket,
+				similarCounts.getOrDefault(ticket.getId(), 0)
+		));
+	}
+
+	/**
+	 * Conta os semelhantes de uma pagina inteira com **uma** consulta.
+	 *
+	 * O vinculo e direcional na gravacao, mas nao no significado: se X foi ligado a Y, os dois sao
+	 * semelhantes um do outro. Por isso cada par soma nas duas pontas.
+	 */
+	private Map<UUID, Integer> countSimilarByTicket(List<Ticket> tickets) {
+		if (tickets.isEmpty()) {
+			return Map.of();
+		}
+
+		List<UUID> ids = tickets.stream().map(Ticket::getId).toList();
+		Map<UUID, Integer> counts = new HashMap<>();
+
+		for (Object[] pair : similarTicketRepository.findLinkedPairs(ids)) {
+			UUID source = (UUID) pair[0];
+			UUID target = (UUID) pair[1];
+
+			counts.merge(source, 1, Integer::sum);
+			counts.merge(target, 1, Integer::sum);
+		}
+
+		return counts;
 	}
 
 	@Transactional(readOnly = true)

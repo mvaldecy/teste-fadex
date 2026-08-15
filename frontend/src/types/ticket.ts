@@ -17,6 +17,12 @@ export type TicketSummary = {
   requester: UserSummary;
   assignee: UserSummary | null;
   createdAt: string;
+  /**
+   * Quantos semelhantes a detecção de duplicados vinculou a este chamado.
+   * Ausente quando o número não foi apurado — é o caso do payload das
+   * notificações, que descreve a mudança e não a listagem.
+   */
+  similarCount?: number | null;
 };
 
 /**

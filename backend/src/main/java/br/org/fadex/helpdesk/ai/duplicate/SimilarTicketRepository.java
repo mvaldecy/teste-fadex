@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,4 +50,19 @@ public interface SimilarTicketRepository extends JpaRepository<TicketLink, UUID>
 			where link.targetTicket.id = :ticketId
 			""")
 	List<SimilarTicketDto> findLinkedAsTarget(@Param("ticketId") UUID ticketId);
+
+	/**
+	 * Pares de vinculo que tocam qualquer um dos chamados informados.
+	 *
+	 * Uma consulta para a pagina inteira, e nao uma por chamado: o selo de semelhantes na listagem
+	 * seria exatamente o tipo de enfeite que reintroduz o N+1 que acabamos de tirar dela. A
+	 * contagem por chamado e feita em memoria sobre este resultado, que tem no maximo alguns pares
+	 * por pagina.
+	 */
+	@Query("""
+			select link.sourceTicket.id, link.targetTicket.id
+			from TicketLink link
+			where link.sourceTicket.id in :ids or link.targetTicket.id in :ids
+			""")
+	List<Object[]> findLinkedPairs(@Param("ids") Collection<UUID> ids);
 }

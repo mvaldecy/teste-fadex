@@ -23,6 +23,7 @@ import {
 } from "./choice-labels";
 import { PriorityLegend } from "./priority-legend";
 import { resolvePriorityTone } from "./priority-tone";
+import { SimilarBadge } from "./similar-badge";
 import { TicketActions } from "./ticket-actions";
 
 type TicketListProps = {
@@ -132,6 +133,10 @@ export function TicketList({
                           <p className="mt-1 text-xs text-slate-500">
                             Solicitante: {ticket.requester.name}
                           </p>
+                          <SimilarBadge
+                            count={ticket.similarCount}
+                            ticketId={ticket.id}
+                          />
                           {isHighlighted(ticket.id) ? (
                             <p className="mt-1 text-xs font-semibold text-emerald-700">
                               Atualizado agora
@@ -194,6 +199,10 @@ export function TicketList({
                       <p className="mt-1 text-xs text-slate-500">
                         Solicitante: {ticket.requester.name}
                       </p>
+                      <SimilarBadge
+                        count={ticket.similarCount}
+                        ticketId={ticket.id}
+                      />
                     </div>
                     <span className="text-xs text-slate-500">
                       {formatDate(ticket.createdAt)}

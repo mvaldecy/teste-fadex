@@ -12,6 +12,7 @@ import br.org.fadex.helpdesk.model.ticket.TicketCreationDto;
 import br.org.fadex.helpdesk.model.ticket.TicketDto;
 import br.org.fadex.helpdesk.model.ticket.TicketFields;
 import br.org.fadex.helpdesk.model.ticket.TicketAssigneeUpdateDto;
+import br.org.fadex.helpdesk.ai.duplicate.SimilarTicketRepository;
 import br.org.fadex.helpdesk.model.ticket.TicketFilter;
 import br.org.fadex.helpdesk.model.ticket.TicketStatusUpdateDto;
 import br.org.fadex.helpdesk.model.user.User;
@@ -80,6 +81,9 @@ class TicketServiceTest {
 	@Mock
 	private ApplicationEventPublisher applicationEventPublisher;
 
+	@Mock
+	private SimilarTicketRepository similarTicketRepository;
+
 	private AccessControlService accessControlService;
 
 	private TicketService ticketService;
@@ -93,7 +97,8 @@ class TicketServiceTest {
 				accessControlService,
 				ticketEventService,
 				aiJobService,
-				applicationEventPublisher
+				applicationEventPublisher,
+				similarTicketRepository
 		);
 	}
 

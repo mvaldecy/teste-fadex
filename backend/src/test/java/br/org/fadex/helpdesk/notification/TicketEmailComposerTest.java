@@ -380,7 +380,8 @@ class TicketEmailComposerTest {
 						new UserMinDto(RESPONSAVEL_ID, "Ana Admin"),
 						LocalDateTime.now(),
 						LocalDateTime.now()
-				),
+				,
+				null),
 				new NotificationRecipient(SOLICITANTE_ID, "Maria Solicitante", "maria@fadex.org.br"),
 				responsavel(),
 				OUTRO_ADMIN_ID,
@@ -412,7 +413,8 @@ class TicketEmailComposerTest {
 				assignee == null ? null : new UserMinDto(assignee.id(), assignee.name()),
 				assignee == null ? null : LocalDateTime.now(),
 				LocalDateTime.now()
-		);
+		,
+				null);
 
 		return new TicketNotificationEvent(
 				type,

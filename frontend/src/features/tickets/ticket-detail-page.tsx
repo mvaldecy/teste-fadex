@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/src/components/ui/button";
@@ -38,6 +38,9 @@ import { useTicketTriage } from "./use-ticket-triage";
 export function TicketDetailPage() {
   const params = useParams<{ id: string }>();
   const ticketId = params.id ?? null;
+  // `?aba=semelhantes` chega do selo da listagem: quem clicou ali quer ver os
+  // semelhantes, nao o resumo do chamado.
+  const aba = useSearchParams().get("aba");
   const role = useSessionStore((state) => state.role);
   const userId = useSessionStore((state) => state.user?.id ?? null);
   const isAdmin = role === "ADMIN";
@@ -292,6 +295,7 @@ export function TicketDetailPage() {
           isCreatingComment={comments.isCreating}
           isLoading={detail.isLoading}
           isLoadingComments={comments.isLoading}
+          initialTab={aba === "semelhantes" ? "similar" : undefined}
           similarSlot={
             isAdmin ? (
               <TicketSimilarList

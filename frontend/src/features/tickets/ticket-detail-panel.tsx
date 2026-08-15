@@ -35,6 +35,8 @@ type TicketDetailPanelProps = {
    * a aba e tomar 403 seria mostrar uma porta que nunca abre.
    */
   similarSlot?: React.ReactNode;
+  /** Aba aberta ao entrar. O link "semelhantes" da listagem chega apontando para a dele. */
+  initialTab?: string;
   comments: TicketCommentSummary[];
   commentsError: string | null;
   isCreatingComment: boolean;
@@ -56,6 +58,7 @@ export function TicketDetailPanel({
   choiceLabels,
   historySlot,
   similarSlot,
+  initialTab,
   comments,
   commentsError,
   isCreatingComment,
@@ -114,7 +117,7 @@ export function TicketDetailPanel({
       </CardHeader>
 
       <CardContent>
-        <Tabs defaultValue="summary">
+        <Tabs defaultValue={initialTab ?? "summary"}>
           <TabsList
             className={
               similarSlot
