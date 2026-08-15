@@ -105,7 +105,10 @@ services:
       AI_SIMILARITY_THRESHOLD: ${AI_SIMILARITY_THRESHOLD:-0.80}
       AI_SIMILARITY_LIMIT: ${AI_SIMILARITY_LIMIT:-3}
       QUARTZ_THREAD_COUNT: ${QUARTZ_THREAD_COUNT:-1}
-      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+      # 50%, e nao 75%: a JVM dimensiona contra a RAM do HOST, nao do container (nao ha mem_limit
+      # aqui). Numa maquina de 2 GB, 75% dariam um teto de heap de 1,5 GB disputando memoria com o
+      # Postgres e o Next.js no mesmo host. O backend mediu 423 MiB de RSS ocioso.
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=50}
       # Escape para Postgres SEM a extensao pgvector. Sobrescreve os tres placeholders do Flyway e
       # so e valido com AI_TRIAGE_ENABLED=false. Valor pronto no .env.producao.example.
       SPRING_APPLICATION_JSON: ${SPRING_APPLICATION_JSON:-}
