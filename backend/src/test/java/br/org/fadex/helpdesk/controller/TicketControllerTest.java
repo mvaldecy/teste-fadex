@@ -1,6 +1,7 @@
 package br.org.fadex.helpdesk.controller;
 
 import br.org.fadex.helpdesk.exception.ConflictException;
+import br.org.fadex.helpdesk.exception.ForbiddenException;
 import br.org.fadex.helpdesk.exception.NotFoundException;
 import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import br.org.fadex.helpdesk.model.enums.Role;
@@ -177,6 +178,20 @@ class TicketControllerTest {
 
 		mockMvc.perform(delete("/api/v1/tickets/{id}/assignee", TICKET_ID).with(jwt()))
 				.andExpect(status().isConflict());
+	}
+
+	/**
+	 * Recusa de atribuicao por quem nao e o responsavel sai como 403, e nao 409: o chamado esta em
+	 * estado valido, quem pediu e que nao pode pedir.
+	 */
+	@Test
+	void deveMapearRemocaoDeResponsavelDeOutroParaStatus403() throws Exception {
+		doThrow(new ForbiddenException("Apenas o responsavel pelo chamado pode recusar a atribuicao."))
+				.when(ticketService).removeAssignee(TICKET_ID);
+
+		mockMvc.perform(delete("/api/v1/tickets/{id}/assignee", TICKET_ID).with(jwt()))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
 
 	/**

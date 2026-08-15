@@ -852,6 +852,7 @@ class TicketServiceTest {
 		ticket.markAssigned(originalAssignedAt);
 
 		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(authenticatedUserService.getUserId()).thenReturn(admin.getId());
 		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
 		when(ticketRepository.save(ticket)).thenReturn(ticket);
 
@@ -862,6 +863,29 @@ class TicketServiceTest {
 		verify(ticketEventService).record(
 				eq(ticket), eq(admin), eq(TicketEventType.RESPONSAVEL_REMOVIDO), anyString()
 		);
+	}
+
+	/**
+	 * Desatribuir e recusa de trabalho, nao ato de gestao: quem nao esta com o chamado nao decide
+	 * por quem esta. Sem esta regra, um ADMIN tirava o chamado da fila do colega e o historico so
+	 * registrava o nome de quem perdeu a atribuicao.
+	 */
+	@Test
+	void removeAssigneeDeveRecusarAdminQueNaoEOResponsavel() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		User responsavel = newAdmin();
+		User outroAdmin = newAdmin();
+		ticket.assignTo(responsavel);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(authenticatedUserService.getUserId()).thenReturn(outroAdmin.getId());
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.removeAssignee(ticket.getId()))
+				.isInstanceOf(ForbiddenException.class);
+
+		assertThat(ticket.getAssignee()).isEqualTo(responsavel);
+		verify(ticketRepository, never()).save(ticket);
 	}
 
 	@Test
