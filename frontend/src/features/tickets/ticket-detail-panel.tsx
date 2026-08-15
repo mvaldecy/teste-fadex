@@ -198,7 +198,8 @@ export function TicketDetailPanel({
                   Chamados semelhantes
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Detectados por embedding quando o chamado foi processado.
+                  Possíveis duplicatas deste chamado, para conferir antes de
+                  atender.
                 </p>
               </div>
 
