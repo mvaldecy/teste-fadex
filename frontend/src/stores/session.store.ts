@@ -31,6 +31,7 @@ type SessionState = {
   login: (credentials: LoginFormData) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
+  markHydrated: () => void;
 };
 
 const clearedSession = {
@@ -95,7 +96,15 @@ export const useSessionStore = create<SessionState>()(
           isLoading: false
         });
       },
-      clearError: () => set({ error: null })
+      clearError: () => set({ error: null }),
+      // Acao propria em vez de `useSessionStore.setState` no
+      // `onRehydrateStorage`: para storage sincrono o zustand roda a
+      // reidratacao inteira **dentro** do `create`, quando a const
+      // `useSessionStore` ainda esta na zona morta temporal. Referencia-la ali
+      // lancava `ReferenceError`, que o thenable interno engolia — a sessao
+      // reidratava, `isHydrated` ficava `false` e a guarda de rota travava em
+      // "Carregando sessao..." para sempre. Verificado no navegador.
+      markHydrated: () => set({ isHydrated: true })
     }),
     {
       name: sessionStorageKey,
@@ -113,11 +122,23 @@ export const useSessionStore = create<SessionState>()(
         mustChangePassword: state.mustChangePassword,
         isAuthenticated: state.isAuthenticated
       }),
-      onRehydrateStorage: () => (state) => {
+      // `initialState` e o estado que o zustand entrega antes de ler o
+      // storage. Ele importa no ramo de erro: quando a leitura falha, `state`
+      // vem indefinido, e sem um fallback a guarda de rota ficaria travada em
+      // "Carregando sessao..." exatamente no cenario em que o usuario mais
+      // precisa chegar ao login.
+      onRehydrateStorage: (initialState) => (state, error) => {
+        const settledState = state ?? initialState;
+
         // O token vive em memoria no cliente HTTP; reidratar a store sem
         // reidratar o cliente deixaria a sessao valida na UI e ausente na API.
         setApiAccessToken(state?.accessToken ?? null);
-        useSessionStore.setState({ isHydrated: true });
+
+        if (error) {
+          console.error("Falha ao reidratar a sessao.", error);
+        }
+
+        settledState?.markHydrated();
       }
     }
   )

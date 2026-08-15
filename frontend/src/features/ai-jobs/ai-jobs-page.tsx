@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { PaginationBar } from "@/src/components/layout/pagination-bar";
 import { Badge } from "@/src/components/ui/badge";
 import { Button } from "@/src/components/ui/button";
 import {
@@ -51,19 +52,27 @@ function StatusBadge({ status }: { status: string }) {
 export function AiJobsPage() {
   const {
     jobs,
-    isFixture,
-    fixtureReason,
+    page,
+    totalPages,
+    totalElements,
     isLoading,
     retryingJobId,
     error,
-    retryJob
+    retryJob,
+    goToPage
   } = useAiJobs();
 
   function renderRetryButton(job: AiJobDto) {
+    // Verificado contra o backend: reprocessar job que nao esta em FAILED
+    // responde 409 ("Apenas jobs com falha podem ser retentados"). Oferecer o
+    // botao ativo convidaria a uma acao que a API sempre recusa.
+    const canRetry = job.status === "FAILED";
+
     return (
       <Button
-        disabled={retryingJobId === job.id}
+        disabled={retryingJobId === job.id || !canRetry}
         size="sm"
+        title={canRetry ? undefined : "Apenas jobs com falha sao retentados."}
         type="button"
         variant="outline"
         onClick={() => retryJob(job.id)}
@@ -94,22 +103,13 @@ export function AiJobsPage() {
         </p>
       ) : null}
 
-      {isFixture ? (
-        <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Dados de exemplo: os jobs abaixo nao vem do banco.{" "}
-            {fixtureReason} O endpoint provavelmente ainda nao foi publicado
-            pela frente IA.
-          </span>
-        </p>
-      ) : null}
-
       <Card>
         <CardHeader>
           <CardTitle>Fila de jobs</CardTitle>
           <CardDescription>
-            {isLoading ? "Carregando jobs." : `${jobs.length} jobs encontrados.`}
+            {isLoading
+              ? "Carregando jobs."
+              : `${totalElements} jobs encontrados.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,6 +206,14 @@ export function AiJobsPage() {
                   </div>
                 ))}
               </div>
+
+              <PaginationBar
+                isDisabled={isLoading}
+                page={page}
+                totalElements={totalElements}
+                totalPages={totalPages}
+                onPageChange={goToPage}
+              />
             </>
           )}
         </CardContent>

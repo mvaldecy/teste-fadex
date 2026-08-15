@@ -1,6 +1,5 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -21,15 +20,20 @@ function formatHours(value: number) {
   return `${value.toFixed(1)} h`;
 }
 
+function formatDateTime(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
 export function DashboardPage() {
-  const {
-    choiceLabels,
-    indicators,
-    isFixture,
-    fixtureReason,
-    isLoading,
-    error
-  } = useIndicators();
+  const { choiceLabels, indicators, isAdmin, isLoading, error } =
+    useIndicators();
 
   if (isLoading) {
     return (
@@ -45,37 +49,51 @@ export function DashboardPage() {
     );
   }
 
-  const hasAssigneeLoad = (indicators?.cargaPorResponsavel?.length ?? 0) > 0;
-  const hasTopRequesters = (indicators?.topSolicitantes?.length ?? 0) > 0;
+  const overview = indicators?.overview;
+  const durations = indicators?.durations;
+  const ai = indicators?.ai;
+  const workload = indicators?.workload;
+  const generatedAt = formatDateTime(indicators?.generatedAt);
+
+  const openByAssignee = workload?.openByAssignee ?? [];
+  const topRequesters = workload?.topRequesters ?? [];
+  const closureByAssignee = workload?.closureTimeByAssignee ?? [];
+
+  const header = (
+    <header className="border-b border-slate-200 pb-5">
+      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">
+        Indicadores
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-normal">Dashboard</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+        Visao operacional dos chamados, atualizada em tempo real.
+        {generatedAt ? ` Apurado em ${generatedAt}.` : ""}
+      </p>
+    </header>
+  );
+
+  // Os indicadores sao restritos a ADMIN no backend. Dizer isso e melhor do
+  // que pedir o dado e exibir o 403 — ou uma parede de "--".
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto grid max-w-7xl gap-6">
+        {header}
+
+        <p className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Os indicadores gerenciais sao restritos a administradores. Acompanhe
+          seus chamados pelo menu Chamados.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
-      <header className="border-b border-slate-200 pb-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">
-          Indicadores
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-normal">
-          Dashboard
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Visao operacional dos chamados, atualizada em tempo real.
-        </p>
-      </header>
+      {header}
 
       {error ? (
         <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {error}
-        </p>
-      ) : null}
-
-      {isFixture ? (
-        <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Dados de exemplo: os numeros abaixo nao vem do banco.{" "}
-            {fixtureReason} O endpoint provavelmente ainda nao foi publicado
-            pela frente API.
-          </span>
         </p>
       ) : null}
 
@@ -86,36 +104,52 @@ export function DashboardPage() {
           <IndicatorCard
             label="Alta prioridade em aberto"
             tone="alert"
-            value={indicators?.altaPrioridadeEmAberto}
+            value={overview?.openHighPriority}
           />
-          <IndicatorCard
-            label="Abertos hoje"
-            value={indicators?.abertosHoje}
-          />
-          <IndicatorCard
-            label="Fechados hoje"
-            value={indicators?.fechadosHoje}
-          />
+          <IndicatorCard label="Abertos hoje" value={overview?.openedToday} />
+          <IndicatorCard label="Fechados hoje" value={overview?.closedToday} />
           <IndicatorCard
             label="Chamado mais antigo"
             formatValue={formatHours}
-            value={indicators?.idadeChamadoMaisAntigoHoras}
+            value={durations?.oldestOpenTicketHours}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <IndicatorCard label="Total de chamados" value={overview?.total} />
+          <IndicatorCard
+            label="Abertos na semana"
+            value={overview?.openedThisWeek}
+          />
+          <IndicatorCard
+            label="Fechados na semana"
+            value={overview?.closedThisWeek}
+          />
+          <IndicatorCard
+            label="Dentro do SLA"
+            formatValue={formatPercent}
+            note={
+              durations
+                ? `${durations.sla.overall.withinTarget} de ${durations.sla.overall.evaluated} avaliados | ALTA 4h, MEDIA 24h, BAIXA 72h`
+                : undefined
+            }
+            value={durations?.sla.overall.percentage}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <IndicatorBreakdown
-            data={indicators?.totalPorStatus}
+            data={overview?.byStatus}
             labels={choiceLabels?.statuses}
             title="Por status"
           />
           <IndicatorBreakdown
-            data={indicators?.totalPorPrioridade}
+            data={overview?.byPriority}
             labels={choiceLabels?.priorities}
             title="Por prioridade"
           />
           <IndicatorBreakdown
-            data={indicators?.totalPorCategoria}
+            data={overview?.byCategory}
             labels={choiceLabels?.categories}
             title="Por categoria"
           />
@@ -127,15 +161,15 @@ export function DashboardPage() {
 
         <div className="grid gap-4 lg:grid-cols-3">
           <IndicatorDurationCard
-            duration={indicators?.tempoFechamentoHoras}
+            duration={durations?.closure.overall}
             title="Tempo de fechamento"
           />
           <IndicatorDurationCard
-            duration={indicators?.tempoPrimeiraRespostaHoras}
+            duration={durations?.firstResponse.overall}
             title="Tempo ate primeira resposta"
           />
           <IndicatorDurationCard
-            duration={indicators?.tempoAtribuicaoHoras}
+            duration={durations?.assignment.overall}
             title="Tempo ate atribuicao"
           />
         </div>
@@ -143,21 +177,26 @@ export function DashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <IndicatorCard
             label="Backlog ate 1 dia"
-            value={indicators?.agingBacklog?.ate1Dia}
+            value={durations?.backlogAging.upToOneDay}
           />
           <IndicatorCard
             label="Backlog 1 a 3 dias"
-            value={indicators?.agingBacklog?.de1A3Dias}
+            value={durations?.backlogAging.oneToThreeDays}
           />
           <IndicatorCard
             label="Backlog acima de 3 dias"
-            value={indicators?.agingBacklog?.acima3Dias}
+            tone="alert"
+            value={durations?.backlogAging.overThreeDays}
           />
           <IndicatorCard
-            label="Dentro do SLA"
+            label="SLA em prioridade ALTA"
             formatValue={formatPercent}
-            note="ALTA 4h, MEDIA 24h, BAIXA 72h"
-            value={indicators?.percentualDentroDoSla}
+            note={
+              durations?.sla.byPriority.ALTA
+                ? `${durations.sla.byPriority.ALTA.withinTarget} de ${durations.sla.byPriority.ALTA.evaluated} avaliados`
+                : "Sem chamado ALTA avaliado"
+            }
+            value={durations?.sla.byPriority.ALTA?.percentage}
           />
         </div>
       </section>
@@ -169,49 +208,53 @@ export function DashboardPage() {
           <IndicatorCard
             label="Concordancia admin x IA"
             formatValue={formatPercent}
-            note="Sugestoes aceitas sem correcao"
-            value={indicators?.concordanciaIaPercentual}
+            note={
+              ai
+                ? `${ai.agreementRate.agreed} de ${ai.agreementRate.evaluated} revisoes`
+                : undefined
+            }
+            value={ai?.agreementRate.percentage}
           />
           <IndicatorCard
             label="Confianca media"
             formatValue={(value) => formatPercent(value * 100)}
-            value={indicators?.confiancaMediaIa}
+            value={ai?.averageConfidence}
           />
-          <IndicatorCard
-            label="Jobs pendentes"
-            value={indicators?.filaJobs?.pendentes}
-          />
+          <IndicatorCard label="Jobs pendentes" value={ai?.jobQueue.pending} />
           <IndicatorCard
             label="Jobs com falha"
             tone="alert"
-            value={indicators?.filaJobs?.falhos}
+            value={ai?.jobQueue.failed}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <IndicatorBreakdown
-            data={indicators?.distribuicaoClassificacao}
+            data={ai?.originDistribution}
             labels={choiceLabels?.classificationOrigins}
             title="Origem da classificacao"
           />
           <IndicatorCard
             label="Duplicados detectados"
-            value={indicators?.duplicadosDetectados}
+            value={ai?.duplicatesDetected}
           />
           <IndicatorCard
-            label="Tempo medio de processamento"
+            label="Fila ate a conclusao"
             formatValue={(value) => `${value.toFixed(1)} s`}
-            value={indicators?.filaJobs?.tempoMedioProcessamentoSegundos}
+            note="Espera na fila mais execucao do job"
+            value={ai?.jobQueue.averageQueueToDoneSeconds}
           />
         </div>
       </section>
 
-      {hasAssigneeLoad || hasTopRequesters ? (
+      {openByAssignee.length > 0 ||
+      topRequesters.length > 0 ||
+      closureByAssignee.length > 0 ? (
         <section className="grid gap-4">
           <h2 className="text-lg font-semibold">Distribuicao por pessoa</h2>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {hasAssigneeLoad ? (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {openByAssignee.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
@@ -220,16 +263,16 @@ export function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="grid gap-2 text-sm">
-                    {indicators?.cargaPorResponsavel?.map((item) => (
+                    {openByAssignee.map((item) => (
                       <li
                         className="flex items-center justify-between gap-3"
-                        key={item.responsavel.id}
+                        key={item.user.id}
                       >
                         <span className="truncate text-slate-700">
-                          {item.responsavel.name}
+                          {item.user.name}
                         </span>
                         <span className="shrink-0 tabular-nums font-medium text-slate-950">
-                          {item.abertos} em aberto
+                          {item.openTickets} em aberto
                         </span>
                       </li>
                     ))}
@@ -238,23 +281,55 @@ export function DashboardPage() {
               </Card>
             ) : null}
 
-            {hasTopRequesters ? (
+            {closureByAssignee.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Tempo de fechamento por responsavel
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="grid gap-2 text-sm">
+                    {closureByAssignee.map((item) => (
+                      <li
+                        className="flex items-center justify-between gap-3"
+                        key={item.user.id}
+                      >
+                        <span className="truncate text-slate-700">
+                          {item.user.name}
+                        </span>
+                        <span className="shrink-0 tabular-nums font-medium text-slate-950">
+                          {typeof item.medianHours === "number"
+                            ? `${item.medianHours.toFixed(1)} h`
+                            : "--"}
+                          <span className="ml-1 text-xs font-normal text-slate-500">
+                            ({item.sampleSize})
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {topRequesters.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Top solicitantes</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="grid gap-2 text-sm">
-                    {indicators?.topSolicitantes?.map((item) => (
+                    {topRequesters.map((item) => (
                       <li
                         className="flex items-center justify-between gap-3"
-                        key={item.solicitante.id}
+                        key={item.user.id}
                       >
                         <span className="truncate text-slate-700">
-                          {item.solicitante.name}
+                          {item.user.name}
                         </span>
                         <span className="shrink-0 tabular-nums font-medium text-slate-950">
-                          {item.total} chamados
+                          {item.tickets} chamados
                         </span>
                       </li>
                     ))}

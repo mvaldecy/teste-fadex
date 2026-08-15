@@ -13,10 +13,13 @@ const reloadEventNames = new Set([
   "CLASSIFICACAO_CONCLUIDA"
 ]);
 
+const pageSize = 15;
+
 export function useAiJobs() {
   const [jobs, setJobs] = useState<AiJobDto[]>([]);
-  const [isFixture, setIsFixture] = useState(false);
-  const [fixtureReason, setFixtureReason] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,20 +29,20 @@ export function useAiJobs() {
 
     try {
       const result = await aiJobsService.list({
-        page: 0,
-        size: 30,
+        page,
+        size: pageSize,
         sort: "createdAt,desc"
       });
 
-      setJobs(result.data);
-      setIsFixture(result.isFixture);
-      setFixtureReason(result.fixtureReason);
+      setJobs(result.content);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
     } catch (loadError) {
       setError(toApiErrorMessage(loadError));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     void loadJobs();
@@ -85,12 +88,14 @@ export function useAiJobs() {
 
   return {
     jobs,
-    isFixture,
-    fixtureReason,
+    page,
+    totalPages,
+    totalElements,
     isLoading,
     retryingJobId,
     error,
     loadJobs,
-    retryJob
+    retryJob,
+    goToPage: setPage
   };
 }

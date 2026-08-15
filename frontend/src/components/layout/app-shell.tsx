@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/src/components/ui/button";
+import { HighPriorityAlerts } from "@/src/features/notifications/high-priority-alerts";
 import { cn } from "@/src/lib/utils";
 import { routes } from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
@@ -60,6 +61,10 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
+      {/* Alerta de prioridade ALTA no shell: precisa alcancar o operador em
+          qualquer tela, nao so na listagem de chamados. */}
+      <HighPriorityAlerts />
+
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 hidden border-r border-slate-200 bg-white transition-[width] duration-200 lg:block",

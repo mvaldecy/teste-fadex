@@ -1,61 +1,122 @@
+import type {
+  ClassificationOriginValue,
+  TicketCategoryValue,
+  TicketPriorityValue,
+  TicketStatusValue
+} from "./choice";
 import type { UserSummary } from "./user";
 
 /**
- * Payload unico de `GET /api/v1/indicators`, com todas as camadas.
+ * Payload de `GET /api/v1/indicators`, publicado pela frente IA.
  *
- * Todo campo agregado e opcional de proposito: camada 4 e percentis estao na
- * linha de corte do documento de frentes. Se a frente IA nao entregar, o card
- * correspondente nao renderiza, em vez de a pagina quebrar.
+ * Os nomes seguem literalmente o `api.md` — o desenho anterior tinha assumido
+ * um payload plano em portugues, e o contrato real e aninhado em quatro
+ * camadas e em ingles.
+ *
+ * Os mapas por status, prioridade e categoria **omitem grupos sem ocorrencia**,
+ * e toda estatistica de duracao vem com horas `null` quando `sampleSize` e 0.
+ * Por isso o tipo mantem `null` explicito em vez de numero garantido.
  */
-export type IndicatorDuration = {
-  media?: number | null;
-  mediana?: number | null;
-  p90?: number | null;
+export type IndicatorDurationStats = {
+  sampleSize: number;
+  averageHours: number | null;
+  medianHours: number | null;
+  p90Hours: number | null;
 };
 
-export type IndicatorAging = {
-  ate1Dia?: number;
-  de1A3Dias?: number;
-  acima3Dias?: number;
+export type IndicatorDurationGroup = {
+  overall: IndicatorDurationStats;
+  byPriority: Partial<Record<TicketPriorityValue, IndicatorDurationStats>>;
+  byCategory: Partial<Record<TicketCategoryValue, IndicatorDurationStats>>;
+};
+
+export type IndicatorBacklogAging = {
+  upToOneDay: number;
+  oneToThreeDays: number;
+  overThreeDays: number;
+};
+
+export type IndicatorSlaSlice = {
+  evaluated: number;
+  withinTarget: number;
+  percentage: number | null;
+};
+
+export type IndicatorSla = {
+  overall: IndicatorSlaSlice;
+  byPriority: Partial<Record<TicketPriorityValue, IndicatorSlaSlice>>;
+};
+
+export type IndicatorOverview = {
+  total: number;
+  byStatus: Partial<Record<TicketStatusValue, number>>;
+  byPriority: Partial<Record<TicketPriorityValue, number>>;
+  byCategory: Partial<Record<TicketCategoryValue, number>>;
+  openedToday: number;
+  closedToday: number;
+  openedThisWeek: number;
+  closedThisWeek: number;
+  openHighPriority: number;
+};
+
+export type IndicatorDurations = {
+  closure: IndicatorDurationGroup;
+  firstResponse: IndicatorDurationGroup;
+  assignment: IndicatorDurationGroup;
+  backlogAging: IndicatorBacklogAging;
+  oldestOpenTicketHours: number | null;
+  sla: IndicatorSla;
+};
+
+export type IndicatorAgreementRate = {
+  evaluated: number;
+  agreed: number;
+  percentage: number | null;
 };
 
 export type IndicatorJobQueue = {
-  pendentes?: number;
-  falhos?: number;
-  tempoMedioProcessamentoSegundos?: number | null;
+  pending: number;
+  processing: number;
+  failed: number;
+  done: number;
+  averageQueueToDoneSeconds: number | null;
+};
+
+export type IndicatorAi = {
+  agreementRate: IndicatorAgreementRate;
+  averageConfidence: number | null;
+  originDistribution: Partial<Record<ClassificationOriginValue, number>>;
+  jobQueue: IndicatorJobQueue;
+  duplicatesDetected: number;
 };
 
 export type IndicatorAssigneeLoad = {
-  responsavel: UserSummary;
-  abertos: number;
-  tempoMedioFechamentoHoras?: number | null;
+  user: UserSummary;
+  openTickets: number;
 };
 
-export type IndicatorRequesterTotal = {
-  solicitante: UserSummary;
-  total: number;
+export type IndicatorAssigneeClosure = {
+  user: UserSummary;
+  sampleSize: number;
+  averageHours: number | null;
+  medianHours: number | null;
+};
+
+export type IndicatorRequesterVolume = {
+  user: UserSummary;
+  tickets: number;
+};
+
+export type IndicatorWorkload = {
+  openByAssignee: IndicatorAssigneeLoad[];
+  closureTimeByAssignee: IndicatorAssigneeClosure[];
+  topRequesters: IndicatorRequesterVolume[];
 };
 
 export type IndicatorsResponse = {
-  totalPorStatus?: Record<string, number>;
-  totalPorPrioridade?: Record<string, number>;
-  totalPorCategoria?: Record<string, number>;
-  abertosHoje?: number;
-  fechadosHoje?: number;
-  abertosNaSemana?: number;
-  fechadosNaSemana?: number;
-  altaPrioridadeEmAberto?: number;
-  tempoFechamentoHoras?: IndicatorDuration;
-  tempoPrimeiraRespostaHoras?: IndicatorDuration;
-  tempoAtribuicaoHoras?: IndicatorDuration;
-  agingBacklog?: IndicatorAging;
-  idadeChamadoMaisAntigoHoras?: number | null;
-  percentualDentroDoSla?: number | null;
-  concordanciaIaPercentual?: number | null;
-  confiancaMediaIa?: number | null;
-  distribuicaoClassificacao?: Record<string, number>;
-  filaJobs?: IndicatorJobQueue;
-  duplicadosDetectados?: number | null;
-  cargaPorResponsavel?: IndicatorAssigneeLoad[];
-  topSolicitantes?: IndicatorRequesterTotal[];
+  generatedAt: string;
+  overview: IndicatorOverview;
+  durations: IndicatorDurations;
+  ai: IndicatorAi;
+  workload: IndicatorWorkload;
 };

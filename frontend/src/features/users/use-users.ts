@@ -22,6 +22,8 @@ export function useUsers() {
   const [choices, setChoices] = useState<ChoicesResponse | null>(null);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [filters, setFilters] = useState<UserFilters>(initialUserFilters);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -43,6 +45,8 @@ export function useUsers() {
       try {
         const response = await usersService.list(nextFilters);
         setUsers(response.content);
+        setTotalPages(response.totalPages);
+        setTotalElements(response.totalElements);
       } catch (loadError) {
         setError(toApiErrorMessage(loadError));
       } finally {
@@ -51,6 +55,20 @@ export function useUsers() {
       }
     },
     [filters]
+  );
+
+  /**
+   * Troca de pagina preserva os filtros: zerar a pagina e comportamento de
+   * filtro novo, nao de navegacao.
+   */
+  const goToPage = useCallback(
+    (page: number) => {
+      const nextFilters = { ...filters, page };
+
+      setFilters(nextFilters);
+      void loadUsers(nextFilters);
+    },
+    [filters, loadUsers]
   );
 
   const updateFilters = useCallback(
@@ -105,6 +123,8 @@ export function useUsers() {
 
         setChoices(choicesResponse);
         setUsers(usersResponse.content);
+        setTotalPages(usersResponse.totalPages);
+        setTotalElements(usersResponse.totalElements);
       } catch (loadError) {
         setError(toApiErrorMessage(loadError));
       } finally {
@@ -120,11 +140,14 @@ export function useUsers() {
     roleLabels,
     users,
     filters,
+    totalPages,
+    totalElements,
     isLoading,
     isRefreshing,
     isCreating,
     error,
     loadUsers,
+    goToPage,
     updateFilters,
     createUser
   };

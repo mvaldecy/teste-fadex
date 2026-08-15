@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PaginationBar } from "@/src/components/layout/pagination-bar";
 import { UserCreateDialog } from "./user-create-dialog";
 import { UserDetailDialog } from "./user-detail-dialog";
 import { UserFilterBar } from "./user-filter-bar";
@@ -50,6 +51,14 @@ export function UsersPage() {
         isLoading={users.isLoading}
         users={users.users}
         onSelectUser={setSelectedUserId}
+      />
+
+      <PaginationBar
+        isDisabled={users.isRefreshing}
+        page={users.filters.page ?? 0}
+        totalElements={users.totalElements}
+        totalPages={users.totalPages}
+        onPageChange={users.goToPage}
       />
 
       <UserDetailDialog

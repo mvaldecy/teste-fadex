@@ -1,30 +1,41 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { useNotifications } from "@/src/features/notifications/use-notifications";
 import { buildChoiceLabelMap } from "@/src/features/tickets/choice-labels";
 import { toApiErrorMessage } from "@/src/services/api-error";
 import { choicesService } from "@/src/services/choices.service";
 import { indicatorsService } from "@/src/services/indicators.service";
+import { useSessionStore } from "@/src/stores/session.store";
 import type {
   ChoicesResponse,
   IndicatorsResponse,
   NotificationEvent
 } from "@/src/types/api";
 
+/**
+ * `CONEXAO_ESTABELECIDA` entra na lista porque o stream nao faz replay: apos
+ * reconectar, a tela precisa recarregar para nao mostrar o estado anterior a
+ * queda.
+ *
+ * `CHAMADO_ALTA_PRIORIDADE` tambem recarrega, mas o **alerta** visivel nao
+ * mora aqui: fica no `HighPriorityAlerts`, montado no shell, para alcancar o
+ * operador em qualquer tela.
+ */
 const reloadEventNames = new Set([
   "CONEXAO_ESTABELECIDA",
   "INDICADORES_ATUALIZADOS",
   "CHAMADO_ATUALIZADO",
+  "CHAMADO_ALTA_PRIORIDADE",
   "CLASSIFICACAO_CONCLUIDA"
 ]);
 
 export function useIndicators() {
+  // `GET /indicators` e restrito a ADMIN. Sem esta checagem o SOLICITANTE
+  // abriria o dashboard e receberia um 403 exibido como erro tecnico.
+  const isAdmin = useSessionStore((state) => state.role) === "ADMIN";
   const [choices, setChoices] = useState<ChoicesResponse | null>(null);
   const [indicators, setIndicators] = useState<IndicatorsResponse | null>(null);
-  const [isFixture, setIsFixture] = useState(false);
-  const [fixtureReason, setFixtureReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,17 +45,18 @@ export function useIndicators() {
   );
 
   const loadIndicators = useCallback(async () => {
+    if (!isAdmin) {
+      return;
+    }
+
     setError(null);
 
     try {
-      const result = await indicatorsService.get();
-      setIndicators(result.data);
-      setIsFixture(result.isFixture);
-      setFixtureReason(result.fixtureReason);
+      setIndicators(await indicatorsService.get());
     } catch (loadError) {
       setError(toApiErrorMessage(loadError));
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -52,15 +64,13 @@ export function useIndicators() {
       setError(null);
 
       try {
-        const [choicesResponse, indicatorsResult] = await Promise.all([
+        const [choicesResponse, indicatorsResponse] = await Promise.all([
           choicesService.getChoices(),
-          indicatorsService.get()
+          isAdmin ? indicatorsService.get() : Promise.resolve(null)
         ]);
 
         setChoices(choicesResponse);
-        setIndicators(indicatorsResult.data);
-        setIsFixture(indicatorsResult.isFixture);
-        setFixtureReason(indicatorsResult.fixtureReason);
+        setIndicators(indicatorsResponse);
       } catch (loadError) {
         setError(toApiErrorMessage(loadError));
       } finally {
@@ -69,18 +79,10 @@ export function useIndicators() {
     }
 
     void loadInitialData();
-  }, []);
+  }, [isAdmin]);
 
   const handleEvent = useCallback(
     (event: NotificationEvent) => {
-      // Alerta de prioridade ALTA e requisito obrigatorio do desafio: alem de
-      // recarregar, precisa avisar o ADMIN na hora.
-      if (event.name === "CHAMADO_ALTA_PRIORIDADE") {
-        toast.warning("Chamado de prioridade ALTA registrado.");
-        void loadIndicators();
-        return;
-      }
-
       if (reloadEventNames.has(event.name)) {
         void loadIndicators();
       }
@@ -93,8 +95,7 @@ export function useIndicators() {
   return {
     choiceLabels,
     indicators,
-    isFixture,
-    fixtureReason,
+    isAdmin,
     isLoading,
     error,
     loadIndicators

@@ -25,8 +25,16 @@ import type {
   UserSummary
 } from "@/src/types/api";
 
+/**
+ * Responsavel candidato com a carga atual. O numero vem de
+ * `workload.openByAssignee` do `/indicators`, cruzado na tela de detalhe.
+ */
+export type AssigneeOption = UserSummary & {
+  openTickets: number;
+};
+
 type TicketLifecycleActionsProps = {
-  assignees: UserSummary[];
+  assignees: AssigneeOption[];
   choices: ChoicesResponse | null;
   isSubmitting: boolean;
   ticket: TicketDto;
@@ -102,16 +110,48 @@ export function TicketLifecycleActions({
         <div className="grid gap-2">
           <Label htmlFor="ticket-assignee">Responsavel</Label>
 
-          {/* Atribuir e recusar sao mutuamente exclusivos: a API responde 409
-              ao atribuir um chamado que ja tem responsavel. Trocar de pessoa e
-              recusar primeiro e atribuir depois. */}
+          {/* Verificado contra o backend: `PATCH /assignee` num chamado que ja
+              tem responsavel **nao** responde 409 — troca o responsavel e
+              devolve 200. Por isso o seletor fica sempre visivel, em vez de
+              obrigar a recusar antes de trocar. O 409 que existe de verdade e
+              outro: o responsavel precisa ter papel de ADMIN, e por isso a
+              lista de candidatos ja vem filtrada por `role=ADMIN`. */}
+          <div className="flex gap-2">
+            <Select
+              disabled={isClosed || isSubmitting}
+              value={assigneeId}
+              onValueChange={setAssigneeId}
+            >
+              <SelectTrigger id="ticket-assignee">
+                <SelectValue placeholder="Selecione o responsavel" />
+              </SelectTrigger>
+              <SelectContent>
+                {assignees.map((assignee) => (
+                  <SelectItem key={assignee.id} value={assignee.id}>
+                    {assignee.name} ({assignee.openTickets} em aberto)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              disabled={
+                isClosed ||
+                isSubmitting ||
+                !assigneeId ||
+                assigneeId === ticket.assignee?.id
+              }
+              type="button"
+              onClick={() => onAssign(assigneeId)}
+            >
+              {ticket.assignee ? "Trocar" : "Atribuir"}
+            </Button>
+          </div>
+
           {ticket.assignee ? (
             <div className="flex flex-wrap items-center gap-2">
-              <p
-                className="text-sm text-slate-950"
-                id="ticket-assignee"
-              >
-                {ticket.assignee.name}
+              <p className="text-sm text-slate-600">
+                Responsavel atual: {ticket.assignee.name}
               </p>
               <Button
                 disabled={isClosed || isSubmitting}
@@ -124,34 +164,7 @@ export function TicketLifecycleActions({
                 Recusar atribuicao
               </Button>
             </div>
-          ) : (
-            <div className="flex gap-2">
-              <Select
-                disabled={isClosed || isSubmitting}
-                value={assigneeId}
-                onValueChange={setAssigneeId}
-              >
-                <SelectTrigger id="ticket-assignee">
-                  <SelectValue placeholder="Selecione o responsavel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {assignees.map((assignee) => (
-                    <SelectItem key={assignee.id} value={assignee.id}>
-                      {assignee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                disabled={isClosed || isSubmitting || !assigneeId}
-                type="button"
-                onClick={() => onAssign(assigneeId)}
-              >
-                Atribuir
-              </Button>
-            </div>
-          )}
+          ) : null}
         </div>
       </CardContent>
     </Card>

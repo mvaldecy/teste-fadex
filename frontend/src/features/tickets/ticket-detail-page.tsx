@@ -5,13 +5,17 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { routes } from "@/src/routes/routes";
+import { indicatorsService } from "@/src/services/indicators.service";
 import { usersService } from "@/src/services/users.service";
 import { useSessionStore } from "@/src/stores/session.store";
-import type { UserSummary } from "@/src/types/api";
+
 import { TicketClassificationCard } from "./ticket-classification-card";
 import { TicketDetailPanel } from "./ticket-detail-panel";
 import { TicketHistoryList } from "./ticket-history-list";
-import { TicketLifecycleActions } from "./ticket-lifecycle-actions";
+import {
+  type AssigneeOption,
+  TicketLifecycleActions
+} from "./ticket-lifecycle-actions";
 import { useTicketActions } from "./use-ticket-actions";
 import { useTicketComments } from "./use-ticket-comments";
 import { useTicketDetail } from "./use-ticket-detail";
@@ -27,7 +31,7 @@ export function TicketDetailPage() {
   const detail = useTicketDetail(ticketId);
   const comments = useTicketComments(ticketId);
   const history = useTicketHistory(ticketId);
-  const [assignees, setAssignees] = useState<UserSummary[]>([]);
+  const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
 
   const refreshTicket = detail.refreshTicket;
   const reloadHistory = history.loadEvents;
@@ -46,6 +50,11 @@ export function TicketDetailPage() {
   });
 
   // Responsaveis possiveis sao os ADMIN. So carrega para quem pode atribuir.
+  //
+  // A carga de cada um vem de `workload.openByAssignee`, e o cruzamento e
+  // feito aqui de proposito: o mapa **omite** quem nao tem chamado aberto, e
+  // essa pessoa costuma ser a melhor escolha para receber o proximo. Ausencia
+  // vira zero, e a lista sai ordenada da menor carga para a maior.
   useEffect(() => {
     if (!isAdmin) {
       return;
@@ -55,16 +64,41 @@ export function TicketDetailPage() {
 
     async function loadAssignees() {
       try {
-        const response = await usersService.list({
-          role: "ADMIN",
-          page: 0,
-          size: 50,
-          sort: "name,asc"
-        });
+        const [usersResponse, indicators] = await Promise.all([
+          usersService.list({
+            role: "ADMIN",
+            page: 0,
+            size: 50,
+            sort: "name,asc"
+          }),
+          // A carga e um enfeite util: se os indicadores falharem, a
+          // atribuicao continua funcionando sem o numero.
+          indicatorsService.get().catch(() => null)
+        ]);
 
-        if (isActive) {
-          setAssignees(response.content);
+        if (!isActive) {
+          return;
         }
+
+        const openByUserId = new Map(
+          (indicators?.workload.openByAssignee ?? []).map((item) => [
+            item.user.id,
+            item.openTickets
+          ])
+        );
+
+        setAssignees(
+          usersResponse.content
+            .map((user) => ({
+              ...user,
+              openTickets: openByUserId.get(user.id) ?? 0
+            }))
+            .sort(
+              (first, second) =>
+                first.openTickets - second.openTickets ||
+                first.name.localeCompare(second.name)
+            )
+        );
       } catch {
         // A falha aqui so esvazia a lista de responsaveis; o restante do
         // detalhe continua utilizavel, entao nao vira erro de tela inteira.
