@@ -66,6 +66,17 @@ export function TicketClassificationCard({
   const hasSuggestion = Boolean(
     ticket.aiSuggestedCategory && ticket.aiSuggestedPriority
   );
+  /**
+   * A classificação vigente veio da IA e ninguém confirmou ainda.
+   *
+   * Aparece porque o desafio pede que a IA **sugira** e o ADMIN aceite ou
+   * corrija — sem este aviso, uma classificação automática é indistinguível de
+   * uma decidida por pessoa, e a fila de revisão fica invisível. Vale
+   * especialmente aqui: a prioridade é o campo que o modelo mais erra, e é o
+   * que define o prazo de SLA cobrado do chamado.
+   */
+  const aguardandoRevisao =
+    ticket.classificationOrigin === "IA" && !ticket.classificationReviewedAt;
   const confidencePercent =
     typeof ticket.confidence === "number"
       ? Math.round(ticket.confidence * 100)
@@ -76,8 +87,17 @@ export function TicketClassificationCard({
       <CardHeader>
         <CardTitle className="text-base">Classificação</CardTitle>
         <CardDescription>
-          Aceite a sugestao da IA ou corrija a classificação manualmente.
+          Aceite a sugestão da IA ou corrija a classificação manualmente.
         </CardDescription>
+
+        {aguardandoRevisao ? (
+          <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+            <strong>Classificado pela IA, ainda sem revisão.</strong> A
+            categoria e a prioridade abaixo foram sugeridas automaticamente e
+            valem até que um administrador confirme ou corrija — a prioridade
+            define o prazo de SLA cobrado deste chamado.
+          </p>
+        ) : null}
       </CardHeader>
 
       <CardContent className="grid gap-5">
@@ -85,7 +105,7 @@ export function TicketClassificationCard({
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-700" />
             <h3 className="text-sm font-semibold text-slate-950">
-              Sugestao da IA
+              Sugestão da IA
             </h3>
           </div>
 
@@ -163,13 +183,13 @@ export function TicketClassificationCard({
                     )
                   }
                 >
-                  Aceitar sugestao
+                  Aceitar sugestão
                 </Button>
               </div>
             </>
           ) : (
             <p className="text-sm text-slate-600">
-              Sem sugestao da IA para este chamado. Origem atual:{" "}
+              Sem sugestão da IA para este chamado. Origem atual:{" "}
               {resolveChoiceLabel(
                 choiceLabels?.classificationOrigins,
                 ticket.classificationOrigin

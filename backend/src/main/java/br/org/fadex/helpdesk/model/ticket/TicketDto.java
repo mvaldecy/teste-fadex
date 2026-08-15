@@ -28,6 +28,15 @@ public record TicketDto(
 		LocalDateTime updatedAt,
 		TicketCategory aiSuggestedCategory,
 		TicketPriority aiSuggestedPriority,
-		Double confidence
+		Double confidence,
+		/**
+		 * Quando um ADMIN revisou a classificacao. Nulo enquanto a sugestao da IA nunca passou por
+		 * pessoa nenhuma.
+		 *
+		 * A origem sozinha nao responde isso: o ADMIN que revisa e concorda com a IA deixa a origem
+		 * em {@code IA}, entao "IA" cobre tanto "ninguem olhou" quanto "olharam e aprovaram". Sao
+		 * situacoes opostas para quem precisa saber o que ainda exige atencao.
+		 */
+		LocalDateTime classificationReviewedAt
 ) {
 }

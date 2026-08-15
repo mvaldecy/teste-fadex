@@ -32,6 +32,16 @@ export type TicketSummary = {
  */
 export type TicketDto = TicketSummary & {
   description: string;
+  /**
+   * Quando um ADMIN revisou a classificação. Nulo enquanto a sugestão da IA
+   * nunca passou por pessoa nenhuma.
+   *
+   * A origem sozinha não responde isso: quem revisa e concorda com a IA deixa a
+   * origem em `IA`, então esse valor cobre tanto "ninguém olhou" quanto
+   * "olharam e aprovaram" — situações opostas para quem precisa saber o que
+   * ainda exige atenção.
+   */
+  classificationReviewedAt?: string | null;
   updatedAt: string;
   classificationJustification?: string | null;
   aiSuggestedCategory?: TicketCategoryValue | null;

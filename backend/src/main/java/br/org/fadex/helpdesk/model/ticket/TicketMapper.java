@@ -34,7 +34,8 @@ public abstract class TicketMapper {
 				ticket.getUpdatedAt(),
 				ticket.getAiSuggestedCategory(),
 				ticket.getAiSuggestedPriority(),
-				ticket.getAiConfidence()
+				ticket.getAiConfidence(),
+				ticket.getClassificationReviewedAt()
 		);
 	}
 

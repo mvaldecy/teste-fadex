@@ -83,7 +83,8 @@ class TicketClassificationControllerTest {
 				LocalDateTime.of(2026, 8, 14, 11, 0),
 				TicketCategory.INFRAESTRUTURA,
 				TicketPriority.ALTA,
-				0.87
+				0.87,
+				null
 		);
 	}
 }
