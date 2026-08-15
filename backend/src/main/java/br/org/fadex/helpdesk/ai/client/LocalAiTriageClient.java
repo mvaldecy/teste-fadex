@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClientException;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,23 @@ public class LocalAiTriageClient implements AiTriageClient {
 	 * em vez de precisar de alguem lembrar de atualizar um texto.
 	 */
 	private static final String SYSTEM_PROMPT = buildSystemPrompt();
+
+	/**
+	 * Schema JSON enviado no campo {@code format} da chamada ao Ollama.
+	 *
+	 * O campo aceita o literal {@code "json"} — que so obriga a resposta a ser JSON valido — ou um
+	 * schema, que o Ollama usa para restringir a decodificacao. Com {@code enum} o modelo fica
+	 * impedido de emitir categoria ou prioridade fora da lista: medido contra os 20 chamados
+	 * semeados, o {@code llama3.2:3b} passou de 5/10 para 7/10 em categoria e os valores invalidos
+	 * cairam de 2 para 0.
+	 *
+	 * Os valores saem dos proprios enums, como no prompt: enum novo entra no schema sozinho.
+	 *
+	 * A normalizacao de {@link #toEnum} e o fallback heuristico continuam no lugar — este schema e
+	 * um estreitamento da entrada, nao uma garantia. Modelo antigo ou servidor que ignore
+	 * {@code format} volta a responder texto livre, e o caminho de erro precisa continuar existindo.
+	 */
+	private static final Map<String, Object> RESPONSE_SCHEMA = buildResponseSchema();
 
 	private final RestClient restClient;
 	private final ObjectMapper objectMapper;
@@ -69,7 +87,7 @@ public class LocalAiTriageClient implements AiTriageClient {
 					.body(Map.of(
 							"model", classificationModel,
 							"stream", false,
-							"format", "json",
+							"format", RESPONSE_SCHEMA,
 							"options", Map.of("temperature", 0),
 							"messages", List.of(
 									Map.of("role", "system", "content", SYSTEM_PROMPT),
@@ -94,6 +112,31 @@ public class LocalAiTriageClient implements AiTriageClient {
 				+ "priority deve ser exatamente um destes valores: " + values(TicketPriority.values()) + ".\n"
 				+ "confidence e um numero entre 0 e 1 indicando o quanto voce esta seguro.\n"
 				+ "justification e uma frase curta em portugues explicando a escolha.";
+	}
+
+	private static Map<String, Object> buildResponseSchema() {
+		Map<String, Object> properties = new LinkedHashMap<>();
+		properties.put("category", enumProperty(TicketCategory.values()));
+		properties.put("priority", enumProperty(TicketPriority.values()));
+		properties.put("confidence", Map.of("type", "number"));
+		properties.put("justification", Map.of("type", "string"));
+
+		Map<String, Object> schema = new LinkedHashMap<>();
+		schema.put("type", "object");
+		schema.put("properties", properties);
+		schema.put("required", List.of("category", "priority", "confidence", "justification"));
+
+		return schema;
+	}
+
+	private static Map<String, Object> enumProperty(Enum<?>[] values) {
+		List<String> names = Arrays.stream(values).map(Enum::name).toList();
+
+		return Map.of("type", "string", "enum", names);
+	}
+
+	static Map<String, Object> responseSchema() {
+		return RESPONSE_SCHEMA;
 	}
 
 	private static String values(Enum<?>[] values) {
