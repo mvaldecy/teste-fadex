@@ -21,6 +21,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationEvent;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationType;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -57,6 +60,9 @@ class TicketCommentServiceTest {
 	@Mock
 	private TicketEventService ticketEventService;
 
+	@Mock
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	private AccessControlService accessControlService;
 
 	private TicketCommentService ticketCommentService;
@@ -69,7 +75,8 @@ class TicketCommentServiceTest {
 				ticketService,
 				userService,
 				accessControlService,
-				ticketEventService
+				ticketEventService,
+				applicationEventPublisher
 		);
 	}
 
@@ -111,6 +118,34 @@ class TicketCommentServiceTest {
 		assertThat(commentToSave.getText()).isEqualTo("Consegui reproduzir o erro.");
 		assertThat(response.text()).isEqualTo("Consegui reproduzir o erro.");
 		assertThat(response.author().name()).isEqualTo("Maria Solicitante");
+	}
+
+	@Test
+	void devePublicarEventoDeNotificacaoAoCriarComentario() {
+		UUID ticketId = UUID.fromString("e05968eb-a518-4ff9-8aa2-2d7a53497e45");
+		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
+		User requester = newUser("maria@fadex.org.br", Role.SOLICITANTE);
+		Ticket ticket = newTicket(requester);
+		TicketCommentCreationDto creationDto = new TicketCommentCreationDto("Continua com erro.");
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
+
+		ReflectionTestUtils.setField(requester, "id", authenticatedUserId);
+		ReflectionTestUtils.setField(ticket, "id", ticketId);
+		when(ticketService.findEntityById(ticketId)).thenReturn(ticket);
+		when(authenticatedUserService.getRole()).thenReturn(Role.SOLICITANTE);
+		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
+		when(userService.findEntityById(authenticatedUserId)).thenReturn(requester);
+		when(ticketCommentRepository.save(any(TicketComment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		ticketCommentService.create(ticketId, creationDto);
+
+		verify(applicationEventPublisher).publishEvent(captor.capture());
+		TicketNotificationEvent event = captor.getValue();
+
+		assertThat(event.type()).isEqualTo(TicketNotificationType.COMENTARIO_ADICIONADO);
+		assertThat(event.actorId()).isEqualTo(authenticatedUserId);
+		assertThat(event.detail()).isEqualTo("Continua com erro.");
+		assertThat(event.requester().email()).isEqualTo("maria@fadex.org.br");
 	}
 
 	@Test

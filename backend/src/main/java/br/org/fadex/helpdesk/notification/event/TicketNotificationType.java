@@ -1,0 +1,11 @@
+package br.org.fadex.helpdesk.notification.event;
+
+public enum TicketNotificationType {
+
+	CHAMADO_CRIADO,
+	STATUS_ALTERADO,
+	RESPONSAVEL_ATRIBUIDO,
+	RESPONSAVEL_REMOVIDO,
+	COMENTARIO_ADICIONADO,
+	CLASSIFICACAO_ATUALIZADA
+}

@@ -19,9 +19,8 @@ import br.org.fadex.helpdesk.exception.ForbiddenException;
 import br.org.fadex.helpdesk.exception.ConflictException;
 import br.org.fadex.helpdesk.exception.NotFoundException;
 import br.org.fadex.helpdesk.exception.UnauthorizedException;
-import br.org.fadex.helpdesk.sse.model.NotificationAudience;
-import br.org.fadex.helpdesk.sse.model.NotificationEventName;
-import br.org.fadex.helpdesk.sse.model.NotificationMessage;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationEvent;
+import br.org.fadex.helpdesk.notification.event.TicketNotificationType;
 import br.org.fadex.helpdesk.repository.TicketRepository;
 import br.org.fadex.helpdesk.security.AccessControlService;
 import br.org.fadex.helpdesk.security.AuthenticatedUserService;
@@ -163,7 +162,7 @@ class TicketServiceTest {
 		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
 		Ticket savedTicket = newTicket(TicketPriority.MEDIA);
 		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
-		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
 
 		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
 		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
@@ -172,54 +171,21 @@ class TicketServiceTest {
 		ticketService.create(dto);
 
 		verify(applicationEventPublisher).publishEvent(captor.capture());
-		NotificationMessage message = captor.getValue();
+		TicketNotificationEvent event = captor.getValue();
 
-		assertThat(message.eventName()).isEqualTo(NotificationEventName.CHAMADO_ATUALIZADO);
-		assertThat(message.audience()).isInstanceOf(NotificationAudience.UsersAndRoles.class);
-
-		NotificationAudience.UsersAndRoles audience = (NotificationAudience.UsersAndRoles) message.audience();
-
-		assertThat(audience.userIds()).containsExactly(savedTicket.getRequester().getId());
-		assertThat(audience.roles()).containsExactly(Role.ADMIN);
+		assertThat(event.type()).isEqualTo(TicketNotificationType.CHAMADO_CRIADO);
+		assertThat(event.ticket().id()).isEqualTo(savedTicket.getId());
+		assertThat(event.requester().id()).isEqualTo(savedTicket.getRequester().getId());
+		assertThat(event.assignee()).isNull();
+		assertThat(event.previousPriority()).isNull();
+		assertThat(event.becameHighPriority()).isFalse();
 	}
-
 	@Test
 	void deveAlertarAdminsQuandoChamadoNasceComPrioridadeAlta() {
 		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
 		Ticket savedTicket = newTicket(TicketPriority.ALTA);
 		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
-		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
-
-		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
-		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
-		when(ticketRepository.save(any(Ticket.class))).thenReturn(savedTicket);
-
-		ticketService.create(dto);
-
-		verify(applicationEventPublisher, times(2)).publishEvent(captor.capture());
-		List<String> eventNames = captor.getAllValues().stream()
-				.map(NotificationMessage::eventName)
-				.toList();
-
-		assertThat(eventNames).containsExactlyInAnyOrder(
-				NotificationEventName.CHAMADO_ATUALIZADO,
-				NotificationEventName.CHAMADO_ALTA_PRIORIDADE
-		);
-
-		NotificationMessage alerta = captor.getAllValues().stream()
-				.filter(message -> message.eventName().equals(NotificationEventName.CHAMADO_ALTA_PRIORIDADE))
-				.findFirst()
-				.orElseThrow();
-
-		assertThat(alerta.audience()).isEqualTo(new NotificationAudience.Roles(Set.of(Role.ADMIN)));
-	}
-
-	@Test
-	void naoDeveAlertarPrioridadeAltaQuandoChamadoNasceComPrioridadeMedia() {
-		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
-		Ticket savedTicket = newTicket(TicketPriority.MEDIA);
-		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
-		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
 
 		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
 		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
@@ -228,9 +194,28 @@ class TicketServiceTest {
 		ticketService.create(dto);
 
 		verify(applicationEventPublisher).publishEvent(captor.capture());
-		assertThat(captor.getValue().eventName()).isEqualTo(NotificationEventName.CHAMADO_ATUALIZADO);
-	}
+		TicketNotificationEvent event = captor.getValue();
 
+		assertThat(event.type()).isEqualTo(TicketNotificationType.CHAMADO_CRIADO);
+		assertThat(event.becameHighPriority()).isTrue();
+	}
+	@Test
+	void naoDeveAlertarPrioridadeAltaQuandoChamadoNasceComPrioridadeMedia() {
+		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
+		Ticket savedTicket = newTicket(TicketPriority.MEDIA);
+		TicketCreationDto dto = new TicketCreationDto("Chamado", "Descricao do chamado.");
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
+
+		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
+		when(userService.findEntityById(authenticatedUserId)).thenReturn(savedTicket.getRequester());
+		when(ticketRepository.save(any(Ticket.class))).thenReturn(savedTicket);
+
+		ticketService.create(dto);
+
+		verify(applicationEventPublisher).publishEvent(captor.capture());
+
+		assertThat(captor.getValue().becameHighPriority()).isFalse();
+	}
 	@Test
 	void deveForcarSolicitanteAutenticadoNoFiltroDeChamados() {
 		UUID authenticatedUserId = UUID.fromString("71e9c3d9-53b2-4c4e-9803-c504754dbb45");
@@ -387,7 +372,7 @@ class TicketServiceTest {
 	@Test
 	void applyClassificationDevePublicarAlertaQuandoPrioridadeViraAlta() {
 		Ticket ticket = newTicket(TicketPriority.BAIXA);
-		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
 
 		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
 		when(ticketRepository.save(ticket)).thenReturn(ticket);
@@ -397,21 +382,18 @@ class TicketServiceTest {
 				ticket.getId(), TicketCategory.ACESSO, TicketPriority.ALTA, ClassificationOrigin.IA, null
 		);
 
-		verify(applicationEventPublisher, times(2)).publishEvent(captor.capture());
-		List<String> eventNames = captor.getAllValues().stream()
-				.map(NotificationMessage::eventName)
-				.toList();
+		verify(applicationEventPublisher).publishEvent(captor.capture());
+		TicketNotificationEvent event = captor.getValue();
 
-		assertThat(eventNames).containsExactlyInAnyOrder(
-				NotificationEventName.CHAMADO_ATUALIZADO,
-				NotificationEventName.CHAMADO_ALTA_PRIORIDADE
-		);
+		assertThat(event.type()).isEqualTo(TicketNotificationType.CLASSIFICACAO_ATUALIZADA);
+		assertThat(event.previousPriority()).isEqualTo(TicketPriority.BAIXA);
+		assertThat(event.becameHighPriority()).isTrue();
+		assertThat(event.actorId()).isNull();
 	}
-
 	@Test
 	void applyClassificationNaoDeveRepetirAlertaQuandoPrioridadeJaEraAlta() {
 		Ticket ticket = newTicket(TicketPriority.ALTA);
-		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
 
 		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
 		when(ticketRepository.save(ticket)).thenReturn(ticket);
@@ -421,16 +403,16 @@ class TicketServiceTest {
 				ticket.getId(), TicketCategory.ACESSO, TicketPriority.ALTA, ClassificationOrigin.IA, null
 		);
 
-		verify(applicationEventPublisher, times(1)).publishEvent(captor.capture());
-		assertThat(captor.getValue().eventName()).isEqualTo(NotificationEventName.CHAMADO_ATUALIZADO);
-	}
+		verify(applicationEventPublisher).publishEvent(captor.capture());
 
+		assertThat(captor.getValue().becameHighPriority()).isFalse();
+	}
 	@Test
 	void applyClassificationDeveNotificarSolicitanteEResponsavel() {
 		Ticket ticket = newTicket(TicketPriority.MEDIA);
 		User assignee = newAdmin();
 		ticket.assignTo(assignee);
-		ArgumentCaptor<NotificationMessage> captor = ArgumentCaptor.forClass(NotificationMessage.class);
+		ArgumentCaptor<TicketNotificationEvent> captor = ArgumentCaptor.forClass(TicketNotificationEvent.class);
 
 		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
 		when(ticketRepository.save(ticket)).thenReturn(ticket);
@@ -441,13 +423,12 @@ class TicketServiceTest {
 		);
 
 		verify(applicationEventPublisher).publishEvent(captor.capture());
-		NotificationAudience audience = captor.getValue().audience();
+		TicketNotificationEvent event = captor.getValue();
 
-		assertThat(audience).isInstanceOf(NotificationAudience.Users.class);
-		assertThat(((NotificationAudience.Users) audience).userIds())
-				.containsExactlyInAnyOrder(ticket.getRequester().getId(), assignee.getId());
+		assertThat(event.requester().id()).isEqualTo(ticket.getRequester().getId());
+		assertThat(event.assignee().id()).isEqualTo(assignee.getId());
+		assertThat(event.assignee().email()).isEqualTo(assignee.getEmail());
 	}
-
 	@Test
 	void applyClassificationDeveLancarNotFoundQuandoChamadoNaoExistir() {
 		UUID ticketId = UUID.fromString("2a5b0a5e-8f6d-4c1b-9a3e-7d4c2b1a0f9e");
