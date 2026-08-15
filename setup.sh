@@ -221,6 +221,14 @@ done
 
 # ── Helpers proprios deste wizard ─────────────────────────────────────────
 
+# pause — o --yes precisa ser realmente sem prompt, e banner() tambem chama
+# pause(). Redefinimos aqui embaixo do marcador, sem tocar na biblioteca.
+pause() {
+  [[ "$AUTOMATICO" == true ]] && return 0
+  printf '  %s%s%s ' "$DIM" "${1:-Pressione Enter para continuar}" "$RESET"
+  read -r _ || true
+}
+
 # executar "descricao" comando... — roda o comando, ou apenas o imprime no
 # modo simulado. Todo efeito colateral pesado passa por aqui.
 executar() {
@@ -340,7 +348,9 @@ resolver_porta() {
 
   while true; do
     if porta_reservada "$candidato"; then
-      [[ -z "$motivo" ]] && motivo="porta ${pretendida} ja atribuida a outro servico nesta execucao"
+      if [[ -z "$motivo" ]]; then
+        motivo="porta ${pretendida} ja atribuida a outro servico nesta execucao"
+      fi
     elif [[ "$candidato" != "$atual" ]] && porta_em_uso "$candidato"; then
       if [[ -z "$motivo" ]]; then
         dono=$(quem_ocupa "$candidato")
@@ -490,7 +500,9 @@ banner "Instalacao do Fadex Helpdesk"
 
 stage "Pre-requisitos"
 say "Conferindo o Docker antes de qualquer outra coisa."
-[[ "$MODO_SIMULADO" == true ]] && warn "Modo simulado: nenhum comando do Docker sera executado."
+if [[ "$MODO_SIMULADO" == true ]]; then
+  warn "Modo simulado: nenhum comando do Docker sera executado."
+fi
 
 command -v docker >/dev/null 2>&1 \
   || abortar "Docker nao encontrado. Instale o Docker Engine ou o Docker Desktop e rode novamente."
@@ -621,19 +633,32 @@ printf '\n'
 # O servico ollama-models nao tem 'profiles' no compose: num 'up' generico ele
 # entraria junto e o download de mais de 1 GB aconteceria sem ser perguntado.
 # Por isso a lista de servicos aqui e explicita.
-executar "Sobe postgres, mailpit, ollama, backend e frontend." \
-  docker compose up -d --build postgres mailpit ollama backend frontend
+if ! executar "Sobe postgres, mailpit, ollama, backend e frontend." \
+     docker compose up -d --build postgres mailpit ollama backend frontend; then
+  printf '\n'
+  warn "O 'docker compose up' falhou."
+  warn "A causa mais comum e uma porta que ficou ocupada entre a escolha e a subida."
+  warn "Veja o erro acima, libere a porta e rode ./setup.sh de novo — o ${ENV_FILE} ja esta salvo."
+  abortar "Nao consegui subir a stack."
+fi
 printf '\n'
 pause "Enter para seguir."
 
 # ── Estagio 6 · Modelos do Ollama ─────────────────────────────────────────
 
 stage "Modelos do Ollama"
+MODELOS_FALHARAM=false
 if [[ "$BAIXAR_MODELOS" == true ]]; then
   say "Baixando os modelos agora que o container do Ollama esta de pe."
   warn "Sao mais de 1 GB; pode demorar bastante na primeira vez."
-  executar "Baixa llama3.2:1b e all-minilm no volume do Ollama." \
-    docker compose run --rm ollama-models
+  # O download e opcional: se falhar, avisamos e seguimos para a verificacao.
+  if ! executar "Baixa llama3.2:1b e all-minilm no volume do Ollama." \
+       docker compose run --rm ollama-models; then
+    warn "O download dos modelos falhou. A stack continua de pe."
+    warn "A classificacao segue pela heuristica do FallbackTicketClassifier."
+    warn "Para tentar de novo: docker compose run --rm ollama-models"
+    MODELOS_FALHARAM=true
+  fi
 else
   say "Pulando o download dos modelos."
   note "A classificacao segue pela heuristica do FallbackTicketClassifier."
@@ -678,7 +703,11 @@ note "make setup e so um atalho para quem tem make instalado; ./setup.sh e o cam
 printf '\n'
 if [[ "$MODO_SIMULADO" == true ]]; then
   warn "Execucao simulada: nenhum container foi criado."
-elif [[ "$BACKEND_OK" != true || "$FRONTEND_OK" != true ]]; then
-  warn "Algum servico nao respondeu a tempo. Cheque com: docker compose logs -f"
+else
+  [[ "$BACKEND_OK" == true && "$FRONTEND_OK" == true ]] \
+    || warn "Algum servico nao respondeu a tempo. Cheque com: docker compose logs -f"
+  if [[ "$MODELOS_FALHARAM" == true ]]; then
+    warn "Os modelos do Ollama nao foram baixados; a heuristica de fallback assume."
+  fi
 fi
 printf '\n'
