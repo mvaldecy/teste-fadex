@@ -30,7 +30,7 @@ class ChoicesControllerTest {
 				.andExpect(jsonPath("$.ticketStatuses[1].value").value("EM_ANDAMENTO"))
 				.andExpect(jsonPath("$.ticketStatuses[1].label").value("Em andamento"))
 				.andExpect(jsonPath("$.ticketPriorities[1].value").value("MEDIA"))
-				.andExpect(jsonPath("$.ticketPriorities[1].label").value("Media"))
+				.andExpect(jsonPath("$.ticketPriorities[1].label").value("Média"))
 				.andExpect(jsonPath("$.ticketCategories[6].value").value("OUTROS"))
 				.andExpect(jsonPath("$.ticketCategories[6].label").value("Outros"))
 				.andExpect(jsonPath("$.classificationOrigins[2].value").value("PENDENTE"))

@@ -35,7 +35,7 @@ type TicketListProps = {
   isLoading: boolean;
   tickets: TicketSummary[];
   /**
-   * Total de chamados do filtro, nao da pagina. Sem isso o cabecalho dizia
+   * Total de chamados do filtro, não da página. Sem isso o cabecalho dizia
    * "10 chamados encontrados" enquanto a paginacao logo abaixo dizia "26
    * registros" — o mesmo resultado descrito por dois numeros diferentes.
    */
@@ -106,7 +106,7 @@ export function TicketList({
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Criado em</TableHead>
-                    <TableHead className="w-[120px] text-right">Acoes</TableHead>
+                    <TableHead className="w-[120px] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

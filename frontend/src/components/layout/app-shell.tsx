@@ -34,7 +34,7 @@ const navigationItems = [
 
 /**
  * Itens de ADMIN. O dashboard entrou aqui: `GET /api/v1/indicators` e restrito,
- * entao para o SOLICITANTE o item apontava para uma tela que ele nao pode ver.
+ * entao para o SOLICITANTE o item apontava para uma tela que ele não pode ver.
  */
 const adminNavigationItems = [
   {
@@ -45,7 +45,7 @@ const adminNavigationItems = [
   {
     href: routes.users,
     icon: Users,
-    label: "Usuarios"
+    label: "Usuários"
   },
   {
     href: routes.adminJobs,
@@ -68,7 +68,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       {/* Alerta de prioridade ALTA no shell: precisa alcancar o operador em
-          qualquer tela, nao so na listagem de chamados. */}
+          qualquer tela, não so na listagem de chamados. */}
       <HighPriorityAlerts />
 
       <aside

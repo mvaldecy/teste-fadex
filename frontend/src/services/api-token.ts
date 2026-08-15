@@ -1,9 +1,9 @@
 /**
- * Guarda o access token em memoria e serve de ponto de registro para os
- * handlers de sessao.
+ * Guarda o access token em memória e serve de ponto de registro para os
+ * handlers de sessão.
  *
  * O interceptor de `api.ts` precisa ler o refresh token e precisa avisar a
- * store quando a sessao expira, mas importar a store criaria ciclo entre
+ * store quando a sessão expira, mas importar a store criaria ciclo entre
  * modulos. A store registra os handlers aqui e o interceptor apenas os consome.
  */
 let apiAccessToken: string | null = null;

@@ -27,11 +27,11 @@ function formatHours(value?: number | null) {
 }
 
 /**
- * Quebra de uma estatistica de duracao por prioridade ou categoria.
+ * Quebra de uma estatistica de duração por prioridade ou categoria.
  *
- * O `GET /indicators` ja publicava estes mapas e o painel so exibia o total.
- * Media e mediana continuam lado a lado, e o tamanho da amostra fica visivel:
- * mediana de um chamado nao e mediana.
+ * O `GET /indicators` já publicava estes mapas e o painel so exibia o total.
+ * Média e mediana continuam lado a lado, e o tamanho da amostra fica visivel:
+ * mediana de um chamado não e mediana.
  */
 export function IndicatorDurationTable({
   groups,
@@ -56,7 +56,7 @@ export function IndicatorDurationTable({
               <thead>
                 <tr className="text-xs uppercase tracking-[0.06em] text-slate-500">
                   <th className="pb-2 text-left font-medium">Grupo</th>
-                  <th className="pb-2 text-right font-medium">Media</th>
+                  <th className="pb-2 text-right font-medium">Média</th>
                   <th className="pb-2 text-right font-medium">Mediana</th>
                   <th className="pb-2 text-right font-medium">p90</th>
                   <th className="pb-2 text-right font-medium">Amostra</th>

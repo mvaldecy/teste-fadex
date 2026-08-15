@@ -104,7 +104,7 @@ export function useTicketWorkspace() {
 
         return true;
       } catch (createError) {
-        toast.error("Nao foi possivel criar o chamado.", {
+        toast.error("Não foi possível criar o chamado.", {
           description: toApiErrorMessage(createError)
         });
 

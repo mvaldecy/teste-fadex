@@ -1,7 +1,7 @@
 import { isAxiosError } from "axios";
 import type { ApiErrorResponse } from "@/src/types/api";
 
-const fallbackMessage = "Nao foi possivel processar a solicitacao.";
+const fallbackMessage = "Não foi possível processar a solicitação.";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -30,7 +30,7 @@ export function toApiErrorMessage(error: unknown) {
     }
 
     if (!error.response) {
-      return "Nao foi possivel conectar com a API.";
+      return "Não foi possível conectar com a API.";
     }
   }
 

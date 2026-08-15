@@ -57,7 +57,7 @@ export function TicketHistoryList({
           </div>
 
           <div className="pb-5">
-            {/* A `description` do backend ja e o texto legivel; criar um mapa
+            {/* A `description` do backend já e o texto legivel; criar um mapa
                 de label para `type` duplicaria regra de enum no frontend. */}
             <p className="text-sm leading-6 text-slate-950">
               {event.description}

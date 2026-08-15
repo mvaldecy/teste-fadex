@@ -26,7 +26,7 @@ const fields: { name: FieldName; label: string }[] = [
  *
  * Fica fora do grupo de rotas do shell de proposito: o token do login com
  * `mustChangePassword` so abre `POST /auth/change-password`, e montar o shell
- * aqui dispararia indicadores e stream de notificacoes que responderiam `403`.
+ * aqui dispararia indicadores e stream de notificações que responderiam `403`.
  */
 export function ChangePasswordForm() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export function ChangePasswordForm() {
   const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  // Sem sessao nao ha token limitado para gastar: quem chega aqui direto pela
+  // Sem sessão não ha token limitado para gastar: quem chega aqui direto pela
   // URL volta para o login.
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {

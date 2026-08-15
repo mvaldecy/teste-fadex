@@ -12,7 +12,7 @@ type UseNotificationsOptions = {
 /**
  * Ponte entre o cliente singleton de SSE e o ciclo de vida do React.
  *
- * O callback fica numa ref porque o efeito nao pode depender dele: se
+ * O callback fica numa ref porque o efeito não pode depender dele: se
  * dependesse, todo render que recriasse a funcao derrubaria e reabriria a
  * assinatura do stream.
  */

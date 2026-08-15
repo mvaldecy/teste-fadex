@@ -1,13 +1,13 @@
 /**
  * Cor de apoio por prioridade.
  *
- * A cor e **reforco**, nunca o unico portador da informacao: a linha continua
- * mostrando a prioridade por extenso e a listagem traz legenda. Quem nao
- * distingue as cores nao perde nada.
+ * A cor e **reforco**, nunca o único portador da informacao: a linha continua
+ * mostrando a prioridade por extenso e a listagem traz legenda. Quem não
+ * distingue as cores não perde nada.
  *
- * O mapeamento segue o que as pessoas ja esperam — vermelho para ALTA, ambar
+ * O mapeamento segue o que as pessoas já esperam — vermelho para ALTA, ambar
  * para MEDIA, azul frio para BAIXA — e a saturacao fica baixa de proposito:
- * barra lateral e fundo suave, para a lista nao virar um semaforo.
+ * barra lateral e fundo suave, para a lista não virar um semaforo.
  *
  * O mapa guarda so classes. Rotulo de prioridade continua vindo do backend,
  * pelo `choices`.

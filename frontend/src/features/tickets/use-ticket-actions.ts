@@ -18,11 +18,11 @@ export function useTicketActions(
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   /**
-   * `errorTitle` e por acao porque "Nao foi possivel concluir a acao" nao
+   * `errorTitle` e por ação porque "Não foi possível concluir a ação" não
    * ajuda ninguem a entender o que falhou.
    *
-   * O `409` recebe tratamento proprio: alem da mensagem do backend — que ja
-   * explica a regra, seja "o chamado ja possui responsavel" ou "o responsavel
+   * O `409` recebe tratamento próprio: além da mensagem do backend — que já
+   * explica a regra, seja "o chamado já possui responsável" ou "o responsável
    * precisa ter papel de administrador" — a tela recarrega. Conflito quase
    * sempre significa que o estado mudou por outra pessoa, e insistir sobre
    * dado velho so produziria o mesmo erro de novo.
@@ -70,7 +70,7 @@ export function useTicketActions(
       runAction(
         (id) => ticketsService.updateStatus(id, { status }),
         "Status atualizado.",
-        "Nao foi possivel alterar o status."
+        "Não foi possível alterar o status."
       ),
     [runAction]
   );
@@ -79,8 +79,8 @@ export function useTicketActions(
     (assigneeId: string) =>
       runAction(
         (id) => ticketsService.assign(id, { assigneeId }),
-        "Responsavel atribuido.",
-        "Nao foi possivel atribuir o responsavel."
+        "Responsável atribuido.",
+        "Não foi possível atribuir o responsável."
       ),
     [runAction]
   );
@@ -89,22 +89,22 @@ export function useTicketActions(
     () =>
       runAction(
         (id) => ticketsService.unassign(id),
-        "Atribuicao removida.",
-        "Nao foi possivel remover a atribuicao."
+        "Atribuição removida.",
+        "Não foi possível remover a atribuição."
       ),
     [runAction]
   );
 
   /**
    * Sem otimismo de tela: cancelamento e irreversivel, entao o estado so muda
-   * depois do `200` do servidor, como nas demais acoes deste hook.
+   * depois do `200` do servidor, como nas demais ações deste hook.
    */
   const cancel = useCallback(
     () =>
       runAction(
         (id) => ticketsService.cancel(id),
         "Chamado cancelado.",
-        "Nao foi possivel cancelar o chamado."
+        "Não foi possível cancelar o chamado."
       ),
     [runAction]
   );
@@ -123,8 +123,8 @@ export function useTicketActions(
             classificationJustification:
               classificationJustification?.trim() || undefined
           }),
-        "Classificacao atualizada.",
-        "Nao foi possivel atualizar a classificacao."
+        "Classificação atualizada.",
+        "Não foi possível atualizar a classificação."
       ),
     [runAction]
   );

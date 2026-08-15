@@ -3,7 +3,7 @@ import type { RoleValue } from "./choice";
 
 /**
  * A projecao de `GET /api/v1/users` devolve apenas `id` e `name`. E-mail e
- * papel exigem `GET /api/v1/users/{id}`, por isso a listagem nao os exibe.
+ * papel exigem `GET /api/v1/users/{id}`, por isso a listagem não os exibe.
  */
 export type UserSummary = {
   id: string;

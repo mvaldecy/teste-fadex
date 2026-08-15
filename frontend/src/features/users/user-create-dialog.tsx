@@ -80,15 +80,16 @@ export function UserCreateDialog({
       <DialogTrigger asChild>
         <Button>
           <UserPlus className="h-4 w-4" />
-          Novo usuario
+          Novo usuário
         </Button>
       </DialogTrigger>
       <DialogContent>
         <form className="grid gap-5" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Novo usuario</DialogTitle>
+            <DialogTitle>Novo usuário</DialogTitle>
             <DialogDescription>
-              A senha provisoria e gerada pelo backend e enviada por e-mail.
+              A pessoa recebe por e-mail uma senha provisória e precisa trocá-la
+              no primeiro acesso.
             </DialogDescription>
           </DialogHeader>
 
@@ -150,7 +151,7 @@ export function UserCreateDialog({
 
           <DialogFooter>
             <Button disabled={isCreating} type="submit">
-              {isCreating ? "Criando..." : "Criar usuario"}
+              {isCreating ? "Criando..." : "Criar usuário"}
             </Button>
           </DialogFooter>
         </form>

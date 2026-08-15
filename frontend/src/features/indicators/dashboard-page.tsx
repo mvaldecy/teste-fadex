@@ -74,7 +74,7 @@ export function DashboardPage() {
     </header>
   );
 
-  // Os indicadores sao restritos a ADMIN no backend. Dizer isso e melhor do
+  // Os indicadores são restritos a ADMIN no backend. Dizer isso e melhor do
   // que pedir o dado e exibir o 403 — ou uma parede de "--".
   if (!isAdmin) {
     return (
@@ -82,7 +82,7 @@ export function DashboardPage() {
         {header}
 
         <p className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-          Os indicadores gerenciais sao restritos a administradores. Acompanhe
+          Os indicadores gerenciais são restritos a administradores. Acompanhe
           seus chamados pelo menu Chamados.
         </p>
       </div>
@@ -168,17 +168,17 @@ export function DashboardPage() {
           />
           <IndicatorDurationCard
             duration={durations?.firstResponse.overall}
-            title="Tempo ate primeira resposta"
+            title="Tempo até primeira resposta"
           />
           <IndicatorDurationCard
             duration={durations?.assignment.overall}
-            title="Tempo ate atribuicao"
+            title="Tempo até atribuição"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <IndicatorCard
-            label="Backlog ate 1 dia"
+            label="Backlog até 1 dia"
             value={durations?.backlogAging.upToOneDay}
           />
           <IndicatorCard
@@ -218,7 +218,7 @@ export function DashboardPage() {
           <IndicatorDurationTable
             groups={durations?.assignment.byPriority}
             labels={choiceLabels?.priorities}
-            title="Atribuicao por prioridade"
+            title="Atribuição por prioridade"
           />
         </div>
       </section>
@@ -238,7 +238,7 @@ export function DashboardPage() {
             value={ai?.agreementRate.percentage}
           />
           <IndicatorCard
-            label="Confianca media"
+            label="Confiança média"
             formatValue={(value) => formatPercent(value * 100)}
             value={ai?.averageConfidence}
           />
@@ -247,7 +247,7 @@ export function DashboardPage() {
             value={ai?.duplicatesDetected}
           />
           <IndicatorCard
-            label="Fila ate a conclusao"
+            label="Fila até a conclusao"
             formatValue={(value) => `${value.toFixed(1)} s`}
             note="Espera na fila mais execucao do job"
             value={ai?.jobQueue.averageQueueToDoneSeconds}
@@ -272,7 +272,7 @@ export function DashboardPage() {
           <IndicatorBreakdown
             data={ai?.originDistribution}
             labels={choiceLabels?.classificationOrigins}
-            title="Origem da classificacao"
+            title="Origem da classificação"
           />
         </div>
       </section>
@@ -288,7 +288,7 @@ export function DashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    Carga por responsavel
+                    Carga por responsável
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -315,7 +315,7 @@ export function DashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    Tempo de fechamento por responsavel
+                    Tempo de fechamento por responsável
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

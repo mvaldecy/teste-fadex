@@ -14,7 +14,7 @@ export default function ChangePasswordPage() {
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
             A senha provisoria serve apenas para este primeiro acesso. Defina
-            uma senha propria para liberar os chamados e o restante do sistema.
+            uma senha própria para liberar os chamados e o restante do sistema.
           </p>
         </div>
 

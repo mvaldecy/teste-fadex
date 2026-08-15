@@ -2,7 +2,7 @@ package br.org.fadex.helpdesk.model.enums;
 
 public enum TicketPriority implements LabeledEnum {
 	BAIXA("Baixa"),
-	MEDIA("Media"),
+	MEDIA("Média"),
 	ALTA("Alta");
 
 	private final String label;

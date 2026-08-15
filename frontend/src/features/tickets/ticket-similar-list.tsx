@@ -26,7 +26,7 @@ function formatDate(value: string) {
  */
 function formatSimilarity(similarity: number | null) {
   if (typeof similarity !== "number" || !Number.isFinite(similarity)) {
-    return "Similaridade nao registrada";
+    return "Similaridade não registrada";
   }
 
   return `${Math.round(similarity * 100)}% de similaridade`;

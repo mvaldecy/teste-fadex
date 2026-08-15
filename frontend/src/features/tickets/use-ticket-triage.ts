@@ -7,15 +7,15 @@ import { toApiErrorMessage } from "@/src/services/api-error";
 import { ticketsService } from "@/src/services/tickets.service";
 
 /**
- * Solicitacao manual de triagem por IA.
+ * Solicitação manual de triagem por IA.
  *
- * A tela consulta `GET /ai/jobs?ticketId=` para saber se ja ha job ativo. A
+ * A tela consulta `GET /ai/jobs?ticketId=` para saber se já ha job ativo. A
  * guarda do backend e **por tipo**: `409` so quando nenhum dos dois tipos pode
  * ser enfileirado. Por isso a checagem daqui e a mesma — havendo job ativo de
- * classificacao **e** de embedding, o botao fica desabilitado com o motivo
- * visivel, em vez de deixar o usuario tomar o conflito.
+ * classificação **e** de embedding, o botao fica desabilitado com o motivo
+ * visivel, em vez de deixar o usuário tomar o conflito.
  *
- * Isto e experiencia de uso, nao autorizacao nem exclusao mutua real: entre a
+ * Isto e experiencia de uso, não autorizacao nem exclusao mutua real: entre a
  * leitura e o clique o estado pode mudar, e quem decide continua sendo o
  * backend.
  */
@@ -51,7 +51,7 @@ export function useTicketTriage(
         )
       );
     } catch {
-      // Nao saber o estado da fila nao pode bloquear a acao: sem o dado, o
+      // Não saber o estado da fila não pode bloquear a ação: sem o dado, o
       // botao segue habilitado e o backend responde por si.
       setActiveTypes(new Set());
     }
@@ -73,7 +73,7 @@ export function useTicketTriage(
     try {
       const jobs = await ticketsService.requestAiTriage(ticketId);
 
-      // `202`: enfileirou, nao concluiu. O texto do toast evita prometer
+      // `202`: enfileirou, não concluiu. O texto do toast evita prometer
       // resultado imediato — quem conclui e o worker.
       toast.success("Triagem enfileirada.", {
         description:
@@ -87,12 +87,12 @@ export function useTicketTriage(
 
       return true;
     } catch (requestError) {
-      toast.error("Nao foi possivel solicitar a triagem.", {
+      toast.error("Não foi possível solicitar a triagem.", {
         description: toApiErrorMessage(requestError)
       });
 
       // Conflito significa fila ocupada: reler o estado desabilita o botao em
-      // vez de deixar o usuario repetir o erro.
+      // vez de deixar o usuário repetir o erro.
       await loadActiveJobs();
 
       return false;

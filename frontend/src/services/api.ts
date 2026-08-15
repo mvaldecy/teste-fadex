@@ -34,7 +34,7 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & {
  * Promessa compartilhada de refresh.
  *
  * Sem ela, uma tela com varias requisicoes em paralelo recebendo `401` dispara
- * um refresh para cada uma e o proprio token e invalidado em cascata. Todas as
+ * um refresh para cada uma e o próprio token e invalidado em cascata. Todas as
  * chamadas que falharem na mesma janela esperam o mesmo refresh.
  */
 let refreshPromise: Promise<string | null> | null = null;
@@ -74,7 +74,7 @@ async function runRefresh() {
 }
 
 /**
- * Exposto para o cliente SSE, que usa `fetch` puro e por isso nao passa pelo
+ * Exposto para o cliente SSE, que usa `fetch` puro e por isso não passa pelo
  * interceptor. Sem isto, o stream morre no vencimento do token e nunca mais
  * volta, enquanto as chamadas REST seguem renovando normalmente.
  */
@@ -95,8 +95,8 @@ api.interceptors.response.use(
 
     const originalRequest = error.config as RetriableRequestConfig | undefined;
 
-    // Requisicoes de auth nao entram no ciclo de refresh: um 401 no proprio
-    // login ou refresh e resposta legitima, nao sessao expirada.
+    // Requisicoes de auth não entram no ciclo de refresh: um 401 no próprio
+    // login ou refresh e resposta legitima, não sessão expirada.
     if (
       !originalRequest ||
       originalRequest._hasRetried ||

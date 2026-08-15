@@ -20,11 +20,11 @@ export function TicketsPage() {
   const registerUpdate = realtime.registerUpdate;
 
   /**
-   * Recarrega e **avisa**. O aviso e a parte que faltava: a listagem ja
+   * Recarrega e **avisa**. O aviso e a parte que faltava: a listagem já
    * recarregava ao receber o evento, so que em silencio.
    *
    * `CONEXAO_ESTABELECIDA` recarrega sem aviso — e resincronizacao de
-   * reconexao, nao mudanca de chamado.
+   * reconexao, não mudanca de chamado.
    */
   const handleTicketEvent = useCallback(
     (signal: TicketEventSignal) => {
@@ -38,11 +38,11 @@ export function TicketsPage() {
 
       // O assunto do chamado vem primeiro: quem esta olhando a fila quer saber
       // *qual* chamado mudou. "Listagem atualizada em tempo real" descrevia o
-      // mecanismo — informacao sobre o sistema, nao sobre o trabalho.
+      // mecanismo — informacao sobre o sistema, não sobre o trabalho.
       toast.info(signal.title ?? "Um chamado da fila mudou", {
         description: "Atualizado agora na listagem.",
         // `id` por chamado: uma rajada de eventos do mesmo chamado substitui o
-        // proprio aviso em vez de empilhar.
+        // próprio aviso em vez de empilhar.
         id: signal.ticketId
           ? `listagem-${signal.ticketId}`
           : "listagem-atualizada",
@@ -55,8 +55,8 @@ export function TicketsPage() {
   useTicketEvents({
     enabled: true,
     onTicketChanged: handleTicketEvent,
-    // A recarga da listagem ja cobre comentario: `TicketSummary` nao expoe
-    // contagem de comentarios, entao nao ha segunda chamada a fazer.
+    // A recarga da listagem já cobre comentario: `TicketSummary` não expoe
+    // contagem de comentários, entao não ha segunda chamada a fazer.
     onCommentChanged: () => undefined
   });
 

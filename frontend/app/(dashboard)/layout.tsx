@@ -28,9 +28,9 @@ export default function DashboardLayout({
     }
 
     // O destino pretendido segue junto: sem ele, quem abre o link de um
-    // chamado sem sessao autentica e cai no dashboard, perdendo o chamado.
+    // chamado sem sessão autentica e cai no dashboard, perdendo o chamado.
     //
-    // A busca vem de `window` e nao de `useSearchParams` de proposito: o hook
+    // A busca vem de `window` e não de `useSearchParams` de proposito: o hook
     // no layout tiraria **todas** as telas do grupo da pre-renderizacao
     // estatica. Aqui a leitura acontece so no cliente, dentro do efeito.
     const intendedRoute = `${pathname}${window.location.search}`;
@@ -54,11 +54,11 @@ export default function DashboardLayout({
   ]);
 
   // Esperar a reidratacao e o que impede o redirect de disparar antes de o
-  // sessionStorage carregar, que expulsaria o usuario a cada F5.
+  // sessionStorage carregar, que expulsaria o usuário a cada F5.
   if (!isHydrated) {
     return (
       <div className="grid min-h-screen place-items-center bg-slate-50 px-6 text-sm text-slate-500">
-        Carregando sessao...
+        Carregando sessão...
       </div>
     );
   }

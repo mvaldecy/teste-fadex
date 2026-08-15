@@ -32,7 +32,7 @@ export function PaginationBar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
       <p className="text-xs text-slate-500">
-        Pagina {page + 1} de {totalPages} | {totalElements} registros
+        Página {page + 1} de {totalPages} | {totalElements} registros
       </p>
 
       <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ export function PaginationBar({
           variant="outline"
           onClick={() => onPageChange(page + 1)}
         >
-          Proxima
+          Próxima
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

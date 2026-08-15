@@ -18,8 +18,8 @@ function formatBinLabel(bin: IndicatorHistogramBin) {
 /**
  * Posicao horizontal de um valor em horas, em porcentagem da largura.
  *
- * As faixas nao tem largura igual em horas (4h, depois 16h, depois 48h), mas
- * sao desenhadas com largura igual — e o formato usual de histograma de faixas
+ * As faixas não tem largura igual em horas (4h, depois 16h, depois 48h), mas
+ * são desenhadas com largura igual — e o formato usual de histograma de faixas
  * fixas. Por isso a conversao e feita em duas etapas: acha a faixa e
  * interpola **dentro** dela. Marcar a mediana proporcionalmente ao eixo de
  * horas a colocaria no lugar errado em relacao as barras.
@@ -52,10 +52,10 @@ function formatHours(value: number) {
 /**
  * Distribuicao das duracoes por faixa.
  *
- * Barras e nao curva: tempo de atendimento e assimetrico — parede em zero e
+ * Barras e não curva: tempo de atendimento e assimetrico — parede em zero e
  * cauda longa a direita. As barras mostram a assimetria sozinhas, e a area a
  * direita do p90 aparece pequena mas presente, que e o que da sentido ao
- * numero.
+ * número.
  */
 export function IndicatorDurationHistogram({
   bins,
@@ -79,7 +79,7 @@ export function IndicatorDurationHistogram({
       {/*
         O espaco no topo e reservado para os rotulos dos marcadores. Eles ficam
         em alturas diferentes porque mediana e p90 podem cair quase no mesmo
-        ponto — no tempo de atribuicao os dois dao 1h — e, empilhados na mesma
+        ponto — no tempo de atribuição os dois dao 1h — e, empilhados na mesma
         linha, um texto escrevia por cima do outro.
       */}
       <div className="relative mt-8 h-28">
@@ -142,7 +142,7 @@ export function IndicatorDurationHistogram({
       </div>
 
       <figcaption className="text-xs text-slate-500">
-        Chamados por faixa de duracao, com mediana e p90 marcados.
+        Chamados por faixa de duração, com mediana e p90 marcados.
       </figcaption>
     </figure>
   );

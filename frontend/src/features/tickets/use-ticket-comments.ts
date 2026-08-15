@@ -55,7 +55,7 @@ export function useTicketComments(ticketId: string | null) {
 
         return true;
       } catch (createError) {
-        toast.error("Nao foi possivel publicar o comentario.", {
+        toast.error("Não foi possível publicar o comentario.", {
           description: toApiErrorMessage(createError)
         });
 

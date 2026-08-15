@@ -77,12 +77,12 @@ export function TicketCreateDialog({
           <DialogHeader>
             <DialogTitle>Novo chamado</DialogTitle>
             <DialogDescription>
-              Registre a solicitacao para triagem da equipe.
+              Registre a solicitação para triagem da equipe.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
-            <Label htmlFor="ticket-title">Titulo</Label>
+            <Label htmlFor="ticket-title">Título</Label>
             <Input
               id="ticket-title"
               value={values.title}
@@ -101,7 +101,7 @@ export function TicketCreateDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="ticket-description">Descricao</Label>
+            <Label htmlFor="ticket-description">Descrição</Label>
             <Textarea
               id="ticket-description"
               value={values.description}

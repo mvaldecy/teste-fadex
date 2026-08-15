@@ -33,10 +33,10 @@ async function create(payload: CreateTicketRequest) {
 /**
  * As quatro mutacoes abaixo usam os caminhos fixados em
  * `docs/projeto/2026-08-14-frentes-de-trabalho.md`. Os corpos seguem
- * provisorios ate a frente API publicar o delta do `api.md`.
+ * provisorios até a frente API publicar o delta do `api.md`.
  *
  * Sem fallback para dado fixo, ao contrario das leituras: fingir sucesso de
- * uma escrita que nao aconteceu e pior do que mostrar o erro.
+ * uma escrita que não aconteceu e pior do que mostrar o erro.
  */
 async function updateStatus(id: string, payload: UpdateTicketStatusRequest) {
   const response = await api.patch<TicketDto>(`/tickets/${id}/status`, payload);
@@ -54,12 +54,12 @@ async function unassign(id: string) {
 }
 
 /**
- * Cancelamento e exclusao logica: o backend responde `200` com o chamado ja em
- * `CANCELADO`, e nao `204`. O chamado continua existindo — historico,
- * comentarios e metricas ficam.
+ * Cancelamento e exclusao logica: o backend responde `200` com o chamado já em
+ * `CANCELADO`, e não `204`. O chamado continua existindo — histórico,
+ * comentários e métricas ficam.
  *
- * ADMIN cancela qualquer chamado; SOLICITANTE cancela o proprio enquanto
- * `ABERTO`. Papel indevido responde `403`, estado que nao aceita cancelamento
+ * ADMIN cancela qualquer chamado; SOLICITANTE cancela o próprio enquanto
+ * `ABERTO`. Papel indevido responde `403`, estado que não aceita cancelamento
  * responde `409`.
  */
 async function cancel(id: string) {
@@ -80,11 +80,11 @@ async function updateClassification(
 }
 
 /**
- * Chamados semelhantes ja detectados por embedding. Nao dispara deteccao: le os
+ * Chamados semelhantes já detectados por embedding. Não dispara deteccao: le os
  * vinculos gravados pelo worker, nas duas direcoes.
  *
  * Restrito a ADMIN no backend. Quem chama precisa esconder a aba para os demais
- * papeis em vez de tomar 403 — o resultado expoe titulo de chamado alheio.
+ * papeis em vez de tomar 403 — o resultado expoe título de chamado alheio.
  */
 async function listSimilar(id: string) {
   const response = await api.get<SimilarTicketDto[]>(`/tickets/${id}/similar`);

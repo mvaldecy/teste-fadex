@@ -12,8 +12,8 @@ type AdminRouteGuardProps = {
 /**
  * Guarda de rota das telas de ADMIN.
  *
- * Esconder o item do menu nao e controle de acesso: quem digita a URL chega na
- * tela e leva 403 da API, o que aparece como erro tecnico em vez de "voce nao
+ * Esconder o item do menu não e controle de acesso: quem digita a URL chega na
+ * tela e leva 403 da API, o que aparece como erro tecnico em vez de "você não
  * tem acesso". A autorizacao de verdade continua sendo do backend; aqui e so
  * evitar que o SOLICITANTE veja uma tela que nunca vai carregar.
  */
@@ -25,8 +25,8 @@ export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
 
   useEffect(() => {
     if (isHydrated && !isAdmin) {
-      // `homeRouteForRole` e nao `routes.dashboard`: o dashboard tambem e uma
-      // rota guardada, e devolver para la faria o nao-ADMIN quicar em laco.
+      // `homeRouteForRole` e não `routes.dashboard`: o dashboard também e uma
+      // rota guardada, e devolver para la faria o não-ADMIN quicar em laco.
       router.replace(homeRouteForRole(role));
     }
   }, [isAdmin, isHydrated, role, router]);

@@ -26,7 +26,7 @@ function formatDate(value: string) {
  * O badge continua na listagem, onde o espaco e curto e a leitura e por
  * varredura.
  *
- * Campo ausente no contrato nao vira linha vazia: `confidence` so aparece
+ * Campo ausente no contrato não vira linha vazia: `confidence` so aparece
  * quando o backend publica o valor.
  */
 export function TicketDetailFields({
@@ -47,7 +47,7 @@ export function TicketDetailFields({
       value: resolveChoiceLabel(choiceLabels?.categories, ticket.category)
     },
     {
-      label: "Origem da classificacao",
+      label: "Origem da classificação",
       value: resolveChoiceLabel(
         choiceLabels?.classificationOrigins,
         ticket.classificationOrigin
@@ -58,8 +58,8 @@ export function TicketDetailFields({
       value: ticket.requester.name
     },
     {
-      label: "Responsavel",
-      value: ticket.assignee?.name ?? "Sem responsavel"
+      label: "Responsável",
+      value: ticket.assignee?.name ?? "Sem responsável"
     },
     {
       label: "Criado em",
@@ -73,7 +73,7 @@ export function TicketDetailFields({
 
   if (typeof ticket.confidence === "number") {
     fields.splice(4, 0, {
-      label: "Confianca da IA",
+      label: "Confiança da IA",
       value: `${(ticket.confidence * 100).toFixed(0)}%`
     });
   }
@@ -100,7 +100,7 @@ export function TicketDetailFields({
       {ticket.classificationJustification ? (
         <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
           <span className="font-medium text-slate-800">
-            Justificativa da classificacao:{" "}
+            Justificativa da classificação:{" "}
           </span>
           {ticket.classificationJustification}
         </p>

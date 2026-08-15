@@ -47,7 +47,7 @@ export function TicketDetailPage() {
   const detail = useTicketDetail(ticketId);
   const comments = useTicketComments(ticketId);
   const history = useTicketHistory(ticketId);
-  // Semelhantes e triagem sao ADMIN: o hook nem chama a API para os demais.
+  // Semelhantes e triagem são ADMIN: o hook nem chama a API para os demais.
   const similar = useTicketSimilar(ticketId, isAdmin);
   const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
 
@@ -69,12 +69,12 @@ export function TicketDetailPage() {
   const reloadComments = comments.loadComments;
 
   /**
-   * Reage apenas ao chamado aberto. Um evento de **outro** chamado nao muda
+   * Reage apenas ao chamado aberto. Um evento de **outro** chamado não muda
    * nada nesta tela: recarregar por ele so gastaria requisicao e, pior,
-   * anunciaria uma atualizacao que o usuario nao veria acontecer.
+   * anunciaria uma atualizacao que o usuário não veria acontecer.
    *
-   * `CONEXAO_ESTABELECIDA` nao traz id e recarrega mesmo assim — e a
-   * resincronizacao apos reconexao, e ali o silencio e correto.
+   * `CONEXAO_ESTABELECIDA` não traz id e recarrega mesmo assim — e a
+   * resincronizacao após reconexao, e ali o silencio e correto.
    */
   const handleTicketEvent = useCallback(
     (signal: TicketEventSignal) => {
@@ -86,7 +86,7 @@ export function TicketDetailPage() {
 
       reloadTicket();
       // A deteccao de duplicados e a fila de jobs andam junto da
-      // classificacao: sem recarregar aqui, a aba de semelhantes e o botao de
+      // classificação: sem recarregar aqui, a aba de semelhantes e o botao de
       // triagem ficariam mostrando o estado anterior ao evento.
       void reloadSimilar();
       void reloadTriageJobs();
@@ -120,16 +120,16 @@ export function TicketDetailPage() {
   useTicketEvents({
     enabled: true,
     onTicketChanged: handleTicketEvent,
-    // O evento e o mesmo para chamado e comentario; `handleTicketEvent` ja
+    // O evento e o mesmo para chamado e comentario; `handleTicketEvent` já
     // recarrega os dois.
     onCommentChanged: () => undefined
   });
 
-  // Responsaveis possiveis sao os ADMIN. So carrega para quem pode atribuir.
+  // Responsaveis possiveis são os ADMIN. So carrega para quem pode atribuir.
   //
   // A carga de cada um vem de `workload.openByAssignee`, e o cruzamento e
-  // feito aqui de proposito: o mapa **omite** quem nao tem chamado aberto, e
-  // essa pessoa costuma ser a melhor escolha para receber o proximo. Ausencia
+  // feito aqui de proposito: o mapa **omite** quem não tem chamado aberto, e
+  // essa pessoa costuma ser a melhor escolha para receber o próximo. Ausencia
   // vira zero, e a lista sai ordenada da menor carga para a maior.
   useEffect(() => {
     if (!isAdmin) {
@@ -148,7 +148,7 @@ export function TicketDetailPage() {
             sort: "name,asc"
           }),
           // A carga e um enfeite util: se os indicadores falharem, a
-          // atribuicao continua funcionando sem o numero.
+          // atribuição continua funcionando sem o número.
           indicatorsService.get().catch(() => null)
         ]);
 
@@ -177,7 +177,7 @@ export function TicketDetailPage() {
         );
       } catch {
         // A falha aqui so esvazia a lista de responsaveis; o restante do
-        // detalhe continua utilizavel, entao nao vira erro de tela inteira.
+        // detalhe continua utilizavel, entao não vira erro de tela inteira.
         if (isActive) {
           setAssignees([]);
         }
@@ -191,12 +191,12 @@ export function TicketDetailPage() {
     };
   }, [isAdmin]);
 
-  // Quem pode cancelar: ADMIN em qualquer chamado, SOLICITANTE no proprio e
+  // Quem pode cancelar: ADMIN em qualquer chamado, SOLICITANTE no próprio e
   // apenas enquanto ABERTO — a mesma regra que o backend aplica em
   // `DELETE /tickets/{id}`. O que a matriz do servidor decide e se o **estado**
   // aceita cancelamento; o papel e camada de cima, e o servidor reconfere.
   //
-  // Sem matriz carregada, `canCancelFrom` e falso e a acao some, em vez de
+  // Sem matriz carregada, `canCancelFrom` e falso e a ação some, em vez de
   // aparecer para tomar 409.
   const isOwner = detail.ticket?.requester.id === userId;
   const canCancel =

@@ -74,9 +74,9 @@ export function TicketClassificationCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Classificacao</CardTitle>
+        <CardTitle className="text-base">Classificação</CardTitle>
         <CardDescription>
-          Aceite a sugestao da IA ou corrija a classificacao manualmente.
+          Aceite a sugestao da IA ou corrija a classificação manualmente.
         </CardDescription>
       </CardHeader>
 
@@ -89,9 +89,9 @@ export function TicketClassificationCard({
             </h3>
           </div>
 
-          {/* O rotulo segue o estado: sem classificacao ainda e um pedido, com
-              classificacao e um reprocessamento. O botao fica desabilitado
-              quando ja ha job ativo dos dois tipos, que e exatamente o caso em
+          {/* O rotulo segue o estado: sem classificação ainda e um pedido, com
+              classificação e um reprocessamento. O botao fica desabilitado
+              quando já ha job ativo dos dois tipos, que e exatamente o caso em
               que o backend responde 409 — com o motivo visivel, em vez de
               sumir e deixar a pessoa sem entender. */}
           <div className="flex flex-wrap items-center gap-2">
@@ -100,7 +100,7 @@ export function TicketClassificationCard({
               size="sm"
               title={
                 hasTriageInProgress
-                  ? "Ja existe triagem em andamento para este chamado."
+                  ? "Já existe triagem em andamento para este chamado."
                   : undefined
               }
               type="button"
@@ -140,7 +140,7 @@ export function TicketClassificationCard({
                 </Badge>
                 {confidencePercent !== null ? (
                   <span className="text-xs text-slate-500">
-                    Confianca de {confidencePercent}%
+                    Confiança de {confidencePercent}%
                   </span>
                 ) : null}
               </div>
@@ -225,7 +225,7 @@ export function TicketClassificationCard({
           <Label htmlFor="ticket-justification">Justificativa (opcional)</Label>
           <Textarea
             id="ticket-justification"
-            placeholder="Explique a correcao da classificacao."
+            placeholder="Explique a correcao da classificação."
             rows={3}
             value={justification}
             onChange={(event) => setJustification(event.target.value)}
@@ -245,7 +245,7 @@ export function TicketClassificationCard({
               )
             }
           >
-            Salvar classificacao
+            Salvar classificação
           </Button>
         </div>
       </CardContent>

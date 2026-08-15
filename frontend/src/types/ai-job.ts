@@ -3,7 +3,7 @@ import type { PageParams } from "./pagination";
 /**
  * Valores lidos de `ai/job/AiJobType.java`, `ai/job/AiJobStatus.java` e do
  * check constraint da migration V3. Em ingles, ao contrario dos enums de
- * dominio do chamado, que sao em portugues. O frontend segue o backend nos
+ * domínio do chamado, que são em portugues. O frontend segue o backend nos
  * dois casos, sem traduzir os valores.
  */
 export const aiJobTypes = ["CLASSIFICATION", "EMBEDDING"] as const;
@@ -19,7 +19,7 @@ export type AiJobStatus = (typeof aiJobStatuses)[number];
 
 /**
  * `lastError` so existe no `AiJobDto`; o `AiJobSummaryDto` da listagem traz
- * `nextAttemptAt` sem o erro. Por isso ambos sao opcionais.
+ * `nextAttemptAt` sem o erro. Por isso ambos são opcionais.
  */
 export type AiJobDto = {
   id: string;
@@ -34,8 +34,8 @@ export type AiJobDto = {
 };
 
 /**
- * `type` e `ticketId` sao filtros reais do backend, documentados em `api.md`.
- * O detalhe do chamado usa `ticketId` para saber se ja ha triagem em
+ * `type` e `ticketId` são filtros reais do backend, documentados em `api.md`.
+ * O detalhe do chamado usa `ticketId` para saber se já ha triagem em
  * andamento antes de oferecer o botao.
  */
 export type AiJobFilters = PageParams & {

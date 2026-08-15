@@ -7,8 +7,8 @@ import { useSessionStore } from "@/src/stores/session.store";
 
 /**
  * Rota antiga, mantida por compatibilidade de link. O redirect virou de
- * cliente porque o destino depende do papel, e o papel so existe na sessao
- * reidratada — no servidor nao ha como saber para onde mandar.
+ * cliente porque o destino depende do papel, e o papel so existe na sessão
+ * reidratada — no servidor não ha como saber para onde mandar.
  */
 export default function HomePage() {
   const router = useRouter();

@@ -14,11 +14,11 @@ import type {
 } from "@/src/types/api";
 
 /**
- * `CONEXAO_ESTABELECIDA` entra na lista porque o stream nao faz replay: apos
- * reconectar, a tela precisa recarregar para nao mostrar o estado anterior a
+ * `CONEXAO_ESTABELECIDA` entra na lista porque o stream não faz replay: após
+ * reconectar, a tela precisa recarregar para não mostrar o estado anterior a
  * queda.
  *
- * `CHAMADO_ALTA_PRIORIDADE` tambem recarrega, mas o **alerta** visivel nao
+ * `CHAMADO_ALTA_PRIORIDADE` também recarrega, mas o **alerta** visivel não
  * mora aqui: fica no `HighPriorityAlerts`, montado no shell, para alcancar o
  * operador em qualquer tela.
  */

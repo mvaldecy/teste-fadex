@@ -58,8 +58,8 @@ export function useUsers() {
   );
 
   /**
-   * Troca de pagina preserva os filtros: zerar a pagina e comportamento de
-   * filtro novo, nao de navegacao.
+   * Troca de página preserva os filtros: zerar a página e comportamento de
+   * filtro novo, não de navegacao.
    */
   const goToPage = useCallback(
     (page: number) => {
@@ -92,13 +92,13 @@ export function useUsers() {
       try {
         await usersService.create(payload);
         await loadUsers();
-        toast.success("Usuario criado.", {
+        toast.success("Usuário criado.", {
           description: "A senha provisoria foi enviada por e-mail."
         });
 
         return true;
       } catch (createError) {
-        toast.error("Nao foi possivel criar o usuario.", {
+        toast.error("Não foi possível criar o usuário.", {
           description: toApiErrorMessage(createError)
         });
 

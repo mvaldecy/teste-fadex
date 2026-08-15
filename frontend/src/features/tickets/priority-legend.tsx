@@ -4,8 +4,8 @@ import { resolvePriorityTone } from "./priority-tone";
 type PriorityLegendProps = {
   /**
    * Rotulos vindos do backend, na ordem publicada em `GET /choices`. Sem eles
-   * a legenda nao renderiza — inventar rotulo de enum no frontend nao e uma
-   * opcao.
+   * a legenda não renderiza — inventar rotulo de enum no frontend não e uma
+   * opção.
    */
   priorities: Map<string, string> | undefined;
 };

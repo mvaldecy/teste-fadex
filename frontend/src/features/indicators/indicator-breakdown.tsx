@@ -14,7 +14,7 @@ type IndicatorBreakdownProps = {
 };
 
 /**
- * Barras proporcionais em CSS puro. Nao vale uma biblioteca de grafico para
+ * Barras proporcionais em CSS puro. Não vale uma biblioteca de grafico para
  * exibir um punhado de contagens.
  */
 export function IndicatorBreakdown({

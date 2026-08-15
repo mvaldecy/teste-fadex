@@ -21,7 +21,7 @@ export function useTicketDetail(ticketId: string | null) {
   const loadTicket = useCallback(async () => {
     if (!ticketId) {
       setTicket(null);
-      setError("Chamado nao informado.");
+      setError("Chamado não informado.");
       setIsLoading(false);
       return;
     }
@@ -46,7 +46,7 @@ export function useTicketDetail(ticketId: string | null) {
 
   /**
    * Recarga sem estado de carregamento, para atualizacao vinda de SSE ou de
-   * uma acao. Usar `loadTicket` aqui faria o painel piscar o skeleton a cada
+   * uma ação. Usar `loadTicket` aqui faria o painel piscar o skeleton a cada
    * evento recebido.
    */
   const refreshTicket = useCallback(async () => {

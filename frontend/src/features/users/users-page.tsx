@@ -20,10 +20,10 @@ export function UsersPage() {
             Administracao
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal">
-            Usuarios
+            Usuários
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Consulte quem tem acesso ao helpdesk e cadastre novos usuarios.
+            Consulte quem tem acesso ao helpdesk e cadastre novos usuários.
           </p>
         </div>
 

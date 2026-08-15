@@ -63,16 +63,16 @@ export function AiJobsPage() {
   } = useAiJobs();
 
   function renderRetryButton(job: AiJobDto) {
-    // Verificado contra o backend: reprocessar job que nao esta em FAILED
+    // Verificado contra o backend: reprocessar job que não esta em FAILED
     // responde 409 ("Apenas jobs com falha podem ser retentados"). Oferecer o
-    // botao ativo convidaria a uma acao que a API sempre recusa.
+    // botao ativo convidaria a uma ação que a API sempre recusa.
     const canRetry = job.status === "FAILED";
 
     return (
       <Button
         disabled={retryingJobId === job.id || !canRetry}
         size="sm"
-        title={canRetry ? undefined : "Apenas jobs com falha sao retentados."}
+        title={canRetry ? undefined : "Apenas jobs com falha são retentados."}
         type="button"
         variant="outline"
         onClick={() => retryJob(job.id)}
@@ -93,7 +93,7 @@ export function AiJobsPage() {
           Jobs de IA
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Fila de classificacao e embedding, com reprocessamento manual.
+          Fila de classificação e embedding, com reprocessamento manual.
         </p>
       </header>
 
@@ -134,7 +134,7 @@ export function AiJobsPage() {
                       <TableHead>Tentativas</TableHead>
                       <TableHead>Criado em</TableHead>
                       <TableHead>Erro</TableHead>
-                      <TableHead className="text-right">Acoes</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

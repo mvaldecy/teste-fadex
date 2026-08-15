@@ -30,8 +30,8 @@ type TicketDetailPanelProps = {
   choiceLabels: ChoiceLabelMap | null;
   historySlot?: React.ReactNode;
   /**
-   * Ausente para quem nao e ADMIN, e ai a aba nao existe. O endpoint de
-   * semelhantes expoe titulo de chamado de outro solicitante, entao renderizar
+   * Ausente para quem não e ADMIN, e ai a aba não existe. O endpoint de
+   * semelhantes expoe título de chamado de outro solicitante, entao renderizar
    * a aba e tomar 403 seria mostrar uma porta que nunca abre.
    */
   similarSlot?: React.ReactNode;
@@ -85,7 +85,7 @@ export function TicketDetailPanel({
         <CardHeader>
           <CardTitle>Detalhe do chamado</CardTitle>
           <CardDescription>
-            Selecione um chamado da fila para ver descricao e comentarios.
+            Selecione um chamado da fila para ver descrição e comentários.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -123,23 +123,23 @@ export function TicketDetailPanel({
             }
           >
             <TabsTrigger value="summary">Resumo</TabsTrigger>
-            <TabsTrigger value="comments">Comentarios</TabsTrigger>
-            <TabsTrigger value="history">Historico</TabsTrigger>
+            <TabsTrigger value="comments">Comentários</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
             {similarSlot ? (
               <TabsTrigger value="similar">Semelhantes</TabsTrigger>
             ) : null}
           </TabsList>
 
           {/*
-            A descricao vem primeiro de proposito: e o texto do solicitante, a
-            informacao central da tela. Antes ela ficava depois das acoes e da
+            A descrição vem primeiro de proposito: e o texto do solicitante, a
+            informacao central da tela. Antes ela ficava depois das ações e da
             faixa de badges, e quem abria o chamado precisava rolar para ler o
             problema.
           */}
           <TabsContent className="mt-5 grid gap-6" value="summary">
             <section className="grid gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">
-                Descricao do chamado
+                Descrição do chamado
               </h2>
               <div className="rounded-md border-l-4 border-emerald-600 bg-slate-50 px-5 py-4">
                 <p className="max-w-3xl whitespace-pre-wrap text-base leading-7 text-slate-800">
@@ -156,7 +156,7 @@ export function TicketDetailPanel({
           <TabsContent className="mt-5 grid gap-4" value="comments">
             <div>
               <h2 className="text-base font-semibold text-slate-950">
-                Comentarios
+                Comentários
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 Acompanhe o andamento do atendimento.
@@ -178,10 +178,10 @@ export function TicketDetailPanel({
           <TabsContent className="mt-5 grid gap-4" value="history">
             <div>
               <h2 className="text-base font-semibold text-slate-950">
-                Historico
+                Histórico
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Mudancas de status, responsavel e classificacao do chamado.
+                Mudancas de status, responsável e classificação do chamado.
               </p>
             </div>
 

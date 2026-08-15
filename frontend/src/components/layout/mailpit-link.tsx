@@ -12,10 +12,10 @@ type MailpitLinkProps = {
  *
  * O sistema notifica por e-mail — senha provisoria, chamado atribuido, status
  * alterado — e sem o Mailpit a vista essas mensagens ficam invisiveis para quem
- * esta avaliando. Abre em aba nova porque a sessao do helpdesk fica na atual.
+ * esta avaliando. Abre em aba nova porque a sessão do helpdesk fica na atual.
  *
- * Nao renderiza nada quando `NEXT_PUBLIC_MAILPIT_URL` nao esta configurada, que
- * e o caso de qualquer ambiente que nao seja o Compose local.
+ * Não renderiza nada quando `NEXT_PUBLIC_MAILPIT_URL` não esta configurada, que
+ * e o caso de qualquer ambiente que não seja o Compose local.
  */
 export function MailpitLink({ className, label = "Caixa de e-mail" }: MailpitLinkProps) {
   const { mailpitUrl } = getPublicEnv();

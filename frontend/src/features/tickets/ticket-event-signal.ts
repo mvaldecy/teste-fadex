@@ -3,13 +3,13 @@ import type { NotificationEvent } from "@/src/types/api";
 /**
  * O que a tela consegue extrair de um evento do stream.
  *
- * `ticketId` e nulo quando o evento nao aponta para um chamado especifico —
+ * `ticketId` e nulo quando o evento não aponta para um chamado especifico —
  * `CONEXAO_ESTABELECIDA` e o caso normal, e ali a tela recarrega sem anunciar
  * mudanca, porque nada mudou: e resincronizacao de reconexao.
  *
- * A leitura e defensiva de proposito. Os payloads nao tem formato unico:
+ * A leitura e defensiva de proposito. Os payloads não tem formato único:
  * `CHAMADO_ATUALIZADO` carrega o `TicketMinDto` (campo `id`) e
- * `CLASSIFICACAO_CONCLUIDA` carrega um mapa proprio (campo `ticketId`).
+ * `CLASSIFICACAO_CONCLUIDA` carrega um mapa próprio (campo `ticketId`).
  */
 export type TicketEventSignal = {
   name: string;

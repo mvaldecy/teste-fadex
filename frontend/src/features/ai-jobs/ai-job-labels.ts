@@ -1,7 +1,7 @@
 /**
- * Unica excecao autorizada a regra de nao hardcodar label de enum no
- * frontend: `GET /api/v1/choices` expoe apenas os enums de dominio do chamado
- * e nao inclui os enums de job de IA.
+ * Unica excecao autorizada a regra de não hardcodar label de enum no
+ * frontend: `GET /api/v1/choices` expoe apenas os enums de domínio do chamado
+ * e não inclui os enums de job de IA.
  *
  * Fica isolado neste arquivo para ficar obvio o que remover quando o backend
  * passar a expor esses valores em choices.
@@ -14,7 +14,7 @@ export const aiJobStatusLabels = new Map<string, string>([
 ]);
 
 export const aiJobTypeLabels = new Map<string, string>([
-  ["CLASSIFICATION", "Classificacao"],
+  ["CLASSIFICATION", "Classificação"],
   ["EMBEDDING", "Embedding"]
 ]);
 

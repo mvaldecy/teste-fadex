@@ -19,7 +19,7 @@ export type TicketEventType = (typeof ticketEventTypes)[number];
 
 /**
  * `actor` anulavel e `type` aberto de proposito: eventos gerados pela IA ou
- * pelo seed podem nao ter ator, e um tipo novo no backend nao pode quebrar a
+ * pelo seed podem não ter ator, e um tipo novo no backend não pode quebrar a
  * renderizacao da linha do tempo.
  */
 export type TicketEventDto = {

@@ -88,10 +88,10 @@ export function useTicketList() {
   );
 
   /**
-   * Troca de pagina preserva os filtros — so a pagina muda.
+   * Troca de página preserva os filtros — so a página muda.
    *
-   * E o oposto de `updateFilters`, que zera a pagina de proposito: filtrar com
-   * a pagina 3 herdada de outra consulta cai numa faixa que o novo resultado
+   * E o oposto de `updateFilters`, que zera a página de proposito: filtrar com
+   * a página 3 herdada de outra consulta cai numa faixa que o novo resultado
    * pode nem ter.
    */
   const changePage = useCallback(
@@ -115,7 +115,7 @@ export function useTicketList() {
 
         return true;
       } catch (createError) {
-        toast.error("Nao foi possivel criar o chamado.", {
+        toast.error("Não foi possível criar o chamado.", {
           description: toApiErrorMessage(createError)
         });
 

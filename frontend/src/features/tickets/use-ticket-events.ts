@@ -15,7 +15,7 @@ type UseTicketEventsOptions = {
 };
 
 /**
- * `CONEXAO_ESTABELECIDA` entra na lista de proposito. O contrato nao faz
+ * `CONEXAO_ESTABELECIDA` entra na lista de proposito. O contrato não faz
  * replay de `Last-Event-ID`, entao reconectar sem recarregar deixaria a tela
  * exibindo o estado anterior a queda.
  */
@@ -38,7 +38,7 @@ export function useTicketEvents({
       }
 
       // O sinal segue para a tela: sem o id do chamado no callback, a
-      // atualizacao acontece em silencio e o usuario nao percebe que a tela
+      // atualizacao acontece em silencio e o usuário não percebe que a tela
       // reagiu — que era exatamente o problema relatado.
       const signal = toTicketEventSignal(event);
 

@@ -20,8 +20,8 @@ export default function LoginPage() {
           </p>
 
           {/*
-            O atalho aparece antes do login porque e aqui que ele e necessario:
-            usuario criado pelo ADMIN recebe a senha provisoria por e-mail e
+            O atalho aparece antes do login porque e aqui que ele e necessário:
+            usuário criado pelo ADMIN recebe a senha provisoria por e-mail e
             precisa le-la para conseguir entrar.
           */}
           <div className="mt-6">
@@ -37,7 +37,7 @@ export default function LoginPage() {
             </p>
           </div>
           {/*
-            `useSearchParams` obriga um limite de Suspense para a pagina
+            `useSearchParams` obriga um limite de Suspense para a página
             continuar sendo pre-renderizada estaticamente.
           */}
           <Suspense

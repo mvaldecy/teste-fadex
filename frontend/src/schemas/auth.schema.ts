@@ -10,7 +10,7 @@ export type LoginFormData = z.infer<typeof loginFormSchema>;
 /**
  * Espelha as regras publicadas em `docs/backend/api.md` para
  * `POST /api/v1/auth/change-password`: minimo 8, maximo 72 e confirmacao
- * igual. Validar aqui evita um ida e volta ate a API para erro previsivel.
+ * igual. Validar aqui evita um ida e volta até a API para erro previsivel.
  */
 export const changePasswordFormSchema = z
   .object({

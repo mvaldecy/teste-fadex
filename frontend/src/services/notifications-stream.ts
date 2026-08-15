@@ -9,11 +9,11 @@ import { parseEventPayload, parseSseFrame } from "./sse-parser";
  *
  * E um singleton de modulo com contagem de assinantes: quatro telas querem
  * eventos e um hook que abrisse `fetch` por montagem daria quatro conexoes por
- * usuario. O primeiro `subscribe` abre a conexao, o ultimo `unsubscribe` a
- * aborta — o que tambem faz o double-mount do StrictMode terminar com uma
- * conexao viva, e nao duas.
+ * usuário. O primeiro `subscribe` abre a conexão, o ultimo `unsubscribe` a
+ * aborta — o que também faz o double-mount do StrictMode terminar com uma
+ * conexão viva, e não duas.
  *
- * `EventSource` nao serve aqui: nao envia header `Authorization`.
+ * `EventSource` não serve aqui: não envia header `Authorization`.
  */
 
 const initialRetryDelayMs = 1000;
@@ -66,7 +66,7 @@ async function consumeStream(signal: AbortSignal) {
     throw new Error(`STREAM_INDISPONIVEL_${response.status}`);
   }
 
-  // Conexao aceita: zera backoff e contagem de 401.
+  // Conexão aceita: zera backoff e contagem de 401.
   retryDelayMs = initialRetryDelayMs;
   unauthorizedRetries = 0;
 
@@ -116,7 +116,7 @@ function scheduleReconnect(delayMs = retryDelayMs) {
 }
 
 /**
- * O `fetch` do stream nao passa pelo interceptor do axios, entao o token
+ * O `fetch` do stream não passa pelo interceptor do axios, entao o token
  * vencido precisa ser renovado aqui. Sem isto o stream morreria no fim da
  * primeira hora e nunca mais voltaria, enquanto o REST seguiria funcionando.
  */
@@ -155,8 +155,8 @@ async function run() {
 
     const reason = error instanceof Error ? error.message : "";
 
-    // Sem token e estado de sessao encerrada: reconectar so geraria laco
-    // contra um usuario deslogado.
+    // Sem token e estado de sessão encerrada: reconectar so geraria laco
+    // contra um usuário deslogado.
     if (reason === "SEM_TOKEN") {
       isRunning = false;
       return;
@@ -194,7 +194,7 @@ export function subscribeToNotifications(listener: NotificationListener) {
 
 /**
  * Encerra o stream independentemente de assinantes. Chamado no logout: sem
- * isso o cliente continuaria tentando reconectar com a sessao ja limpa.
+ * isso o cliente continuaria tentando reconectar com a sessão já limpa.
  */
 export function stopNotificationsStream() {
   isRunning = false;

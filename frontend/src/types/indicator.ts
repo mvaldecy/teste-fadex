@@ -14,11 +14,11 @@ import type { UserSummary } from "./user";
  * camadas e em ingles.
  *
  * Os mapas por status, prioridade e categoria **omitem grupos sem ocorrencia**,
- * e toda estatistica de duracao vem com horas `null` quando `sampleSize` e 0.
- * Por isso o tipo mantem `null` explicito em vez de numero garantido.
+ * e toda estatistica de duração vem com horas `null` quando `sampleSize` e 0.
+ * Por isso o tipo mantem `null` explicito em vez de número garantido.
  */
 /**
- * Faixa do histograma de duracao. A ultima faixa e aberta a direita e vem com
+ * Faixa do histograma de duração. A ultima faixa e aberta a direita e vem com
  * `toHours` nulo — "96 horas ou mais".
  */
 export type IndicatorHistogramBin = {
@@ -33,8 +33,8 @@ export type IndicatorDurationStats = {
   medianHours: number | null;
   p90Hours: number | null;
   /**
-   * Opcional no contrato: o painel mantem o resumo numerico e simplesmente nao
-   * desenha o grafico quando o campo nao vem.
+   * Opcional no contrato: o painel mantem o resumo numerico e simplesmente não
+   * desenha o grafico quando o campo não vem.
    */
   histogram?: IndicatorHistogramBin[] | null;
 };

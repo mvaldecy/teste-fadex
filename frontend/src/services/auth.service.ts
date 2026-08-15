@@ -18,7 +18,7 @@ async function refresh(payload: AuthRefreshRequest) {
 
 /**
  * Troca de senha obrigatoria. Usa o token limitado devolvido no login: ele so
- * abre este endpoint, e a resposta e uma sessao completa, ja com refresh
+ * abre este endpoint, e a resposta e uma sessão completa, já com refresh
  * token.
  */
 async function changePassword(payload: AuthChangePasswordRequest) {

@@ -16,7 +16,7 @@ async function list(filters?: AiJobFilters) {
 }
 
 /**
- * Sem fallback: e mutacao. Fingir um reprocessamento que nao aconteceu seria
+ * Sem fallback: e mutacao. Fingir um reprocessamento que não aconteceu seria
  * pior do que mostrar o erro.
  */
 async function retry(id: string) {

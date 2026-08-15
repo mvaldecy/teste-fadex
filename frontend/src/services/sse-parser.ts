@@ -2,7 +2,7 @@
  * Parse de frames SSE.
  *
  * Fica separado do transporte por ser a peca com maior risco de regressao e a
- * unica testavel sem rede. Nao importa nada: sao funcoes puras.
+ * única testavel sem rede. Não importa nada: são funcoes puras.
  */
 
 export type SseFrame = {
@@ -27,7 +27,7 @@ export function parseSseFrame(frame: string): SseFrame | null {
   for (const rawLine of frame.split("\n")) {
     const line = rawLine.replace(/\r$/, "");
 
-    // Linha vazia nao carrega campo; linha iniciada por `:` e comentario.
+    // Linha vazia não carrega campo; linha iniciada por `:` e comentario.
     if (line === "" || line.startsWith(":")) {
       continue;
     }
@@ -57,8 +57,8 @@ export function parseSseFrame(frame: string): SseFrame | null {
 }
 
 /**
- * `data` invalido nao pode derrubar o stream: devolve `null` e o evento segue
- * sendo entregue, porque o nome do evento ja basta para acionar a recarga.
+ * `data` inválido não pode derrubar o stream: devolve `null` e o evento segue
+ * sendo entregue, porque o nome do evento já basta para acionar a recarga.
  */
 export function parseEventPayload(data: string): unknown {
   if (data.trim() === "") {

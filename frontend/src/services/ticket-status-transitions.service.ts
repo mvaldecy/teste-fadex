@@ -6,15 +6,15 @@ import { api } from "./api";
  *
  * `Partial` de proposito: um status novo no backend chega aqui antes de existir
  * no tipo do front, e ler `transitions[status]` de uma chave ausente precisa
- * ser um caso previsto, nao um `undefined` disfarcado de array.
+ * ser um caso previsto, não um `undefined` disfarcado de array.
  */
 export type TicketStatusTransitions = Partial<
   Record<TicketStatusValue, TicketStatusValue[]>
 >;
 
 /**
- * Fonte unica da regra de fluxo: e a mesma matriz que o service usa para
- * recusar transicao invalida com `409`. A tela le daqui em vez de repetir a
+ * Fonte única da regra de fluxo: e a mesma matriz que o service usa para
+ * recusar transicao inválida com `409`. A tela le daqui em vez de repetir a
  * regra e sair de sincronia.
  */
 async function get() {

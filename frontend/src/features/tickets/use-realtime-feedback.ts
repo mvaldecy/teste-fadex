@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const highlightDurationMs = 12000;
 
 /**
- * Memoria curta do que o stream acabou de mudar.
+ * Memória curta do que o stream acabou de mudar.
  *
- * O tempo real ja funcionava: a tela recarregava ao receber o evento. O que
+ * O tempo real já funcionava: a tela recarregava ao receber o evento. O que
  * faltava era **perceber** — trocar os dados em silencio e indistinguivel de
- * nao ter reagido. Este hook guarda quem mudou ha pouco, para que a linha
+ * não ter reagido. Este hook guarda quem mudou ha pouco, para que a linha
  * fique destacada por alguns segundos, e o instante da ultima atualizacao,
  * para o rotulo "ao vivo" do cabecalho.
  */

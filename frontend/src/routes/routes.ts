@@ -24,7 +24,7 @@ export function homeRouteForRole(role: RoleValue | null) {
 }
 
 /**
- * Nome do parametro que carrega o destino pretendido ate o login.
+ * Nome do parametro que carrega o destino pretendido até o login.
  */
 export const redirectParamName = "redirect";
 
@@ -32,11 +32,11 @@ export const redirectParamName = "redirect";
  * Aceita apenas caminho interno.
  *
  * Sem esta checagem o parametro viraria redirecionamento aberto: um link com
- * `?redirect=https://site-falso` levaria o usuario para fora logo apos ele
- * digitar a senha. `//host` tambem e externo para o navegador, por isso a
+ * `?redirect=https://site-falso` levaria o usuário para fora logo após ele
+ * digitar a senha. `//host` também e externo para o navegador, por isso a
  * segunda barra e barrada.
  *
- * As proprias telas de autenticacao sao descartadas para nao criar laco.
+ * As proprias telas de autenticacao são descartadas para não criar laco.
  */
 export function sanitizeRedirect(value: string | null | undefined) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {

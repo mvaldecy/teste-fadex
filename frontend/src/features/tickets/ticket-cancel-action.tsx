@@ -26,13 +26,13 @@ type TicketCancelActionProps = {
 };
 
 /**
- * Cancelar tem cartao proprio, fora do seletor de status.
+ * Cancelar tem cartao próprio, fora do seletor de status.
  *
- * Duas razoes: e irreversivel — chamado cancelado nao reabre — e e a unica acao
- * de escrita que o SOLICITANTE tem sobre o proprio chamado, entao aparece
- * tambem para quem nao ve o restante das acoes de ciclo de vida.
+ * Duas razoes: e irreversivel — chamado cancelado não reabre — e e a única ação
+ * de escrita que o SOLICITANTE tem sobre o próprio chamado, entao aparece
+ * também para quem não ve o restante das ações de ciclo de vida.
  *
- * Quem decide se este cartao aparece e a pagina de detalhe, cruzando a matriz
+ * Quem decide se este cartao aparece e a página de detalhe, cruzando a matriz
  * do servidor com o papel. O servidor reconfere de todo jeito.
  */
 export function TicketCancelAction({
@@ -54,8 +54,8 @@ export function TicketCancelAction({
       <CardHeader>
         <CardTitle className="text-base">Cancelar chamado</CardTitle>
         <CardDescription>
-          O chamado sai do fluxo de atendimento e nao reabre. O historico e os
-          comentarios continuam disponiveis para consulta.
+          O chamado sai do fluxo de atendimento e não reabre. O histórico e os
+          comentários continuam disponiveis para consulta.
         </CardDescription>
       </CardHeader>
 
@@ -72,7 +72,7 @@ export function TicketCancelAction({
             <DialogHeader>
               <DialogTitle>Cancelar este chamado?</DialogTitle>
               <DialogDescription>
-                A acao nao pode ser desfeita. Chamado cancelado nao reabre — se
+                A ação não pode ser desfeita. Chamado cancelado não reabre — se
                 voltar a precisar de atendimento, abra um chamado novo.
               </DialogDescription>
             </DialogHeader>

@@ -24,10 +24,10 @@ import type {
 const allValue = "ALL";
 
 /**
- * Filtro por atribuicao. As tres opcoes sao excludentes de proposito: "sem
- * responsavel" e "meus chamados" descrevem conjuntos que nao se cruzam, entao
- * um unico select diz mais do que duas caixas que podem ser marcadas juntas
- * para nao devolver nada.
+ * Filtro por atribuição. As três opções são excludentes de proposito: "sem
+ * responsável" e "meus chamados" descrevem conjuntos que não se cruzam, entao
+ * um único select diz mais do que duas caixas que podem ser marcadas juntas
+ * para não devolver nada.
  */
 const assignmentAll = "ALL";
 const assignmentUnassigned = "SEM_RESPONSAVEL";
@@ -38,7 +38,7 @@ const assignmentMine = "MEUS";
  *
  * Sem ela seria uma requisicao por tecla. A protecao contra resposta atrasada
  * fica no `useTicketList`, que descarta resposta de busca antiga; aqui o
- * objetivo e nao gerar a requisicao inutil.
+ * objetivo e não gerar a requisicao inutil.
  */
 const searchDebounceMs = 400;
 
@@ -70,10 +70,10 @@ export function TicketFilterBar({
   const [assignment, setAssignment] = useState<string>(assignmentAll);
   const currentUserId = useSessionStore((state) => state.user?.id);
   /**
-   * Atribuicao so faz sentido para o ADMIN. O SOLICITANTE ja enxerga apenas os
-   * chamados que ele abriu e nunca e responsavel por nenhum: as tres opcoes
+   * Atribuição so faz sentido para o ADMIN. O SOLICITANTE já enxerga apenas os
+   * chamados que ele abriu e nunca e responsável por nenhum: as três opções
    * responderiam a mesma coisa, e "meus chamados" significaria outra coisa
-   * para ele — o que ele abriu, nao o que ele atende.
+   * para ele — o que ele abriu, não o que ele atende.
    */
   const canFilterByAssignment = useSessionStore(
     (state) => state.role === "ADMIN"
@@ -127,8 +127,8 @@ export function TicketFilterBar({
   }
 
   // A busca aplica sozinha depois da pausa na digitacao. A comparacao com o
-  // filtro ja aplicado evita disparar no primeiro render e ao receber o
-  // proprio filtro de volta pelo `filters`.
+  // filtro já aplicado evita disparar no primeiro render e ao receber o
+  // próprio filtro de volta pelo `filters`.
   useEffect(() => {
     if (search.trim() === appliedSearch) {
       return;
@@ -170,7 +170,7 @@ export function TicketFilterBar({
           <Input
             aria-label="Buscar chamados"
             className="pl-9"
-            placeholder="Buscar por titulo ou descricao"
+            placeholder="Buscar por título ou descrição"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -229,13 +229,13 @@ export function TicketFilterBar({
             value={assignment}
             onValueChange={handleSelect(setAssignment, "assignment")}
           >
-            <SelectTrigger aria-label="Atribuicao">
-              <SelectValue placeholder="Atribuicao" />
+            <SelectTrigger aria-label="Atribuição">
+              <SelectValue placeholder="Atribuição" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={assignmentAll}>Qualquer atribuicao</SelectItem>
+              <SelectItem value={assignmentAll}>Qualquer atribuição</SelectItem>
               <SelectItem value={assignmentUnassigned}>
-                Sem responsavel
+                Sem responsável
               </SelectItem>
               <SelectItem disabled={!currentUserId} value={assignmentMine}>
                 Meus chamados
@@ -253,7 +253,7 @@ export function TicketFilterBar({
               Atualizando resultados...
             </>
           ) : (
-            "Os filtros sao aplicados automaticamente."
+            "Os filtros são aplicados automaticamente."
           )}
         </p>
 

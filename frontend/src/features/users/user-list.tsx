@@ -31,8 +31,8 @@ export function UserList({ isLoading, users, onSelectUser }: UserListProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Usuarios</CardTitle>
-          <CardDescription>Carregando usuarios cadastrados.</CardDescription>
+          <CardTitle>Usuários</CardTitle>
+          <CardDescription>Carregando usuários cadastrados.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -46,16 +46,16 @@ export function UserList({ isLoading, users, onSelectUser }: UserListProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Usuarios</CardTitle>
+        <CardTitle>Usuários</CardTitle>
         <CardDescription>
-          {users.length} usuarios encontrados. A listagem da API devolve apenas
+          {users.length} usuários encontrados. A listagem da API devolve apenas
           o nome; abra os detalhes para ver e-mail e perfil.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {users.length === 0 ? (
           <div className="rounded-md border border-dashed border-slate-300 p-6 text-sm text-slate-600">
-            Nenhum usuario encontrado para os filtros atuais.
+            Nenhum usuário encontrado para os filtros atuais.
           </div>
         ) : (
           <>
@@ -64,7 +64,7 @@ export function UserList({ isLoading, users, onSelectUser }: UserListProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead className="w-32 text-right">Acoes</TableHead>
+                    <TableHead className="w-32 text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

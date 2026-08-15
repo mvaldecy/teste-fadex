@@ -13,7 +13,7 @@ type HighPriorityPayload = {
 };
 
 /**
- * O payload do evento e o `TicketMinDto`, mas o contrato do stream nao promete
+ * O payload do evento e o `TicketMinDto`, mas o contrato do stream não promete
  * campo nenhum, entao a leitura e defensiva: sem `id` o alerta ainda aparece,
  * so sem o atalho para o chamado.
  */
@@ -31,12 +31,12 @@ function readPayload(payload: unknown): HighPriorityPayload {
 }
 
 /**
- * Alerta de chamado com prioridade ALTA — requisito obrigatorio do desafio.
+ * Alerta de chamado com prioridade ALTA — requisito obrigatório do desafio.
  *
- * Fica montado no shell, e nao numa tela: o backend emite
- * `CHAMADO_ALTA_PRIORIDADE` para o publico de ADMIN assim que a prioridade
- * passa a ser ALTA (classificacao da IA ou revisao manual), e o alerta precisa
- * chegar ao operador esteja ele em qual pagina estiver.
+ * Fica montado no shell, e não numa tela: o backend emite
+ * `CHAMADO_ALTA_PRIORIDADE` para o público de ADMIN assim que a prioridade
+ * passa a ser ALTA (classificação da IA ou revisao manual), e o alerta precisa
+ * chegar ao operador esteja ele em qual página estiver.
  */
 export function HighPriorityAlerts() {
   const router = useRouter();
@@ -52,12 +52,12 @@ export function HighPriorityAlerts() {
       toast.warning(title ?? "Um chamado passou para prioridade ALTA", {
         description: "Prioridade ALTA — precisa de atendimento imediato.",
         // Sem expiracao: o alerta de ALTA e requisito do desafio e some antes
-        // de o operador notar quando tem duracao. Ele fica na tela ate a
+        // de o operador notar quando tem duração. Ele fica na tela até a
         // dispensa por clique no "x".
         duration: Infinity,
         closeButton: true,
         // `id` estavel por chamado: um chamado que oscila de prioridade
-        // substitui o proprio alerta em vez de empilhar copias.
+        // substitui o próprio alerta em vez de empilhar copias.
         id: id ? `chamado-alta-${id}` : undefined,
         action: id
           ? {

@@ -77,7 +77,7 @@ export function UserDetailDialog({
     <Dialog open={Boolean(userId)} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Detalhes do usuario</DialogTitle>
+          <DialogTitle>Detalhes do usuário</DialogTitle>
           <DialogDescription>
             Dados completos vindos de GET /users/&#123;id&#125;.
           </DialogDescription>

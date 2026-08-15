@@ -1,6 +1,6 @@
 /**
  * Nomes de evento definidos pelo backend em `NotificationEventName`.
- * O contrato do stream esta em `docs/backend/api.md`, secao Notificacoes.
+ * O contrato do stream esta em `docs/backend/api.md`, secao Notificações.
  */
 export const notificationEventNames = [
   "CONEXAO_ESTABELECIDA",
@@ -14,7 +14,7 @@ export const notificationEventNames = [
 export type NotificationEventName = (typeof notificationEventNames)[number];
 
 /**
- * O nome fica aberto a `string` de proposito: um evento novo no backend nao
+ * O nome fica aberto a `string` de proposito: um evento novo no backend não
  * pode derrubar o parser nem exigir deploy do frontend para ser ignorado.
  */
 export type NotificationEvent = {

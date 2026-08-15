@@ -59,7 +59,7 @@ export function useAiJobs() {
 
         return true;
       } catch (retryError) {
-        toast.error("Nao foi possivel reprocessar o job.", {
+        toast.error("Não foi possível reprocessar o job.", {
           description: toApiErrorMessage(retryError)
         });
 

@@ -11,7 +11,7 @@ import { IndicatorDurationHistogram } from "./indicator-duration-histogram";
  * Amostra minima para desenhar o histograma.
  *
  * Com cinco pontos, um grafico de barras passa impressao de rigor que o dado
- * nao sustenta. Abaixo do limite o cartao mostra so o resumo e diz que a
+ * não sustenta. Abaixo do limite o cartao mostra so o resumo e diz que a
  * amostra ainda e pequena.
  */
 const minimumHistogramSample = 12;
@@ -34,7 +34,7 @@ function formatHours(value?: number | null) {
 }
 
 /**
- * Media e mediana sempre lado a lado. Com o volume de dados do projeto, media
+ * Média e mediana sempre lado a lado. Com o volume de dados do projeto, média
  * isolada e enganosa — a nota esta no documento de frentes.
  *
  * O `sampleSize` aparece junto porque o contrato zera as horas quando a
@@ -58,7 +58,7 @@ export function IndicatorDurationCard({
         <dl className="grid grid-cols-3 gap-3 text-center">
           <div>
             <dt className="text-xs uppercase tracking-[0.08em] text-slate-500">
-              Media
+              Média
             </dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums text-slate-950">
               {formatHours(duration?.averageHours)}

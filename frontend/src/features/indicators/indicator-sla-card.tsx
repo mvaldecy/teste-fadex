@@ -15,7 +15,7 @@ type IndicatorSlaCardProps = {
  * SLA por prioridade.
  *
  * O contrato publica a fatia de **todas** as prioridades e o painel so
- * mostrava a de ALTA. Prioridade sem chamado avaliado nao aparece: o mapa a
+ * mostrava a de ALTA. Prioridade sem chamado avaliado não aparece: o mapa a
  * omite, e inventar 100% para amostra vazia seria mentir para o gestor.
  */
 export function IndicatorSlaCard({ byPriority, labels }: IndicatorSlaCardProps) {
@@ -31,7 +31,7 @@ export function IndicatorSlaCard({ byPriority, labels }: IndicatorSlaCardProps) 
       <CardContent>
         {entries.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Nenhum chamado avaliado ate agora.
+            Nenhum chamado avaliado até agora.
           </p>
         ) : (
           <ul className="grid gap-3">

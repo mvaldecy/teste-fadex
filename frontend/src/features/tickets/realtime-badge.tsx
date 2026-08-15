@@ -14,7 +14,7 @@ function formatTime(value: Date) {
 /**
  * Selo de tempo real.
  *
- * Serve para responder a pergunta que a tela nao respondia: "isso atualiza
+ * Serve para responder a pergunta que a tela não respondia: "isso atualiza
  * sozinho?". Enquanto nada chega, ele diz que a tela esta ouvindo o stream;
  * quando um evento chega, mostra o horario da ultima atualizacao.
  */
@@ -38,7 +38,7 @@ export function RealtimeBadge({ className, updatedAt }: RealtimeBadgeProps) {
       />
       {updatedAt
         ? `Atualizado em tempo real as ${formatTime(updatedAt)}`
-        : "Ouvindo atualizacoes em tempo real"}
+        : "Ouvindo atualizações em tempo real"}
     </span>
   );
 }

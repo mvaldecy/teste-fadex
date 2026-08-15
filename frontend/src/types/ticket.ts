@@ -20,9 +20,9 @@ export type TicketSummary = {
 };
 
 /**
- * `classificationJustification` ja existe no `TicketDto` desde a triagem por
+ * `classificationJustification` já existe no `TicketDto` desde a triagem por
  * IA. Os campos `aiSuggested*` e `confidence` dependem da frente IA expor no
- * DTO: por ora vem sempre ausentes, e o bloco de sugestao nao renderiza.
+ * DTO: por ora vem sempre ausentes, e o bloco de sugestao não renderiza.
  */
 export type TicketDto = TicketSummary & {
   description: string;
@@ -58,7 +58,7 @@ export type TicketFilters = PageParams & {
   category?: TicketCategoryValue;
   requesterId?: string;
   assigneeId?: string;
-  /** `true` traz so os chamados sem responsavel. Tem precedencia sobre `assigneeId` na API. */
+  /** `true` traz so os chamados sem responsável. Tem precedencia sobre `assigneeId` na API. */
   unassigned?: boolean;
   search?: string;
 };
