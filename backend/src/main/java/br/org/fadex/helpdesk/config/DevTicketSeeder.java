@@ -481,11 +481,16 @@ public class DevTicketSeeder {
 						TicketCategory.SISTEMAS, TicketPriority.MEDIA, 0.52
 				),
 
-				// Cobaias de triagem: recem-abertas, sem classificacao, sem sugestao da IA e sem
-				// responsavel. Existem para o avaliador clicar em "solicitar triagem" e ver a IA
-				// classificar ao vivo. Ficam com `ai_suggested_*` nulos de proposito — assim nao
-				// entram no denominador da concordancia e nao mexem nas metricas que os 20 chamados
-				// anteriores sustentam.
+				// Cobaias de triagem: recem-abertas, sem classificacao gravada, sem sugestao da IA e
+				// sem responsavel. Nascem com `ai_suggested_*` nulos e sao classificadas pelo worker
+				// logo apos a subida, porque o seed enfileira job de classificacao para todo chamado
+				// PENDENTE — o avaliador as encontra ja classificadas e pode reclassificar pelo botao
+				// de solicitar triagem, que reenfileira os jobs.
+				//
+				// Mesmo classificadas, elas continuam fora do denominador da concordancia: quem entra
+				// no calculo e o chamado com `classification_reviewed_at` carimbado, e esse carimbo so
+				// aparece quando um ADMIN revisa. As metricas que os 20 chamados anteriores sustentam
+				// seguem intactas.
 				new TicketSeed(
 						"Impressora do setor financeiro parou de responder",
 						"A impressora da sala do financeiro nao aparece mais na lista de dispositivos desde hoje de manha.",
