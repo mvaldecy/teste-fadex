@@ -1,5 +1,6 @@
 package br.org.fadex.helpdesk.ai.indicator;
 
+import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -49,6 +50,21 @@ class IndicatorSeedIntegrationTest {
 		assertThat(agreementRate.evaluated()).isPositive();
 		assertThat(agreementRate.percentage()).isNotNull();
 		assertThat(agreementRate.percentage()).isLessThan(100.0);
+	}
+
+	@Test
+	void deveManterChamadosPendentesForaDoDenominadorDaConcordancia() {
+		AiIndicatorsDto ai = indicatorService.getIndicators().ai();
+
+		// As cobaias de triagem existem no seed e sao visiveis na distribuicao de origem...
+		assertThat(ai.originDistribution().get(ClassificationOrigin.PENDENTE)).isGreaterThanOrEqualTo(4L);
+
+		// ...mas nao entram na concordancia: sem sugestao registrada nao ha o que aceitar. Se
+		// entrassem, a taxa cairia sozinha a cada chamado novo aberto e deixaria de medir o acerto
+		// da IA.
+		long comSugestaoERevisado = ai.agreementRate().evaluated();
+		assertThat(comSugestaoERevisado).isPositive();
+		assertThat(ai.agreementRate().agreed()).isLessThanOrEqualTo(comSugestaoERevisado);
 	}
 
 	@Test

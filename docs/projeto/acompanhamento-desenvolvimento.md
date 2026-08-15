@@ -46,10 +46,10 @@ O projeto deve demonstrar organização de código, modelagem relacional, docume
 | Autorização ADMIN x SOLICITANTE | Pendente | Papéis existem no modelo e token. | Implementar regra: ADMIN lista todos; SOLICITANTE vê/gerencia apenas próprios chamados. |
 | CRUD completo de chamados | Parcial | Criar, listar com filtros e detalhar existem. | Implementar atualização de status, atribuição, exclusão/cancelamento e regras de transição. |
 | Filtros de chamados | Parcial | Filtros por status, prioridade, categoria, solicitante, responsável e busca existem. | Validar autorização aplicada nos filtros. |
-| Triagem automática por IA | Pendente | Campo `classificationOrigin` preparado como `PENDENTE`. | Criar service de classificação, mesmo que inicialmente mock/heurística justificada. |
-| ADMIN aceitar/corrigir sugestão da IA | Pendente | Não implementado. | Criar endpoint/fluxo de revisão da classificação. |
-| Indicadores em tempo real | Pendente | Não implementado. | Criar agregações por status/prioridade e atualização via SSE, WebSocket ou polling curto. |
-| Alerta para prioridade ALTA | Pendente | Não implementado. | Emitir evento/estado quando chamado ALTA for aberto. |
+| Triagem automática por IA | Concluído | Worker Quartz classifica com modelo local e cai para heurística determinística quando o modelo falha. | — |
+| ADMIN aceitar/corrigir sugestão da IA | Concluído | `PATCH /api/v1/tickets/{id}/classification`; aceite mantém origem `IA`, correção vira `MANUAL`. | — |
+| Indicadores em tempo real | Concluído | `GET /api/v1/indicators` com quatro camadas; `INDICADORES_ATUALIZADOS` sinaliza refresh por SSE. | — |
+| Alerta para prioridade ALTA | Concluído | `CHAMADO_ALTA_PRIORIDADE` emitido na abertura e na mudança de prioridade; `overview.openHighPriority` nos indicadores. | — |
 | Comentários em chamado | Parcial | Endpoints de criação e listagem de comentários existem na branch atual. | Garantir histórico cronológico e integrar com mudanças de status. |
 | Histórico de mudanças de status | Pendente | Entidade de comentário existe, mas eventos de status ainda não. | Definir modelo de evento/histórico e registrar transições. |
 | Campos obrigatórios | Parcial | DTOs usam validações iniciais. | Revisar todos os fluxos novos. |
@@ -84,7 +84,7 @@ O projeto deve demonstrar organização de código, modelagem relacional, docume
 | 4. Comentários e histórico | Comentários em chamados e registro cronológico de interações/mudanças. | Parcial |
 | 5. Autorização por papel | Restringir visibilidade e ações por ADMIN/SOLICITANTE. | Pendente |
 | 6. Triagem por IA | Classificação automática de categoria/prioridade e revisão pelo ADMIN. | Concluído |
-| 7. Indicadores em tempo real | Contadores por status/prioridade e alerta de prioridade ALTA. | Parcial |
+| 7. Indicadores em tempo real | Contadores por status/prioridade e alerta de prioridade ALTA. | Concluído |
 | 8. Frontend | Telas de login, chamados, detalhe, comentários, indicadores e experiência responsiva. | Em andamento |
 | 9. Documentação final | README, exemplos de requisição, credenciais de teste, justificativa da IA e instruções locais. | Pendente |
 | 10. Submissão | Tornar repositório público, revisar checklist final e enviar link. | Pendente |
@@ -113,6 +113,6 @@ O projeto deve demonstrar organização de código, modelagem relacional, docume
 - Histórico de status deve ser modelado sem misturar regra de negócio na entidade.
 - O README final é item obrigatório e precisa ser escrito para avaliador reproduzir o projeto rapidamente.
 - O repositório está privado durante o desenvolvimento, mas deve ficar público antes da entrega.
-- O item 7 fica como Parcial de propósito: `GET /api/v1/indicators` entrega os contadores e o
-  `overview.openHighPriority` que sustenta o alerta, mas a emissão do alerta na **abertura** de um
-  chamado ALTA é da frente de API/Notificações e ainda está em andamento.
+- O item 7 foi fechado: `GET /api/v1/indicators` entrega os contadores e o `overview.openHighPriority`,
+  e a frente de Notificações passou a emitir `CHAMADO_ALTA_PRIORIDADE` também na **abertura** — um
+  chamado que nasce ALTA tem `previousPriority` nulo e satisfaz `becameHighPriority()`.

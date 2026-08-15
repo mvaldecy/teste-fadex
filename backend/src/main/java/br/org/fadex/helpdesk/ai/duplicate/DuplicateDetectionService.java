@@ -128,11 +128,27 @@ public class DuplicateDetectionService {
 			}
 
 			Ticket target = duplicateEmbeddingRepository.getReferenceById(match.ticketId());
-			ticketLinkRepository.save(new TicketLink(sourceTicket.get(), target, createdBy));
+			ticketLinkRepository.save(new TicketLink(
+					sourceTicket.get(),
+					target,
+					createdBy,
+					roundSimilarity(match.similarity())
+			));
 			created++;
 		}
 
 		return created;
+	}
+
+	/**
+	 * Arredonda para quatro casas antes de gravar.
+	 *
+	 * O cosseno de vetores identicos sai como 1.0000000000000002 em ponto flutuante, o que violaria
+	 * o check de faixa da coluna. Quatro casas tambem e mais precisao do que qualquer leitura de
+	 * duplicidade precisa.
+	 */
+	private double roundSimilarity(double similarity) {
+		return Math.round(similarity * 10000.0) / 10000.0;
 	}
 
 	private record ScoredCandidate(UUID ticketId, double similarity) {
