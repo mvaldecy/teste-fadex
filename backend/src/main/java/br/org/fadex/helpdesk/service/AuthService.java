@@ -9,6 +9,7 @@ import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.model.user.UserMapper;
 import br.org.fadex.helpdesk.repository.UserRepository;
 import br.org.fadex.helpdesk.security.JwtTokenService;
+import br.org.fadex.helpdesk.security.LoginAttemptService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,24 +23,43 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenService jwtTokenService;
 	private final RefreshTokenService refreshTokenService;
+	private final LoginAttemptService loginAttemptService;
 
 	public AuthService(
 			UserRepository userRepository,
 			PasswordEncoder passwordEncoder,
 			JwtTokenService jwtTokenService,
-			RefreshTokenService refreshTokenService
+			RefreshTokenService refreshTokenService,
+			LoginAttemptService loginAttemptService
 	) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenService = jwtTokenService;
 		this.refreshTokenService = refreshTokenService;
+		this.loginAttemptService = loginAttemptService;
 	}
 
 	public AuthResponseDto login(AuthRequestDto authRequestDto) {
-		User user = userRepository.findByEmail(authRequestDto.email())
-				.orElseThrow(() -> new UnauthorizedException("Credenciais invalidas."));
+		String email = authRequestDto.email();
 
-		validatePassword(authRequestDto.password(), user.getPasswordHash());
+		loginAttemptService.ensureNotBlocked(email);
+
+		// E-mail inexistente conta como falha junto com senha errada: separar os dois contadores
+		// diria a quem esta tentando quais e-mails existem.
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> {
+					loginAttemptService.registerFailure(email);
+					return new UnauthorizedException("Credenciais invalidas.");
+				});
+
+		try {
+			validatePassword(authRequestDto.password(), user.getPasswordHash());
+		} catch (UnauthorizedException exception) {
+			loginAttemptService.registerFailure(email);
+			throw exception;
+		}
+
+		loginAttemptService.registerSuccess(email);
 
 		if (Boolean.TRUE.equals(user.getMustChangePassword())) {
 			return createPasswordChangeResponse(user);

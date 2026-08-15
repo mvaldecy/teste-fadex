@@ -7,6 +7,7 @@ import br.org.fadex.helpdesk.model.enums.Role;
 import br.org.fadex.helpdesk.model.user.User;
 import br.org.fadex.helpdesk.repository.UserRepository;
 import br.org.fadex.helpdesk.security.JwtTokenService;
+import br.org.fadex.helpdesk.security.LoginAttemptService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,6 +38,9 @@ class AuthServiceTest {
 
 	@Mock
 	private RefreshTokenService refreshTokenService;
+
+	@Mock
+	private LoginAttemptService loginAttemptService;
 
 	@InjectMocks
 	private AuthService authService;
