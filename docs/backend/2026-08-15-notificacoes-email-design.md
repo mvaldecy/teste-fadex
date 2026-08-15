@@ -125,8 +125,9 @@ derivado do proprio `NotificationMessage` que a frente de IA publica: o
 `NotificationEventName.JOB_IA_FALHOU`. Zero acoplamento com o codigo da outra frente e zero
 conflito de merge.
 
-Limite honesto: no worktree desta frente nada publica esse evento ainda, entao ele so pode ser
-verificado por teste com mensagem sintetica, nao ponta a ponta no Mailpit.
+Limite honesto: no worktree desta frente nada publica esse evento ainda. O que foi verificado no
+Mailpit e a composicao e o envio da mensagem (assunto, destinatarios ADMIN e HTML); o gatilho real
+— o worker esgotando as tentativas — so fecha o circuito depois do merge da frente de IA.
 
 ### D9 — `@WebMvcTest` com `jwt()` em vez de `JwtDecoder` mockado
 
