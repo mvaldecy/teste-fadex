@@ -132,6 +132,13 @@ public class TicketService {
 		Ticket ticket = findEntityById(id);
 
 		assertCanCancel(ticket);
+
+		// A mensagem generica de chamado fechado fala em reabertura, que responde a uma acao que nao
+		// e a de quem clicou em cancelar.
+		if (ticket.getStatus() == TicketStatus.FECHADO) {
+			throw new ConflictException("Chamado fechado nao pode ser cancelado.");
+		}
+
 		assertTransitionAllowed(ticket.getStatus(), TicketStatus.CANCELADO);
 
 		return applyStatusChange(

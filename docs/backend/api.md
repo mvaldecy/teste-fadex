@@ -645,6 +645,10 @@ tambem alcanca o responsavel: quem esta atendendo precisa saber que o chamado mo
 | `SOLICITANTE` tentando cancelar o proprio chamado ja em atendimento | `409` |
 | chamado ja `CANCELADO`, `RESOLVIDO` ou `FECHADO` | `409` |
 
+A mensagem do `409` diz qual regra barrou: `Chamado fechado nao pode ser cancelado.`,
+`O chamado ja esta com o status Cancelado.`, `Chamado ja em atendimento so pode ser cancelado por um
+administrador.` ou a recusa da matriz para `RESOLVIDO`.
+
 ### `GET /api/v1/tickets/{ticketId}/events`
 
 Protegido.

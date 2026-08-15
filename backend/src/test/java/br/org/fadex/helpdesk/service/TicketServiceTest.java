@@ -700,6 +700,23 @@ class TicketServiceTest {
 				.isInstanceOf(ConflictException.class);
 	}
 
+	/**
+	 * Quem clicou em "Cancelar chamado" e recebe "nao pode ser reaberto" fica sem entender o que
+	 * aconteceu: a mensagem responde a uma acao que nao e a dele.
+	 */
+	@Test
+	void cancelDeveExplicarQueChamadoFechadoNaoECancelado() {
+		Ticket ticket = newTicket(TicketPriority.MEDIA);
+		ticket.changeStatus(TicketStatus.FECHADO);
+
+		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
+		when(ticketRepository.findById(ticket.getId())).thenReturn(Optional.of(ticket));
+
+		assertThatThrownBy(() -> ticketService.cancel(ticket.getId()))
+				.isInstanceOf(ConflictException.class)
+				.hasMessage("Chamado fechado nao pode ser cancelado.");
+	}
+
 	@Test
 	void cancelDeveRecusarChamadoResolvidoOuFechado() {
 		Ticket resolvido = newTicket(TicketPriority.MEDIA);
