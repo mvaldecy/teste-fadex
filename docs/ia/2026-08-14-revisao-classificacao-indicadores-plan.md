@@ -10,6 +10,38 @@
 
 **Spec:** `docs/ia/2026-08-14-revisao-classificacao-indicadores-design.md`
 
+## Estado da execucao (14/08/2026, ciclo 2)
+
+Todas as 15 tasks estao entregues. O ciclo 1 fechou as tasks 1, 2, 3, 8, 9, 13 e 14, que nao
+dependiam da `V4`. O ciclo 2, na branch `feature(ia)/classificacao-revisao-indicadores`, fechou o
+que estava bloqueado:
+
+| Task | Estado | Divergencia do plano |
+| --- | --- | --- |
+| 4-bis — `V5` e carimbo de revisao | Entregue | Nenhuma. |
+| 5 — worker grava sugestao e usa a seam | Entregue | Escrita da sugestao passou a ser feita por `TicketAiSuggestionService`, service transacional proprio, em vez de mutacao solta dentro do worker. |
+| 6 — `confidence` e sugestao no `TicketDto` | Entregue | O campo chama-se `confidence`, e nao `aiConfidence`. |
+| 7 — `PATCH /tickets/{id}/classification` | Entregue | `Clock` injetado, que o esqueleto do plano usava sem declarar. |
+| 10, 11, 12 — indicadores | Entregue | `AiJobRepository.findByStatus` adicionado; `IndicatorSeedIntegrationTest` acrescentado. |
+| 15 — documentacao | Entregue | Nenhuma. |
+
+Tres decisoes tomadas na execucao, com o motivo:
+
+1. **`confidence` no lugar de `aiConfidence`.** `frontend/` esta fora do escopo desta frente e ja
+   consome `ticket.confidence`; publicar `aiConfidence` deixaria o selo de confianca sem renderizar.
+   Como nada consumia o nome antigo, alinhar ao consumidor real custou menos que pedir mudanca no
+   frontend. Os dois campos de sugestao mantiveram o prefixo, que o frontend ja usava.
+2. **`TicketAiSuggestionService` em vez de mutacao dentro do worker.** O `AiJobWorker` e instanciado
+   pelo Quartz; depender de transacao ambiente naquela thread deixaria a escrita das colunas de
+   auditoria silenciosamente sem efeito se o proxy transacional nao se aplicasse. Com service
+   proprio a transacao e garantida. O service tambem devolve o id do solicitante, porque o
+   relacionamento e lazy e so pode ser lido dentro daquela transacao.
+3. **Verificacao com base real, nao so com mock.** `verify(ticket).applyAiSuggestion(...)` passa
+   mesmo que o valor nunca chegue a uma coluna. Por isso `TicketPersistenceTest` grava e le de volta
+   `classification_reviewed_at`, e `IndicatorSeedIntegrationTest` roda os indicadores sobre a base
+   semeada — e o que prova que a projecao JPQL casa com a entidade e que a concordancia admin x IA
+   sai com denominador maior que zero.
+
 ## Global Constraints
 
 - Branch de trabalho: `feature(ia)/revisao-classificacao-indicadores`, criada a partir de `dev` (base `95da427`).

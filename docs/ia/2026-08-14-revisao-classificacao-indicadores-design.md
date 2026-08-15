@@ -141,6 +141,16 @@ uso — nao e a frente IA abrindo caminho proprio. Ele toca **so** as tres colun
 precisa estar numa transacao com a entidade gerenciada para o flush acontecer. Se o metodo chegar
 diferente, o ajuste e local ao worker.
 
+**Revisado na implementacao — a premissa da transacao nao se sustentava.** A assinatura chegou como
+esperado, mas o `AiJobWorker` e instanciado pelo Quartz, e nao resolvido como bean proxiado: depender
+da transacao ambiente daquela thread deixaria a mutacao silenciosamente sem efeito, que e exatamente
+o modo de falha que esta decisao existe para evitar. A escrita passou entao por
+`TicketAiSuggestionService`, um `@Service` transacional em `ai/classification/`, que carrega o
+chamado por `TicketService.findEntityById` (leitura e livre), chama `applyAiSuggestion` e devolve o
+id do solicitante — o relacionamento e lazy e so pode ser lido dentro daquela transacao, e o worker
+precisa desse id para a audiencia do `CLASSIFICACAO_CONCLUIDA`. A fronteira continua intacta:
+categoria, prioridade e origem seguem exclusivas de `applyClassification`.
+
 ### D2 — O worker hoje viola a fronteira e precisa parar
 
 `AiJobWorker.processClassification` chama `ticket.applyAutomaticClassification(...)` na entidade
@@ -158,6 +168,9 @@ depois: worker -> ticketService.applyClassification(id, cat, pri, IA, justificat
 ```
 
 ### D3 — Nomes de eventos SSE enquanto a `V4` nao chega
+
+**Encerrada.** `NotificationEventName` chegou em `dev` com as cinco constantes; o holder temporario
+`AiNotificationEventName` foi apagado e todos os usos apontam para o enum da frente API.
 
 `NotificationMessage.of(String eventName, ...)` recebe **String**, nao enum. Esta frente nao esta
 bloqueada pela existencia do `NotificationEventName`.
@@ -335,11 +348,17 @@ O controller vive em `ai/`, mapeado no mesmo base path `/api/v1/tickets`. Nao ha
   "classificationJustification": "Mencao a rede e servidor indica infraestrutura.",
   "aiSuggestedCategory": "INFRAESTRUTURA",
   "aiSuggestedPriority": "ALTA",
-  "aiConfidence": 0.87
+  "confidence": 0.87
 }
 ```
 
 `classificationJustification` ja existe. Os tres campos novos sao nulos enquanto a IA nao respondeu.
+
+**Revisado na implementacao:** o campo da confianca chama-se `confidence`, e nao `aiConfidence` como
+este documento previa. `frontend/` esta fora do escopo desta frente e ja consome `ticket.confidence`;
+publicar `aiConfidence` deixaria o selo de confianca sem renderizar por divergencia de nome. Como
+nenhum consumidor usava o nome antigo, alinhar ao consumidor real custou menos que pedir mudanca no
+frontend. Os dois campos de sugestao mantiveram o prefixo `ai`, que o frontend ja usava.
 
 ### GET /api/v1/ai/jobs
 
