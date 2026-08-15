@@ -242,7 +242,22 @@ cliente habilitar apenas o que o servidor aceita. A interface não duplica a reg
 Contrato completo em [`docs/backend/api.md`](docs/backend/api.md). Swagger em
 `http://localhost:8080/swagger-ui.html`.
 
-Exemplos:
+**Coleção do Postman:** [`docs/fadex-helpdesk.postman_collection.json`](docs/fadex-helpdesk.postman_collection.json)
+— 26 requisições em 13 pastas. Importe e comece por **Autenticação → login**: ele guarda o token na
+variável da coleção, e as demais requisições já saem autenticadas. Ajuste `baseUrl` se escolheu
+outra porta no wizard.
+
+Ela é **gerada a partir do OpenAPI publicado pela própria aplicação**, com
+[`scripts/gerar-colecao-postman.py`](scripts/gerar-colecao-postman.py) — uma coleção escrita à mão
+envelhece em silêncio, e quem descobre é quem manda uma requisição que não existe mais. Para
+regerar depois de mudar a API:
+
+```bash
+curl -s http://localhost:8080/v3/api-docs > /tmp/openapi.json
+python3 scripts/gerar-colecao-postman.py /tmp/openapi.json docs/fadex-helpdesk.postman_collection.json
+```
+
+Exemplos com `curl`:
 
 ```bash
 # Login
