@@ -22,3 +22,21 @@ export type SimilarTicketDto = {
   similarity: number | null;
   createdAt: string;
 };
+
+/**
+ * Chamado do ranking dos mais próximos, com a similaridade calculada na hora.
+ *
+ * Aqui `similarity` nunca é nula — o número é o motivo de o item existir. E
+ * `linked` diz se o par cruzou o limiar e virou vínculo persistido, o que
+ * separa "o sistema afirma que é duplicata" de "foi o mais próximo que achei".
+ */
+export type NearestTicketDto = {
+  id: string;
+  title: string;
+  status: TicketStatusValue;
+  priority: TicketPriorityValue;
+  category: TicketCategoryValue;
+  similarity: number;
+  linked: boolean;
+  createdAt: string;
+};

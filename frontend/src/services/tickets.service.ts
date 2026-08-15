@@ -3,6 +3,7 @@ import type {
   AssignTicketRequest,
   CreateTicketRequest,
   PageResponse,
+  NearestTicketDto,
   SimilarTicketDto,
   TicketDto,
   TicketFilters,
@@ -91,6 +92,14 @@ async function listSimilar(id: string) {
   return response.data;
 }
 
+/** Ranking dos mais próximos, sem filtro de limiar. */
+async function listNearest(id: string, limit = 5) {
+  const response = await api.get<NearestTicketDto[]>(`/tickets/${id}/nearest`, {
+    params: { limit }
+  });
+  return response.data;
+}
+
 /**
  * Reenfileira a triagem por IA. Responde `202`: enfileira e devolve, sem
  * esperar o modelo local. O resultado chega depois por SSE
@@ -111,5 +120,6 @@ export const ticketsService = {
   cancel,
   updateClassification,
   listSimilar,
+  listNearest,
   requestAiTriage
 };

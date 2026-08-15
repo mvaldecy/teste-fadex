@@ -1,7 +1,9 @@
 package br.org.fadex.helpdesk.ai.duplicate;
 
+import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.security.AccessControlService;
 import br.org.fadex.helpdesk.service.TicketService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,17 +29,110 @@ import java.util.UUID;
 public class TicketSimilarityService {
 
 	private final SimilarTicketRepository similarTicketRepository;
+	private final DuplicateEmbeddingRepository duplicateEmbeddingRepository;
 	private final TicketService ticketService;
 	private final AccessControlService accessControlService;
+	private final double similarityThreshold;
 
 	public TicketSimilarityService(
 			SimilarTicketRepository similarTicketRepository,
+			DuplicateEmbeddingRepository duplicateEmbeddingRepository,
 			TicketService ticketService,
-			AccessControlService accessControlService
+			AccessControlService accessControlService,
+			@Value("${app.ai.similarity.threshold}") double similarityThreshold
 	) {
 		this.similarTicketRepository = similarTicketRepository;
+		this.duplicateEmbeddingRepository = duplicateEmbeddingRepository;
 		this.ticketService = ticketService;
 		this.accessControlService = accessControlService;
+		this.similarityThreshold = similarityThreshold;
+	}
+
+	/**
+	 * Ranking dos chamados mais proximos, **sem filtro de limiar**.
+	 *
+	 * A similaridade e recalculada na hora, e nao lida de {@code ticket_links}: o vinculo so existe
+	 * acima do limiar, e o ponto deste metodo e justamente mostrar o que ficou abaixo. Sem isso, um
+	 * chamado sem duplicata detectada e indistinguivel de um chamado onde o modelo falhou.
+	 *
+	 * O calculo percorre todos os embeddings da base em memoria. E adequado na escala de milhares
+	 * de chamados e deve virar consulta ordenada pelo indice HNSW do pgvector acima disso — o
+	 * indice ja existe, e so nao e usado porque o H2 dos testes nao roda o operador vetorial.
+	 */
+	@Transactional(readOnly = true)
+	public List<NearestTicketDto> findNearest(UUID ticketId, int limit) {
+		accessControlService.assertAdmin();
+		ticketService.findEntityById(ticketId);
+
+		Map<UUID, List<Double>> vectors = new LinkedHashMap<>();
+
+		for (Object[] row : duplicateEmbeddingRepository.findEmbeddedTickets()) {
+			UUID id = UUID.fromString(String.valueOf(row[0]));
+			List<Double> vector = EmbeddingSimilarity.parse(
+					row[1] == null ? null : String.valueOf(row[1]));
+
+			if (!vector.isEmpty()) {
+				vectors.put(id, vector);
+			}
+		}
+
+		List<Double> source = vectors.get(ticketId);
+
+		if (source == null) {
+			return List.of();
+		}
+
+		record Scored(UUID id, double similarity) {
+		}
+
+		List<Scored> ranking = new ArrayList<>();
+
+		for (Map.Entry<UUID, List<Double>> entry : vectors.entrySet()) {
+			if (entry.getKey().equals(ticketId) || entry.getValue().size() != source.size()) {
+				continue;
+			}
+
+			ranking.add(new Scored(
+					entry.getKey(),
+					EmbeddingSimilarity.cosine(source, entry.getValue())));
+		}
+
+		ranking.sort(Comparator.comparingDouble(Scored::similarity).reversed());
+		List<Scored> top = ranking.subList(0, Math.min(limit, ranking.size()));
+
+		if (top.isEmpty()) {
+			return List.of();
+		}
+
+		Map<UUID, Ticket> tickets = new LinkedHashMap<>();
+
+		for (Ticket ticket : duplicateEmbeddingRepository.findAllByIdIn(
+				top.stream().map(Scored::id).toList())) {
+			tickets.put(ticket.getId(), ticket);
+		}
+
+		List<NearestTicketDto> response = new ArrayList<>();
+
+		for (Scored scored : top) {
+			Ticket ticket = tickets.get(scored.id());
+
+			if (ticket == null) {
+				continue;
+			}
+
+			response.add(new NearestTicketDto(
+					ticket.getId(),
+					ticket.getTitle(),
+					ticket.getStatus(),
+					ticket.getPriority(),
+					ticket.getCategory(),
+					scored.similarity(),
+					scored.similarity() >= similarityThreshold,
+					ticket.getCreatedAt()
+			));
+		}
+
+		return response;
 	}
 
 	@Transactional(readOnly = true)

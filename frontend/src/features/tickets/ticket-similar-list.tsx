@@ -2,13 +2,15 @@ import Link from "next/link";
 import { Badge } from "@/src/components/ui/badge";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { routes } from "@/src/routes/routes";
-import type { SimilarTicketDto } from "@/src/types/api";
+import type { NearestTicketDto, SimilarTicketDto } from "@/src/types/api";
 import { type ChoiceLabelMap, resolveChoiceLabel } from "./choice-labels";
+import { TicketNearestList } from "./ticket-nearest-list";
 
 type TicketSimilarListProps = {
   choiceLabels: ChoiceLabelMap | null;
   error: string | null;
   isLoading: boolean;
+  nearestTickets: NearestTicketDto[];
   similarTickets: SimilarTicketDto[];
 };
 
@@ -62,7 +64,8 @@ export function TicketSimilarList({
   choiceLabels,
   error,
   isLoading,
-  similarTickets,
+  nearestTickets,
+  similarTickets
 }: TicketSimilarListProps) {
   if (isLoading) {
     return (
@@ -84,11 +87,15 @@ export function TicketSimilarList({
 
   if (similarTickets.length === 0) {
     return (
-      <div className="grid gap-3 rounded-md border border-dashed border-slate-300 p-6">
-        <p className="text-sm font-medium text-slate-700">
-          Nenhum chamado semelhante foi detectado.
-        </p>
-        <NotaDoModelo />
+      <div className="grid gap-4">
+        <div className="grid gap-3 rounded-md border border-dashed border-slate-300 p-6">
+          <p className="text-sm font-medium text-slate-700">
+            Nenhum chamado semelhante foi detectado.
+          </p>
+          <NotaDoModelo />
+        </div>
+
+        <TicketNearestList nearestTickets={nearestTickets} />
       </div>
     );
   }
@@ -131,6 +138,8 @@ export function TicketSimilarList({
           </li>
         ))}
       </ul>
+
+      <TicketNearestList nearestTickets={nearestTickets} />
 
       <NotaDoModelo />
     </div>

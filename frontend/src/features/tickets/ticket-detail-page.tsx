@@ -301,6 +301,7 @@ export function TicketDetailPage() {
               <TicketSimilarList
                 choiceLabels={detail.choiceLabels}
                 error={similar.error}
+                nearestTickets={similar.nearestTickets}
                 isLoading={similar.isLoading}
                 similarTickets={similar.similarTickets}
               />

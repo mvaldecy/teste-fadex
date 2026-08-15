@@ -3,7 +3,9 @@ package br.org.fadex.helpdesk.ai.duplicate;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,4 +27,12 @@ public interface DuplicateEmbeddingRepository extends JpaRepository<Ticket, UUID
 			where embedding is not null
 			""", nativeQuery = true)
 	List<Object[]> findEmbeddedTickets();
+
+	/** Dados de exibicao dos chamados do ranking, numa consulta so. */
+	@Query("""
+			select ticket
+			from Ticket ticket
+			where ticket.id in :ids
+			""")
+	List<Ticket> findAllByIdIn(@Param("ids") Collection<UUID> ids);
 }

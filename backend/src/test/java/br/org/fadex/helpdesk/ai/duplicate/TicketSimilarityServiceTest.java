@@ -8,9 +8,9 @@ import br.org.fadex.helpdesk.model.enums.TicketStatus;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
 import br.org.fadex.helpdesk.security.AccessControlService;
 import br.org.fadex.helpdesk.service.TicketService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -41,8 +41,23 @@ class TicketSimilarityServiceTest {
 	@Mock
 	private AccessControlService accessControlService;
 
-	@InjectMocks
+	@Mock
+	private DuplicateEmbeddingRepository duplicateEmbeddingRepository;
+
+	// Construido a mao: o limiar e um double vindo de @Value, e o @InjectMocks nao preenche
+	// primitivo — deixaria 0.0 sem avisar.
 	private TicketSimilarityService ticketSimilarityService;
+
+	@BeforeEach
+	void setUp() {
+		ticketSimilarityService = new TicketSimilarityService(
+				similarTicketRepository,
+				duplicateEmbeddingRepository,
+				ticketService,
+				accessControlService,
+				0.75
+		);
+	}
 
 	@Test
 	void deveJuntarVinculosDasDuasDirecoes() {

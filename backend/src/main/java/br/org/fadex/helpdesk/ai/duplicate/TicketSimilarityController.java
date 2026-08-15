@@ -5,6 +5,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -24,6 +25,19 @@ public class TicketSimilarityController {
 
 	public TicketSimilarityController(TicketSimilarityService ticketSimilarityService) {
 		this.ticketSimilarityService = ticketSimilarityService;
+	}
+
+	/**
+	 * Ranking dos mais proximos, sem filtro de limiar. Complementa {@code /similar}: aquele diz o
+	 * que o sistema afirma ser duplicata, este diz o que ele considerou e descartou.
+	 */
+	@GetMapping("/{id}/nearest")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<List<NearestTicketDto>> findNearest(
+			@PathVariable UUID id,
+			@RequestParam(defaultValue = "5") int limit
+	) {
+		return ResponseEntity.ok(ticketSimilarityService.findNearest(id, Math.min(Math.max(limit, 1), 20)));
 	}
 
 	@GetMapping("/{id}/similar")
