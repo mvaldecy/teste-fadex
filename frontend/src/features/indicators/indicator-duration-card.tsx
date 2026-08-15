@@ -5,6 +5,16 @@ import {
   CardTitle
 } from "@/src/components/ui/card";
 import type { IndicatorDurationStats } from "@/src/types/api";
+import { IndicatorDurationHistogram } from "./indicator-duration-histogram";
+
+/**
+ * Amostra minima para desenhar o histograma.
+ *
+ * Com cinco pontos, um grafico de barras passa impressao de rigor que o dado
+ * nao sustenta. Abaixo do limite o cartao mostra so o resumo e diz que a
+ * amostra ainda e pequena.
+ */
+const minimumHistogramSample = 12;
 
 type IndicatorDurationCardProps = {
   duration?: IndicatorDurationStats;
@@ -36,6 +46,8 @@ export function IndicatorDurationCard({
   title
 }: IndicatorDurationCardProps) {
   const sampleSize = duration?.sampleSize ?? 0;
+  // Campo opcional do contrato: sem ele o cartao segue sendo o resumo numerico.
+  const histogram = duration?.histogram?.length ? duration.histogram : null;
 
   return (
     <Card>
@@ -74,7 +86,18 @@ export function IndicatorDurationCard({
           {sampleSize === 1
             ? "1 chamado na amostra"
             : `${sampleSize} chamados na amostra`}
+          {histogram && sampleSize < minimumHistogramSample
+            ? " — amostra pequena demais para a distribuicao"
+            : ""}
         </p>
+
+        {histogram && sampleSize >= minimumHistogramSample ? (
+          <IndicatorDurationHistogram
+            bins={histogram}
+            medianHours={duration?.medianHours ?? null}
+            p90Hours={duration?.p90Hours ?? null}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
