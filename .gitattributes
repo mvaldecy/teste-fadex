@@ -1,0 +1,26 @@
+# Normaliza fim de linha no repositorio.
+# Sem isto, um clone no Windows com o core.autocrlf padrao traz o setup.sh com
+# CRLF e o bash falha com "bad interpreter: No such file or directory".
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.bash      text eol=lf
+gradlew     text eol=lf
+Makefile    text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Arquivos que precisam de CRLF por serem executados pelo Windows.
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+gradlew.bat text eol=crlf
+
+# Binarios: sem conversao.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.jar  binary
