@@ -60,6 +60,31 @@ Três conclusões:
 - Considerar usar a IA para categoria e a heurística para prioridade — é medivelmente melhor
   que qualquer uma sozinha. Complica a narrativa; documentar como decisão consciente.
 
+## Achados sobre a deteccao de duplicados
+
+Medi o `all-minilm` com pares em portugues, via o endpoint de embeddings do Ollama:
+
+| Caso | Similaridade de cosseno |
+| --- | --- |
+| Duplicata real, escrita com outras palavras | **0,857** |
+| Mesmo tema, chamados distintos | 0,432 |
+| Temas distintos | 0,414 |
+| Temas distintos (outro par) | 0,246 |
+
+**O modelo esta adequado** — a separacao entre duplicata e ruido e enorme. O problema era o
+limiar: estava em 0,90, **acima** da duplicata real, entao so pegava copia quase literal e
+perdia a parafrase, que e o caso interessante. Ajustado para **0,80**, que fica com folga
+acima do ruido (0,43) e abaixo da duplicata (0,86).
+
+Registro do erro: eu endossei a subida de 0,75 para 0,90 argumentando que 0,75 era frouxo,
+sem ter medido. A medicao mostrou que havia margem de sobra. O comentario no
+`application.properties` agora carrega os numeros, para que o proximo ajuste seja medido e
+nao arbitrado.
+
+Trocar o modelo de embedding (por exemplo para `bge-m3`, multilingue) so faria sentido se a
+separacao fosse ruim — nao e o caso. E custaria migration: a coluna e `vector(384)` e a
+dimensao mudaria.
+
 ### Sobre usar a API da Anthropic
 
 Decidido **não fazer agora**. Sem deploy, o avaliador roda local, não tem chave e o caminho
