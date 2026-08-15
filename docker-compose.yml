@@ -98,7 +98,7 @@ services:
       # O 'next start' escuta a porta de PORT. Fixando a mesma dos dois lados do
       # mapeamento, o endereco que o Next anuncia no log e o mesmo que funciona
       # no navegador — antes ele dizia sempre 3000, que era a porta de dentro do
-      # container, e quem escolhia outra no assistente via o log discordar da URL.
+      # container, e quem escolhia outra no wizard via o log discordar da URL.
       PORT: ${FRONTEND_PORT:-3000}
     ports:
       - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
