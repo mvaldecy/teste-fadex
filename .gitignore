@@ -54,3 +54,6 @@ docker-data/
 
 # Workspace de execucao de planos (scratch, nao versionar)
 .superpowers/
+
+# Worktrees dos agentes e estado local do Claude Code.
+.claude/
