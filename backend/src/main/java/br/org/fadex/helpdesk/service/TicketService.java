@@ -407,6 +407,7 @@ public class TicketService {
 				filter.category(),
 				accessControlService.getAuthenticatedUserId(),
 				filter.assigneeId(),
+				filter.unassigned(),
 				filter.search()
 		);
 	}

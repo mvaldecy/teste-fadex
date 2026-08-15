@@ -38,7 +38,9 @@ public final class TicketSpecification {
 				));
 			}
 
-			if (filter.hasAssigneeId()) {
+			if (filter.hasUnassigned()) {
+				predicates.add(criteriaBuilder.isNull(root.get(TicketFields.ASSIGNEE)));
+			} else if (filter.hasAssigneeId()) {
 				predicates.add(criteriaBuilder.equal(
 						root.get(TicketFields.ASSIGNEE).get(TicketFields.ID),
 						filter.assigneeId()

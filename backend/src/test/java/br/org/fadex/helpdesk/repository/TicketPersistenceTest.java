@@ -10,6 +10,7 @@ import br.org.fadex.helpdesk.model.enums.TicketPriority;
 import br.org.fadex.helpdesk.model.enums.TicketStatus;
 import br.org.fadex.helpdesk.model.event.TicketEvent;
 import br.org.fadex.helpdesk.model.ticket.Ticket;
+import br.org.fadex.helpdesk.model.ticket.TicketFilter;
 import br.org.fadex.helpdesk.model.token.RefreshToken;
 import br.org.fadex.helpdesk.model.user.User;
 import org.junit.jupiter.api.Test;
@@ -270,5 +271,87 @@ class TicketPersistenceTest {
 		assertThat(ticketRepository.findById(savedTicket.getId()).orElseThrow().getStatus())
 				.isEqualTo(TicketStatus.CANCELADO);
 		assertThat(event.getType()).isEqualTo(TicketEventType.CHAMADO_CANCELADO);
+	}
+
+	@Test
+	void deveFiltrarSomenteChamadosSemResponsavel() {
+		User requester = userRepository.save(new User(
+				"Maria Solicitante",
+				"maria.fila@fadex.org.br",
+				"senha-com-hash",
+				Role.SOLICITANTE
+		));
+		User assignee = userRepository.save(new User(
+				"Admin Suporte",
+				"admin.fila@fadex.org.br",
+				"senha-com-hash",
+				Role.ADMIN
+		));
+
+		ticketRepository.save(new Ticket(
+				"Chamado na fila",
+				"Ainda nao foi pego por ninguem.",
+				TicketCategory.OUTROS,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		));
+
+		Ticket atribuido = new Ticket(
+				"Chamado ja pego",
+				"Alguem assumiu.",
+				TicketCategory.OUTROS,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		);
+		atribuido.assignTo(assignee);
+		ticketRepository.save(atribuido);
+
+		List<Ticket> semResponsavel = ticketRepository.findAll(TicketSpecification.createSpecification(
+				new TicketFilter(null, null, null, null, null, true, null)
+		));
+
+		assertThat(semResponsavel)
+				.extracting(Ticket::getTitle)
+				.containsExactly("Chamado na fila");
+	}
+
+	/**
+	 * Pedir "sem responsavel" e "com este responsavel" ao mesmo tempo descreve um conjunto
+	 * vazio. O filtro nao devolve vazio calado: o pedido mais forte vence, para que o
+	 * resultado seja explicavel para quem montou a consulta.
+	 */
+	@Test
+	void semResponsavelDevePrevalecerSobreResponsavelInformado() {
+		User requester = userRepository.save(new User(
+				"Maria Solicitante",
+				"maria.conflito@fadex.org.br",
+				"senha-com-hash",
+				Role.SOLICITANTE
+		));
+		User assignee = userRepository.save(new User(
+				"Admin Suporte",
+				"admin.conflito@fadex.org.br",
+				"senha-com-hash",
+				Role.ADMIN
+		));
+
+		ticketRepository.save(new Ticket(
+				"Chamado na fila",
+				"Ainda nao foi pego por ninguem.",
+				TicketCategory.OUTROS,
+				TicketPriority.MEDIA,
+				ClassificationOrigin.PENDENTE,
+				requester
+		));
+
+		List<Ticket> resultado = ticketRepository.findAll(TicketSpecification.createSpecification(
+				new TicketFilter(null, null, null, null, assignee.getId(), true, null)
+		));
+
+		assertThat(resultado)
+				.extracting(Ticket::getTitle)
+				.containsExactly("Chamado na fila");
 	}
 }

@@ -408,6 +408,9 @@ Filtros:
 - `category`: `ACESSO`, `SISTEMAS`, `INFRAESTRUTURA`, `EQUIPAMENTOS`, `FINANCEIRO`, `RH`, `OUTROS`
 - `requesterId`: UUID
 - `assigneeId`: UUID
+- `unassigned`: `true` devolve so os chamados sem responsavel — a fila de quem vai pegar
+  trabalho. Tem precedencia sobre `assigneeId`: os dois juntos descrevem um conjunto vazio, e o
+  filtro prefere atender o pedido mais forte a devolver vazio calado.
 - `search`: busca parcial por titulo ou descricao
 
 Tambem aceita `page`, `size` e `sort`.

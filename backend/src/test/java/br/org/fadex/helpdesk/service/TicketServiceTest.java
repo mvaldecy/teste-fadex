@@ -227,7 +227,7 @@ class TicketServiceTest {
 		when(authenticatedUserService.getUserId()).thenReturn(authenticatedUserId);
 		when(ticketRepository.findAll(anyTicketSpecification(), eq(pageable))).thenReturn(Page.empty(pageable));
 
-		ticketService.findAll(new TicketFilter(null, null, null, requestedRequesterId, null, null), pageable);
+		ticketService.findAll(new TicketFilter(null, null, null, requestedRequesterId, null, null, null), pageable);
 
 		verify(ticketRepository).findAll(specificationCaptor.capture(), eq(pageable));
 		assertTicketSpecificationFiltersRequester(specificationCaptor.getValue(), authenticatedUserId, requestedRequesterId);
@@ -242,7 +242,7 @@ class TicketServiceTest {
 		when(authenticatedUserService.getRole()).thenReturn(Role.ADMIN);
 		when(ticketRepository.findAll(anyTicketSpecification(), eq(pageable))).thenReturn(Page.empty(pageable));
 
-		ticketService.findAll(new TicketFilter(null, null, null, requestedRequesterId, null, null), pageable);
+		ticketService.findAll(new TicketFilter(null, null, null, requestedRequesterId, null, null, null), pageable);
 
 		verify(ticketRepository).findAll(specificationCaptor.capture(), eq(pageable));
 		assertTicketSpecificationFiltersRequester(specificationCaptor.getValue(), requestedRequesterId, null);
