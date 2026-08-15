@@ -576,8 +576,9 @@ se atribuir ou atribuir outro `ADMIN`, indiferentemente. Como os unicos papeis d
 `ADMIN` e `SOLICITANTE`, responsavel e necessariamente `ADMIN` — o front deve popular o seletor
 com `GET /api/v1/users?role=ADMIN`.
 
-Consequencia para a UI: o botao e "Atribuir" quando `assignee` e nulo e "Recusar" quando nao e.
-Nunca os dois ao mesmo tempo.
+Consequencia para a UI: o botao e "Atribuir" quando `assignee` e nulo e "Recusar" quando o
+responsavel e o proprio `ADMIN` autenticado. Nunca os dois ao mesmo tempo, e nenhum dos dois quando
+o responsavel e outra pessoa.
 
 Response `200`: `TicketDto` com o responsavel novo. Preenche `assignedAt` apenas na primeira
 atribuicao — uma reatribuicao posterior, depois de um `DELETE`, mantem o carimbo original.
@@ -593,9 +594,20 @@ Registra evento `RESPONSAVEL_ATRIBUIDO` e emite `CHAMADO_ATUALIZADO`.
 
 ### `DELETE /api/v1/tickets/{id}/assignee`
 
-Protegido. Somente `ADMIN`. Sem corpo de requisicao.
+Protegido. Somente `ADMIN`, e **somente o proprio responsavel pelo chamado**. Sem corpo de
+requisicao.
 
-Cobre a recusa de atribuicao pelo proprio responsavel e a retirada de atribuicao de outro.
+E a recusa de atribuicao: quem esta com o chamado devolve o chamado. Um `ADMIN` que nao e o
+responsavel recebe `403`, mesmo sendo `ADMIN` — atribuir e ato de gestao e sai de qualquer `ADMIN`,
+desatribuir e decisao de quem esta com o trabalho. Enquanto qualquer `ADMIN` podia remover qualquer
+responsavel, o historico registrava "atribuicao removida de Fulano" sem dizer que quem removeu foi
+outra pessoa.
+
+Nao ha excecao de gestao: se a operacao precisar trocar o responsavel a quente, isso pede um
+endpoint proprio de reatribuicao, com evento proprio, e nao um atalho neste.
+
+Consequencia para a UI: o botao "Recusar" so aparece para o `ADMIN` autenticado quando
+`assignee.id` e o id dele. Para os demais o chamado atribuido nao oferece acao de atribuicao.
 
 Response `200`: `TicketDto` com `assignee` nulo. Devolve o chamado inteiro em vez de `204` para
 que o front possa atualizar a tela sem uma segunda chamada; recarregar tambem funciona.
@@ -611,6 +623,11 @@ Registra evento `RESPONSAVEL_REMOVIDO` no historico e emite `CHAMADO_ATUALIZADO`
 | usuario nao e `ADMIN` | `403` |
 | chamado esta `FECHADO` ou `CANCELADO` | `409` |
 | chamado nao possui responsavel | `409` |
+| usuario e `ADMIN` mas nao e o responsavel | `403` |
+
+A ordem das guardas importa: chamado sem responsavel responde `409`, e nao `403`, porque nesse
+estado nao existe responsavel de quem o autor da chamada pudesse ser diferente — o problema esta no
+estado do chamado, nao em quem pediu.
 
 ### `DELETE /api/v1/tickets/{id}`
 

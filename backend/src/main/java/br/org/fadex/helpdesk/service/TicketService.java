@@ -2,6 +2,7 @@ package br.org.fadex.helpdesk.service;
 
 import br.org.fadex.helpdesk.ai.job.AiJobService;
 import br.org.fadex.helpdesk.exception.ConflictException;
+import br.org.fadex.helpdesk.exception.ForbiddenException;
 import br.org.fadex.helpdesk.exception.NotFoundException;
 import br.org.fadex.helpdesk.model.enums.ClassificationOrigin;
 import br.org.fadex.helpdesk.model.enums.Role;
@@ -246,6 +247,23 @@ public class TicketService {
 		return response;
 	}
 
+	/**
+	 * Recusa da atribuicao pelo proprio responsavel.
+	 *
+	 * Atribuir e ato de gestao e sai de qualquer ADMIN; desatribuir e recusa de trabalho e so faz
+	 * sentido vinda de quem esta com o chamado. Enquanto qualquer ADMIN podia remover qualquer
+	 * responsavel, um administrador tirava o chamado da fila do colega sem deixar decisao dele no
+	 * meio — o evento gravado dizia "atribuicao removida de Fulano" e escondia quem removeu.
+	 *
+	 * Nao ha excecao de gestao: o ADMIN que precisa trocar o responsavel continua tendo caminho, a
+	 * remocao seguida de nova atribuicao pelo proprio responsavel, e um atalho aqui devolveria
+	 * exatamente o comportamento que esta regra existe para tirar. Se a operacao pedir a troca a
+	 * quente, o lugar dela e um endpoint proprio de reatribuicao, com evento proprio.
+	 *
+	 * A ordem das guardas e deliberada: chamado sem responsavel responde 409, e nao 403, porque
+	 * nesse estado nao existe responsavel de quem o solicitante da chamada pudesse ser diferente —
+	 * o problema e o estado do chamado, nao quem pediu.
+	 */
 	@Transactional
 	public TicketDto removeAssignee(UUID id) {
 		accessControlService.assertAdmin();
@@ -258,6 +276,10 @@ public class TicketService {
 
 		if (previousAssignee == null) {
 			throw new ConflictException("O chamado nao possui responsavel atribuido.");
+		}
+
+		if (!previousAssignee.getId().equals(accessControlService.getAuthenticatedUserId())) {
+			throw new ForbiddenException("Apenas o responsavel pelo chamado pode recusar a atribuicao.");
 		}
 
 		ticket.unassign();
