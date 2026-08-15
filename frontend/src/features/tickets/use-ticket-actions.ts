@@ -1,5 +1,6 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { toApiErrorMessage } from "@/src/services/api-error";
@@ -16,8 +17,22 @@ export function useTicketActions(
 ) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  /**
+   * `errorTitle` e por acao porque "Nao foi possivel concluir a acao" nao
+   * ajuda ninguem a entender o que falhou.
+   *
+   * O `409` recebe tratamento proprio: alem da mensagem do backend — que ja
+   * explica a regra, seja "o chamado ja possui responsavel" ou "o responsavel
+   * precisa ter papel de administrador" — a tela recarrega. Conflito quase
+   * sempre significa que o estado mudou por outra pessoa, e insistir sobre
+   * dado velho so produziria o mesmo erro de novo.
+   */
   const runAction = useCallback(
-    async (action: (id: string) => Promise<unknown>, successMessage: string) => {
+    async (
+      action: (id: string) => Promise<unknown>,
+      successMessage: string,
+      errorTitle: string
+    ) => {
       if (!ticketId) {
         return false;
       }
@@ -31,9 +46,16 @@ export function useTicketActions(
 
         return true;
       } catch (actionError) {
-        toast.error("Nao foi possivel concluir a acao.", {
+        const isConflict =
+          isAxiosError(actionError) && actionError.response?.status === 409;
+
+        toast.error(errorTitle, {
           description: toApiErrorMessage(actionError)
         });
+
+        if (isConflict) {
+          onChanged();
+        }
 
         return false;
       } finally {
@@ -47,7 +69,8 @@ export function useTicketActions(
     (status: TicketStatusValue) =>
       runAction(
         (id) => ticketsService.updateStatus(id, { status }),
-        "Status atualizado."
+        "Status atualizado.",
+        "Nao foi possivel alterar o status."
       ),
     [runAction]
   );
@@ -56,14 +79,19 @@ export function useTicketActions(
     (assigneeId: string) =>
       runAction(
         (id) => ticketsService.assign(id, { assigneeId }),
-        "Responsavel atribuido."
+        "Responsavel atribuido.",
+        "Nao foi possivel atribuir o responsavel."
       ),
     [runAction]
   );
 
   const unassign = useCallback(
     () =>
-      runAction((id) => ticketsService.unassign(id), "Atribuicao removida."),
+      runAction(
+        (id) => ticketsService.unassign(id),
+        "Atribuicao removida.",
+        "Nao foi possivel remover a atribuicao."
+      ),
     [runAction]
   );
 
@@ -81,7 +109,8 @@ export function useTicketActions(
             classificationJustification:
               classificationJustification?.trim() || undefined
           }),
-        "Classificacao atualizada."
+        "Classificacao atualizada.",
+        "Nao foi possivel atualizar a classificacao."
       ),
     [runAction]
   );
