@@ -145,7 +145,8 @@ public class IndicatorService {
 				.filter(projection -> endInstant.apply(projection) != null)
 				.toList();
 
-		DurationStatsDto overall = DurationStats.of(durations(measurable, endInstant));
+		// Histograma so no overall: e o unico recorte com amostra suficiente para uma distribuicao.
+		DurationStatsDto overall = DurationStats.withHistogram(durations(measurable, endInstant));
 
 		Map<TicketPriority, DurationStatsDto> byPriority = new EnumMap<>(TicketPriority.class);
 		measurable.stream()

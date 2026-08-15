@@ -995,17 +995,30 @@ Resposta `200`:
   },
   "durations": {
     "closure": {
-      "overall": { "sampleSize": 5, "averageHours": 42.5, "medianHours": 30.0, "p90Hours": 96.0 },
+      "overall": {
+        "sampleSize": 14,
+        "averageHours": 17.1,
+        "medianHours": 7.0,
+        "p90Hours": 48.0,
+        "histogram": [
+          { "fromHours": 0,  "toHours": 4,    "count": 3 },
+          { "fromHours": 4,  "toHours": 8,    "count": 5 },
+          { "fromHours": 8,  "toHours": 24,   "count": 3 },
+          { "fromHours": 24, "toHours": 48,   "count": 2 },
+          { "fromHours": 48, "toHours": 96,   "count": 1 },
+          { "fromHours": 96, "toHours": null, "count": 0 }
+        ]
+      },
       "byPriority": { "ALTA": { "sampleSize": 2, "averageHours": 6.0, "medianHours": 6.0, "p90Hours": 8.0 } },
       "byCategory": { "ACESSO": { "sampleSize": 1, "averageHours": 4.0, "medianHours": 4.0, "p90Hours": 4.0 } }
     },
     "firstResponse": {
-      "overall": { "sampleSize": 9, "averageHours": 6.2, "medianHours": 4.0, "p90Hours": 14.0 },
+      "overall": { "sampleSize": 9, "averageHours": 6.2, "medianHours": 4.0, "p90Hours": 14.0, "histogram": [ ... ] },
       "byPriority": {},
       "byCategory": {}
     },
     "assignment": {
-      "overall": { "sampleSize": 9, "averageHours": 3.1, "medianHours": 2.0, "p90Hours": 8.0 },
+      "overall": { "sampleSize": 9, "averageHours": 3.1, "medianHours": 2.0, "p90Hours": 8.0, "histogram": [ ... ] },
       "byPriority": {},
       "byCategory": {}
     },
@@ -1041,6 +1054,31 @@ Regras de leitura:
 
 - Toda estatistica de duracao carrega `sampleSize`. Se for `0`, os campos de horas vem `null`.
 - Mediana: media dos dois centrais quando a amostra e par. `p90Hours`: rank mais proximo.
+- **`histogram`**: distribuicao da amostra por faixa de duracao, para o grafico de barras. Presente
+  **apenas no `overall`** de `closure`, `firstResponse` e `assignment` — nos exemplos de
+  `firstResponse` e `assignment` acima ele aparece abreviado como `[ ... ]` so para nao repetir o
+  bloco; na resposta real vem com as mesmas seis faixas. Em `byPriority` e `byCategory` **a chave nao
+  existe**: nesses recortes a amostra e pequena demais para uma distribuicao dizer algo, e ausencia
+  de chave e o que permite ao front distinguir "nao ha histograma aqui" de "histograma sem
+  chamado".
+  - Faixas fixas, em horas: `0–4`, `4–8`, `8–24`, `24–48`, `48–96`, `96+`. Sempre as seis, sempre
+    nessa ordem, e a ultima com `toHours: null`. Fixas de proposito: faixa calculada a partir da
+    amostra mudaria de largura a cada consulta e tiraria a comparabilidade entre dois graficos do
+    painel — e do mesmo grafico ao longo do dia.
+  - Intervalo fechado no inicio e aberto no fim: `4.0` horas cai em `4–8`, nunca em `0–4`. A soma
+    dos `count` e sempre o `sampleSize` do bloco.
+  - Amostra vazia devolve as seis faixas com `count: 0`, e nao `histogram: null` — o grafico
+    continua com os mesmos eixos, mostrando que nao ha dado em vez de sumir da tela.
+  - A largura das faixas cresce porque a distribuicao e assimetrica: parede em zero, massa nas
+    primeiras horas e cauda longa a direita. E por isso que o painel mostra histograma e nao curva.
+    Medido na base semeada, o bloco `firstResponse` sai com mediana 7,0h e media 17,1h — media quase
+    tres vezes a mediana e a assinatura da cauda longa, e uma curva simetrica comunicaria o oposto.
+    Mediana e p90 continuam vindo ao lado para serem marcados sobre as barras.
+  - Ao marcar mediana e p90 sobre as barras, lembre que esses dois valores vem arredondados para uma
+    casa decimal e as faixas sao contadas sobre o valor cheio. Uma amostra de 3,96h e publicada como
+    `4.0` e contada na faixa `0–4`: o marcador cai exatamente na fronteira da faixa seguinte. E
+    diferenca de arredondamento, nao de calculo — a soma das faixas continua fechando com o
+    `sampleSize`.
 - Mapas por status/prioridade/categoria **omitem grupos sem ocorrencia** em vez de traze-los zerados.
 - `backlogAging` conta apenas chamados em `ABERTO` e `EM_ANDAMENTO`, por idade desde `createdAt`,
   nos cortes 0–1d / 1–3d / >3d.
