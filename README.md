@@ -101,16 +101,26 @@ docker compose down -v   # derruba e apaga o banco
 
 Criadas automaticamente pelo seed de desenvolvimento:
 
-| Papel | E-mail | Senha |
-| --- | --- | --- |
-| ADMIN | `admin@fadex.org.br` | `admin123` |
-| SOLICITANTE | `solicitante@fadex.org.br` | `solicitante123` |
+| Papel | Nome | E-mail | Senha |
+| --- | --- | --- | --- |
+| **ADMIN** | Administrador | `admin@fadex.org.br` | `admin123` |
+| ADMIN | Carla Menezes | `carla.menezes@fadex.org.br` | `admin123` |
+| ADMIN | Marcos Valdecy | `mvaldecy11@gmail.com` | `dev123` |
+| **SOLICITANTE** | Solicitante | `solicitante@fadex.org.br` | `solicitante123` |
+| SOLICITANTE | Ana Ribeiro | `ana.ribeiro@fadex.org.br` | `solicitante123` |
+| SOLICITANTE | Bruno Carvalho | `bruno.carvalho@fadex.org.br` | `solicitante123` |
 
-Na tela de login há **atalhos que preenchem essas credenciais** — as seis contas do seed, agrupadas
-por papel. Eles aparecem só quando o seed está ligado.
+As duas primeiras em negrito bastam para avaliar. As outras existem porque algumas coisas só
+aparecem com mais de uma pessoa: **atribuir um chamado a outro administrador**, ver que só o próprio
+responsável consegue recusar a atribuição, e conferir que o solicitante enxerga apenas os chamados
+que ele mesmo abriu.
 
-O seed também cria outros administradores e solicitantes, além de **26 chamados** distribuídos entre
-os quatro status e as três prioridades, com datas retroagidas. Isso existe para que os indicadores
+Na tela de login há **atalhos que preenchem essas credenciais** — as seis contas, agrupadas por
+papel, com uma linha dizendo o que cada uma enxerga. Um clique preenche o formulário. Os atalhos
+aparecem só quando o seed está ligado, porque sem ele as contas não existem.
+
+O seed também cria **26 chamados** distribuídos entre os quatro status e as três prioridades, com
+datas retroagidas. Isso existe para que os indicadores
 tenham do que falar: sem histórico, tempo médio de fechamento e taxa de concordância com a IA
 nasceriam vazios.
 
