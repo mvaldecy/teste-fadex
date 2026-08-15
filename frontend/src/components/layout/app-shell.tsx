@@ -17,6 +17,7 @@ import { HighPriorityAlerts } from "@/src/features/notifications/high-priority-a
 import { cn } from "@/src/lib/utils";
 import { homeRouteForRole, routes } from "@/src/routes/routes";
 import { useSessionStore } from "@/src/stores/session.store";
+import { MailpitLink } from "./mailpit-link";
 import { UserMenu } from "./user-menu";
 
 type AppShellProps = {
@@ -177,7 +178,8 @@ export function AppShell({ children }: AppShellProps) {
             })}
           </nav>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <MailpitLink />
             <UserMenu />
           </div>
         </header>

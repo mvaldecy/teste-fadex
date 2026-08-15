@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { MailpitLink } from "@/src/components/layout/mailpit-link";
 import { LoginForm } from "@/src/features/auth/login-form";
 
 export default function LoginPage() {
@@ -17,6 +18,15 @@ export default function LoginPage() {
             gerenciais e acompanhamento em tempo real. Entre com o seu e-mail
             corporativo para continuar.
           </p>
+
+          {/*
+            O atalho aparece antes do login porque e aqui que ele e necessario:
+            usuario criado pelo ADMIN recebe a senha provisoria por e-mail e
+            precisa le-la para conseguir entrar.
+          */}
+          <div className="mt-6">
+            <MailpitLink label="Ver os e-mails enviados" />
+          </div>
         </div>
 
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

@@ -16,12 +16,34 @@ const publicEnvSchema = z.object({
         return false;
       }
     })
-    .transform((value) => value.replace(/\/+$/, ""))
+    .transform((value) => value.replace(/\/+$/, "")),
+  /**
+   * Opcional de proposito. O Mailpit e infraestrutura de demonstracao: existe no
+   * Compose local e nao deve existir num ambiente real. Quando a variavel vem
+   * vazia ou ausente, o atalho simplesmente nao e renderizado.
+   */
+  NEXT_PUBLIC_MAILPIT_URL: z
+    .string()
+    .optional()
+    .transform((value) => (value ? value.replace(/\/+$/, "") : undefined))
+    .refine((value) => {
+      if (!value) {
+        return true;
+      }
+
+      try {
+        const protocol = new URL(value).protocol;
+        return protocol === "http:" || protocol === "https:";
+      } catch {
+        return false;
+      }
+    })
 });
 
 export type PublicEnv = {
   appName: string;
   apiBaseUrl: string;
+  mailpitUrl?: string;
 };
 
 /**
@@ -36,7 +58,8 @@ export type PublicEnv = {
  */
 const inlinedPublicEnv = {
   NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
-  NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL
+  NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  NEXT_PUBLIC_MAILPIT_URL: process.env.NEXT_PUBLIC_MAILPIT_URL
 };
 
 export function getPublicEnv(
@@ -50,6 +73,7 @@ export function getPublicEnv(
 
   return {
     appName: parsed.data.NEXT_PUBLIC_APP_NAME,
-    apiBaseUrl: parsed.data.NEXT_PUBLIC_API_BASE_URL
+    apiBaseUrl: parsed.data.NEXT_PUBLIC_API_BASE_URL,
+    mailpitUrl: parsed.data.NEXT_PUBLIC_MAILPIT_URL
   };
 }

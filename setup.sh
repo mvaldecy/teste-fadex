@@ -570,9 +570,11 @@ write_env OLLAMA_PORT       "$OLLAMA_PORT"
 # CORS do backend precisa liberar a porta real do frontend. Os dois sao sempre
 # recalculados a partir das portas escolhidas — nunca perguntados.
 API_BASE_URL="http://localhost:${BACKEND_PORT}/api/v1"
+URL_MAILPIT="http://localhost:${MAILPIT_UI_PORT}"
 ORIGENS_CORS="http://localhost:${FRONTEND_PORT},http://127.0.0.1:${FRONTEND_PORT}"
 URL_FRONTEND="http://localhost:${FRONTEND_PORT}"
 write_env NEXT_PUBLIC_API_BASE_URL "$API_BASE_URL"
+write_env NEXT_PUBLIC_MAILPIT_URL "$URL_MAILPIT"
 write_env CORS_ALLOWED_ORIGINS     "$ORIGENS_CORS"
 # Usada nos links dos e-mails de notificacao: sem derivar, o e-mail aponta para
 # uma porta onde nao ha nada.
@@ -611,7 +613,7 @@ pause "Enter para revisar o ${ENV_FILE}."
 stage "Revisao"
 say "Ate aqui o script so escreveu ${ENV_FILE}. Nenhum container foi tocado."
 printf '\n'
-grep -E '^(BACKEND_PORT|FRONTEND_PORT|POSTGRES_PORT|MAILPIT_UI_PORT|MAILPIT_SMTP_PORT|OLLAMA_PORT|NEXT_PUBLIC_API_BASE_URL|CORS_ALLOWED_ORIGINS|FRONTEND_BASE_URL|AI_TRIAGE_ENABLED|JWT_SECRET)=' "$ENV_FILE" \
+grep -E '^(BACKEND_PORT|FRONTEND_PORT|POSTGRES_PORT|MAILPIT_UI_PORT|MAILPIT_SMTP_PORT|OLLAMA_PORT|NEXT_PUBLIC_API_BASE_URL|NEXT_PUBLIC_MAILPIT_URL|CORS_ALLOWED_ORIGINS|FRONTEND_BASE_URL|AI_TRIAGE_ENABLED|JWT_SECRET)=' "$ENV_FILE" \
   | sed -E 's/^(JWT_SECRET=).*/\1********/' \
   | sed 's/^/    /'
 printf '\n'
