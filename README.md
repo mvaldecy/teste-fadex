@@ -251,6 +251,40 @@ make frontend-build
 A suíte do backend cobre serviços, persistência, camada web, motor de SSE, composição de e-mail,
 worker de IA e cálculo de indicadores.
 
+## Limitações conhecidas
+
+Levantadas por auditoria interna do próprio projeto, com evidência em código. Estão aqui porque
+saber onde o sistema cede vale mais que fingir que não cede.
+
+**Vazão da triagem.** O worker processa um job a cada 10 segundos e cada chamado gera dois
+(classificação e embedding). Cinquenta chamados criados de uma vez levam cerca de dezesseis
+minutos para drenar. A fila é persistente e nada se perde — é questão de vazão, ajustável por
+`AI_WORKER_INTERVAL_MILLIS` e `AI_WORKER_BATCH_SIZE`.
+
+**Qualidade da classificação.** Medida contra os chamados semeados, com categoria e prioridade
+curadas como gabarito: a heurística acerta 5 de 10 categorias, o `llama3.2:3b` acerta 5 de 10 e o
+mesmo modelo com schema restrito acerta 7 de 10. **Nenhuma das abordagens classifica prioridade
+de forma confiável** — a heurística responde `MEDIA` para quase tudo e os modelos pequenos têm
+viés oposto. É exatamente por isso que a revisão pelo ADMIN faz parte do fluxo, e não é opcional.
+
+**Notificação sem outbox.** E-mail e SSE são despachados após o commit, de forma assíncrona. Se o
+envio falhar, a operação de negócio permanece e a notificação se perde — registrada em log, não
+reenviada. A alternativa correta é uma tabela de outbox com reprocessamento.
+
+**Consultas.** A listagem de chamados tem N+1 no carregamento de solicitante e responsável: cerca
+de cinquenta consultas para cinquenta chamados de usuários distintos. Os indicadores são agregados
+em memória, o que é confortável na casa dos milhares de chamados e deve virar agregação no banco
+acima disso. A busca textual usa `like` sem índice.
+
+**Autenticação.** Não há limite de tentativas de login, e o refresh token não é rotacionado dentro
+da validade. O `JWT_SECRET` tem valor padrão apenas para desenvolvimento e **precisa ser trocado**
+em qualquer uso real — o assistente de instalação gera um automaticamente.
+
+**Infraestrutura.** O despacho de e-mail e o de SSE compartilham o mesmo executor; há timeouts de
+SMTP configurados para que um servidor lento não trave as notificações em tempo real, mas separar
+os pools é o conserto correto. Datas usam `LocalDateTime` com o fuso fixado por variável de
+ambiente; o certo seria `Instant` com formatação no cliente.
+
 ## Documentação
 
 - [`docs/backend/api.md`](docs/backend/api.md) — contrato da API
