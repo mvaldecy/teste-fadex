@@ -106,7 +106,10 @@ Criadas automaticamente pelo seed de desenvolvimento:
 | ADMIN | `admin@fadex.org.br` | `admin123` |
 | SOLICITANTE | `solicitante@fadex.org.br` | `solicitante123` |
 
-O seed também cria outros administradores e solicitantes, além de **24 chamados** distribuídos entre
+Na tela de login há **atalhos que preenchem essas credenciais** — as seis contas do seed, agrupadas
+por papel. Eles aparecem só quando o seed está ligado.
+
+O seed também cria outros administradores e solicitantes, além de **26 chamados** distribuídos entre
 os quatro status e as três prioridades, com datas retroagidas. Isso existe para que os indicadores
 tenham do que falar: sem histórico, tempo médio de fechamento e taxa de concordância com a IA
 nasceriam vazios.
