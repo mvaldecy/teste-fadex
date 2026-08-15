@@ -635,7 +635,7 @@ say "A URL da API entra na imagem do frontend como build arg, entao a subida"
 say "sempre usa --build: se a porta do backend mudou, a imagem precisa ser refeita."
 printf '\n'
 # O servico ollama-models nao tem 'profiles' no compose: num 'up' generico ele
-# entraria junto e o download de mais de 1 GB aconteceria sem ser perguntado.
+# entraria junto e o download de cerca de 2,1 GB aconteceria sem ser perguntado.
 # Por isso a lista de servicos aqui e explicita.
 if ! executar "Sobe postgres, mailpit, ollama, backend e frontend." \
      docker compose up -d --build postgres mailpit ollama backend frontend; then

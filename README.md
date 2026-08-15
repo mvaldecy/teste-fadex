@@ -30,7 +30,7 @@ concordância entre humano e modelo.
 | Banco | PostgreSQL 17 com pgvector |
 | Migrações | Flyway |
 | Frontend | Next.js 15 (App Router), React 19, TypeScript estrito, Tailwind, Radix UI, Zustand |
-| IA local | Ollama — `llama3.2:1b` para classificação, `all-minilm` para embeddings |
+| IA local | Ollama — `llama3.2:3b` para classificação, `all-minilm` para embeddings |
 | E-mail | SMTP, com Mailpit no ambiente local |
 | Tempo real | Server-Sent Events |
 | Infra | Docker Compose |
@@ -62,7 +62,7 @@ Opções úteis:
 make setup             # atalho para ./setup.sh, para quem tem make
 ```
 
-Durante a execução ele pergunta se quer baixar os modelos de IA (mais de 1 GB). **Pode recusar**: a
+Durante a execução ele pergunta se quer baixar os modelos de IA (cerca de 2,1 GB). **Pode recusar**: a
 classificação continua funcionando por heurística de palavras-chave, e o sistema não perde nenhuma
 funcionalidade além da detecção de duplicados, que depende de embeddings.
 
@@ -146,8 +146,11 @@ senha provisória. Quem causou a ação nunca recebe e-mail da própria ação.
 **Modelo local, não serviço pago.** A triagem roda em Ollama dentro do próprio Compose. Não há chave
 de API para configurar, custo por requisição, nem dado de chamado saindo da máquina — o que importa
 num sistema que trata assunto interno de uma organização. O custo dessa escolha é o modelo pequeno:
-`llama3.2:1b` erra mais que um modelo grande, e é justamente por isso que a revisão humana faz parte
-do fluxo em vez de ser opcional.
+`llama3.2:3b` erra mais que um modelo grande, e é justamente por isso que a revisão humana faz parte
+do fluxo em vez de ser opcional. O `3b` foi escolhido por medição, não por tamanho: contra os
+chamados semeados ele acerta 7 de 10 categorias, contra 3 de 10 do `1b`. A classificação leva cerca
+de 12 s por chamado numa máquina de 12 vCPU — em máquina menor demora mais, e o timeout de 60 s
+existe para não desistir cedo demais e cair na heurística sem necessidade.
 
 **Processamento assíncrono.** Criar chamado não espera o modelo. A criação enfileira um job, e um
 worker Quartz processa em segundo plano com tentativas e recuo progressivo. O usuário nunca fica
