@@ -1,20 +1,30 @@
 # Próximos Passos — Continuidade
 
-Documento de retomada. Escrito em 15/08/2026, madrugada, com `dev` em `09ca1b1`.
+Documento de retomada. Atualizado em 15/08/2026, manhã, com `dev` em `2a2ba49`.
 **Prazo de submissão: 15/08/2026 às 12h.**
 
 ## Estado atual
 
-`dev` está integrada e verificada:
+Todas as frentes estão **mergeadas em `dev`**: cancelamento, revisão técnica, seed/IA/atribuição,
+refinamentos de uso do frontend e preparação para deploy. Não há branch pendente.
 
-- Backend: **292 testes, 0 falhas** (`make backend-test`).
-- Frontend: lint limpo, build com 9 rotas.
-- Stack Docker de pé: backend `:8080`, frontend `:3001`, Postgres `:5432`, Mailpit `:8025`, Ollama `:11435`.
+- Backend: **341 testes, 0 falhas**.
+- Frontend: lint limpo, build com 11 rotas.
+- Partida a frio verificada pelo caminho do avaliador (`down` + remoção do volume do Postgres +
+  `up -d --build`): stack de pé em **99 s**, 38 jobs de IA todos `DONE`, **0 falhos**, **0 quedas
+  para a heurística**, 26 embeddings, 1 vínculo de duplicata, concordância admin×IA em **63,6 %**,
+  fila drenando em 51,4 s de média.
+- Histogramas de duração publicados nos três blocos; `firstResponse` e `assignment` têm 14 amostras
+  e passam do corte de 12 que o frontend exige para desenhar o gráfico.
 
-Todos os requisitos obrigatórios do desafio estão implementados, com uma ressalva: o
-**cancelamento de chamado** está em frente própria, ainda não mergeada.
+### O que restou por fazer
 
-## O que está em andamento
+1. **Tornar o repositório público** — decisão do Marcos, na hora que ele escolher. Continua privado.
+2. Abrir a aplicação e conferir as telas novas com olho humano antes de submeter.
+
+## Histórico das frentes
+
+### O que estava em andamento (tudo mergeado)
 
 | Item | Onde | Situação |
 | --- | --- | --- |
